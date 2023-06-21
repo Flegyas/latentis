@@ -34,10 +34,6 @@ add-ignore = ['D100', 'D101', 'D102', 'D103', 'D104', 'D105', 'D106', 'D107']
 [tool.bandit]
 skips = ["B101"]
 
-[tool.setuptools_scm]
-write_to = "src/latentis/_version.py"
-write_to_template = '__version__ = "{version}"'
-
 [build-system]
-requires = ["setuptools==59.5", "wheel", "setuptools_scm[toml]>=6.3.1"]
+requires = ["setuptools", "wheel", "setuptools_scm[toml]"]
 build-backend = "setuptools.build_meta"
