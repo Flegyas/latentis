@@ -132,8 +132,8 @@ class RelativeProjector(nn.Module):
     def __init__(
         self,
         projection: RelativeProjection,
-        abs_transforms: Sequence[TransformType] | None = None,
-        rel_transforms: Sequence[TransformType] | None = None,
+        abs_transforms: Optional[Sequence[TransformType]] = None,
+        rel_transforms: Optional[Sequence[TransformType]] = None,
     ) -> None:
         super().__init__()
         self.projection: TransformType = projection
@@ -195,8 +195,8 @@ class PointWiseProjector(RelativeProjector):
         self,
         name: str,
         func: TransformType,
-        abs_transforms: Sequence[TransformType] | None = None,
-        rel_transforms: Sequence[TransformType] | None = None,
+        abs_transforms: Optional[Sequence[TransformType]] = None,
+        rel_transforms: Optional[Sequence[TransformType]] = None,
     ) -> None:
         super().__init__(name=name, projection=func, abs_transforms=abs_transforms, rel_transforms=rel_transforms)
 
