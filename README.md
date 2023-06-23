@@ -4,7 +4,7 @@
 <img align="center" alt="Docs" src="https://img.shields.io/github/deployments/flegyas/latentis/github-pages?label=docs">
 <img align="center" alt="NN Template" src="https://shields.io/badge/nn--template-0.2.3-emerald?style=flat&amp;labelColor=gray">
 <img align="center" alt="Python" src="https://img.shields.io/badge/python-3.10-blue.svg">
-<img align="center" alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000
+<img align="center" alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg">
 
 A Python package for analyzing and transforming neural latent spaces.
 
