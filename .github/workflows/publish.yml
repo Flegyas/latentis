@@ -25,6 +25,11 @@ jobs:
     name: ${{ matrix.label }}-py${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
 
+    environment: release
+    permissions:
+      # IMPORTANT: this permission is mandatory for trusted publishing
+      id-token: write
+
     steps:
       - name: Parametrize conda env name
         run: echo "PY_CONDA_ENV_NAME=${{ env.CONDA_ENV_NAME }}-${{ matrix.python-version }}" >> $GITHUB_ENV
@@ -141,17 +146,11 @@ jobs:
           git config user.email ci-bot@ci.com
           mike deploy --rebase --push --update-aliases ${RELEASE_TAG_VERSION} latest
 
-        # Uncomment to publish on PyPI on release
-#      - name: Build SDist and wheel
-#        run: pipx run build
-#
-#      - name: Check metadata
-#        run: pipx run twine check dist/*
-#
-#      - name: Publish distribution 📦 to PyPI
-#        uses: pypa/gh-action-pypi-publish@release/v1
-#        with:
-#          user: __token__
-#          password: ${{ secrets.PYPI_API_TOKEN }}
-#
-#
+      - name: Build SDist and wheel
+        run: pipx run build
+
+      - name: Check metadata
+        run: pipx run twine check dist/*
+
+      - name: Publish distribution 📦 to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
