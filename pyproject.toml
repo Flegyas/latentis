@@ -37,3 +37,7 @@ skips = ["B101"]
 [build-system]
 requires = ["setuptools", "wheel", "setuptools_scm[toml]"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+write_to = "src/latentis/_version.py"
+write_to_template = '__version__ = "{version}"'
