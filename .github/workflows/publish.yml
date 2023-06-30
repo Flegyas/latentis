@@ -120,7 +120,7 @@ jobs:
       - run: mamba info
       - run: mamba list
 
-       # Ensure the hack for the python version worked
+      # Ensure the hack for the python version worked
       - name: Ensure we have the right Python
         shell: bash -l {0}
         run: |
@@ -139,12 +139,12 @@ jobs:
       #   run: |
       #     pytest -v
 
-      - name: Build docs website
-        shell: bash -l {0}
-        run: |
-          git config user.name ci-bot
-          git config user.email ci-bot@ci.com
-          mike deploy --rebase --push --update-aliases ${RELEASE_TAG_VERSION} latest
+      # - name: Build docs website
+      #   shell: bash -l {0}
+      #   run: |
+      #     git config user.name ci-bot
+      #     git config user.email ci-bot@ci.com
+      #     mike deploy --rebase --push --update-aliases ${RELEASE_TAG_VERSION} latest
 
       - name: Build SDist and wheel
         run: pipx run build
