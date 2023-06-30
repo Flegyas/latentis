@@ -1,11 +1,11 @@
 import functools
-from typing import Callable, Optional, Sequence, Tuple
+from typing import Optional, Sequence
 
 import torch
 import torch.nn.functional as F
 from torch import nn
 
-TransformType = Callable[[torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor]]
+from latentis.types import TransformType
 
 
 class RelativeProjection(nn.Module):
@@ -30,15 +30,8 @@ def cosine_dist(
     x: torch.Tensor,
     anchors: torch.Tensor,
 ) -> torch.Tensor:
-    x_norm = torch.norm(x, dim=-1)
-    anchors_norm = torch.norm(anchors, dim=-1)
-
-    # if the norm is already 1, then the cosine distance is just the dot product
-    if not torch.allclose(x_norm, torch.ones_like(x_norm)) or not torch.allclose(
-        anchors_norm, torch.ones_like(anchors_norm)
-    ):
-        x = x / x_norm.unsqueeze(-1)
-        anchors = anchors / anchors_norm.unsqueeze(-1)
+    x = F.normalize(x, p=2, dim=-1)
+    anchors = F.normalize(anchors, p=2, dim=-1)
 
     return x @ anchors.T
 
@@ -47,19 +40,10 @@ def geodesic_dist(
     x: torch.Tensor,
     anchors: torch.Tensor,
 ) -> torch.Tensor:
-    x_norm = torch.norm(x, dim=-1)
-    anchors_norm = torch.norm(anchors, dim=-1)
+    x = F.normalize(x, p=2, dim=-1)
+    anchors = F.normalize(anchors, p=2, dim=-1)
 
-    # if the norm is already 1, then the cosine distance is just the dot product
-    if not torch.allclose(x_norm, torch.ones_like(x_norm)) or not torch.allclose(
-        anchors_norm, torch.ones_like(anchors_norm)
-    ):
-        x = x / x_norm.unsqueeze(-1)
-        anchors = anchors / anchors_norm.unsqueeze(-1)
-
-    cos_dists = x @ anchors.T
-
-    return torch.arccos(cos_dists)
+    return 1 - torch.arccos(x @ anchors.T)
 
 
 def lp_dist(
@@ -77,48 +61,6 @@ def euclidean_dist(
     return lp_dist(x=x, anchors=anchors, p=2)
 
 
-def centering(x: torch.Tensor, anchors: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-    anchor_mean: torch.Tensor = anchors.mean(dim=0)
-    return x - anchor_mean
-
-
-def std_scaling(x: torch.Tensor, anchors: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-    anchor_std: torch.Tensor = anchors.std(dim=0)
-    return x / anchor_std
-
-
-def standard_scaling(x: torch.Tensor, anchors: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-    return std_scaling(*centering(x=x, anchors=anchors))
-
-
-class Transform(nn.Module):
-    def __init__(self, name: str) -> None:
-        super().__init__()
-        self._name: str = name
-        self.fit_data = {"std_anchors": ..., "mean_anchors": ...}
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    def fit(self, x: torch.Tensor, *args, **kwargs) -> None:
-        raise NotImplementedError
-
-    def forward(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
-        raise NotImplementedError
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}(name={self.name})"
-
-
-# TODO: Convert to Transform modules for efficiency
-class Transforms:
-    CENTERING = centering
-    STD_SCALING = std_scaling
-    STANDARD_SCALING = standard_scaling
-    L2 = lambda x, anchors: F.normalize(x, p=2, dim=-1)  # noqa E731
-
-
 class Projections:
     COSINE = RelativeProjection(name="cosine", func=cosine_dist)
     GEODESIC = RelativeProjection(name="geodesic", func=geodesic_dist)
@@ -132,20 +74,21 @@ class RelativeProjector(nn.Module):
     def __init__(
         self,
         projection: RelativeProjection,
+        anchors: Optional[torch.Tensor] = None,
         abs_transforms: Optional[Sequence[TransformType]] = None,
         rel_transforms: Optional[Sequence[TransformType]] = None,
     ) -> None:
         super().__init__()
         self.projection: TransformType = projection
 
-        self.abs_transforms = (
+        self.abs_transforms = nn.ModuleList(
             abs_transforms
             if isinstance(abs_transforms, Sequence)
             else []
             if abs_transforms is None
             else [abs_transforms]
         )
-        self.rel_transforms = (
+        self.rel_transforms = nn.ModuleList(
             rel_transforms
             if isinstance(rel_transforms, Sequence)
             else []
@@ -153,13 +96,10 @@ class RelativeProjector(nn.Module):
             else [rel_transforms]
         )
 
-    def set_anchors(self, anchors: torch.Tensor) -> None:
-        orig_anchors = anchors.clone()
-        self.register_buffer("orig_anchors", orig_anchors)
+        if anchors is not None:
+            self.register_buffer("anchors", anchors)
 
-        for abs_transform in self.abs_transforms:
-            anchors = abs_transform(x=anchors, anchors=anchors)
-
+    def set_anchors(self, anchors: torch.Tensor) -> "RelativeProjector":
         self.register_buffer("anchors", anchors)
         return self
 
@@ -167,7 +107,7 @@ class RelativeProjector(nn.Module):
     def name(self) -> str:
         return self._name
 
-    def forward(self, x: torch.Tensor, anchors: Optional[torch.Tensor]) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, anchors: Optional[torch.Tensor] = None) -> torch.Tensor:
         assert anchors is not None or self.anchors is not None, "anchors must be provided"
         anchors = anchors if anchors is not None else self.anchors
 
@@ -195,19 +135,26 @@ class PointWiseProjector(RelativeProjector):
         self,
         name: str,
         func: TransformType,
+        anchors: Optional[torch.Tensor] = None,
         abs_transforms: Optional[Sequence[TransformType]] = None,
         rel_transforms: Optional[Sequence[TransformType]] = None,
     ) -> None:
-        super().__init__(name=name, projection=func, abs_transforms=abs_transforms, rel_transforms=rel_transforms)
+        super().__init__(
+            name=name, projection=func, anchors=anchors, abs_transforms=abs_transforms, rel_transforms=rel_transforms
+        )
 
-    def forward(self, x: torch.Tensor, anchors: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, anchors: Optional[torch.Tensor] = None) -> torch.Tensor:
+        assert anchors is not None or self.anchors is not None, "anchors must be provided"
+        anchors = anchors if anchors is not None else self.anchors
+
         # absolute normalization/transformation
         transformed_x = x
+        transformed_anchors = anchors
         for abs_transform in self.abs_transforms:
             transformed_x = abs_transform(x=transformed_x, anchors=anchors)
+            transformed_anchors = abs_transform(x=transformed_anchors, anchors=anchors)
 
-        transformed_anchors = abs_transform(x=anchors, anchors=anchors)
-
+        # relative projection of x with respect to the anchors
         rel_x = []
         for point in x:
             partial_rel_data = []
@@ -218,7 +165,8 @@ class PointWiseProjector(RelativeProjector):
 
         # relative normalization/transformation
         for rel_transform in self.rel_transforms:
-            # todo: handle the case where the rel_transform needs additional arguments (e.g. rel_anchors, x, ...)
+            # TODO: handle the case where the rel_transform needs additional arguments (e.g. rel_anchors, x, ...)
+            # maybe with a custom Compose object with kwargs
             rel_x = rel_transform(x=rel_x, anchors=anchors)
 
         return rel_x
