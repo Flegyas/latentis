@@ -146,6 +146,12 @@ jobs:
       #     git config user.email ci-bot@ci.com
       #     mike deploy --rebase --push --update-aliases ${RELEASE_TAG_VERSION} latest
 
+      - name: Check working directory status
+        run: git status
+
+      - name: Restore working directory (env.yaml Python version)
+        run: git checkout .
+
       - name: Build SDist and wheel
         run: pipx run build
 
