@@ -2,11 +2,12 @@ from abc import abstractmethod
 from typing import Any, Mapping, Optional, Sequence
 
 import torch
+import torch.nn.functional as F
+from pytorch_lightning import seed_everything
 from torch import nn
+
 from latentis.transforms import Transform
 from latentis.types import TransformType
-from pytorch_lightning import seed_everything
-import torch.nn.functional as F
 
 
 class Translator(nn.Module):
