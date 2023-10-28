@@ -1,7 +1,5 @@
 import logging
 
-from nn_core.console_logging import NNRichHandler
-
 # Required workaround because PyTorch Lightning configures the logging on import,
 # thus the logging configuration defined in the __init__.py must be called before
 # the lightning import otherwise it has no effect.
@@ -17,15 +15,6 @@ logging.basicConfig(
     format=FORMAT,
     level=logging.INFO,
     datefmt="%Y-%m-%d %H:%M:%S",
-    handlers=[
-        NNRichHandler(
-            rich_tracebacks=True,
-            show_level=True,
-            show_path=True,
-            show_time=True,
-            omit_repeated_times=True,
-        )
-    ],
 )
 
 try:
