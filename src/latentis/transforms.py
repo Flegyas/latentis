@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Mapping, Optional
+from typing import Mapping
 
 import torch
 import torch.nn.functional as F
@@ -56,8 +56,6 @@ class Transform(nn.Module):
         raise NotImplementedError
 
     def fit(self, x: torch.Tensor, *args, **kwargs) -> None:
-        raise NotImplementedError
-        # TODO: Implement fit method
         for key, value in self._fit(x=x, *args, **kwargs).items():
             self.register_buffer(key, value)
         self.fitted: bool = True
@@ -65,7 +63,7 @@ class Transform(nn.Module):
     def forward(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
         raise NotImplementedError
 
-    def reverse(self, x: torch.Tensor, anchors: Optional[torch.Tensor] = None, *args, **kwargs) -> torch.Tensor:
+    def reverse(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
         raise NotImplementedError
 
     def __repr__(self):
@@ -76,79 +74,100 @@ class Centering(Transform):
     def __init__(self) -> None:
         super().__init__(name="centering")
 
-    def _fit(self, anchors: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
-        return {"shift": anchors.mean(dim=0)}
+    def _fit(self, data: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
+        return {"shift": data.mean(dim=0)}
 
-    def forward(self, x: torch.Tensor, anchors: Optional[torch.Tensor] = None, *args, **kwargs) -> torch.Tensor:
-        assert anchors is not None or self.fitted, "Either anchors must be provided or the transform must be fit first."
+    def forward(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+        assert self.fitted, "The transform must be fit first."
+        return x - self.shift
 
-        shift = anchors.mean(dim=0) if anchors is not None else self.shift
-        return x - shift
-
-    def reverse(self, x: torch.Tensor, anchors: Optional[torch.Tensor] = None, *args, **kwargs) -> torch.Tensor:
-        assert anchors is not None or self.fitted, "Either anchors must be provided or the transform must be fit first."
-
-        shift = anchors.mean(dim=0) if anchors is not None else self.shift
-        return x + shift
+    def reverse(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+        assert self.fitted, "The transform must be fit first."
+        return x + self.shift
 
 
 class STDScaling(Transform):
     def __init__(self) -> None:
         super().__init__(name="std_scaling")
 
-    def _fit(self, anchors: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
-        return {"scale": _handle_zeros(anchors.std(dim=0))}
+    def _fit(self, data: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
+        return {"scale": _handle_zeros(data.std(dim=0))}
 
-    def forward(self, x: torch.Tensor, anchors: Optional[torch.Tensor] = None, *args, **kwargs) -> torch.Tensor:
-        assert anchors is not None or self.fitted, "Either anchors must be provided or the transform must be fit first."
+    def forward(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+        assert self.fitted, "The transform must be fit first."
 
-        scale = _handle_zeros(anchors.std(dim=0)) if anchors is not None else self.scale
-        return x / scale
+        # scale = _handle_zeros(data.std(dim=0)) if data is not None else self.scale
+        return x / self.scale
 
-    def reverse(self, x: torch.Tensor, anchors: Optional[torch.Tensor] = None, *args, **kwargs) -> torch.Tensor:
-        assert anchors is not None or self.fitted, "Either anchors must be provided or the transform must be fit first."
+    def reverse(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+        assert self.fitted, "The transform must be fit first."
 
-        scale = _handle_zeros(anchors.std(dim=0)) if anchors is not None else self.scale
-        return x * scale
+        # scale = _handle_zeros(data.std(dim=0)) if data is not None else self.scale
+        return x * self.scale
 
 
 class StandardScaling(Transform):
     def __init__(self) -> None:
         super().__init__(name="standard_scaling")
 
-    def _fit(self, anchors: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
-        return {"shift": anchors.mean(dim=0), "scale": _handle_zeros(anchors.std(dim=0))}
+    def _fit(self, data: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
+        return {"shift": data.mean(dim=0), "scale": _handle_zeros(data.std(dim=0))}
 
-    def forward(self, x: torch.Tensor, anchors: Optional[torch.Tensor] = None, *args, **kwargs) -> torch.Tensor:
-        assert anchors is not None or self.fitted, "Either anchors must be provided or the transform must be fit first."
+    def forward(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+        assert self.fitted, "The transform must be fit first."
 
-        shift = anchors.mean(dim=0) if anchors is not None else self.shift
-        scale = _handle_zeros(anchors.std(dim=0)) if anchors is not None else self.scale
+        return (x - self.shift) / self.scale
 
-        return (x - shift) / scale
+    def reverse(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+        assert self.fitted, "The transform must be fit first."
 
-    def reverse(self, x: torch.Tensor, anchors: Optional[torch.Tensor] = None, *args, **kwargs) -> torch.Tensor:
-        assert anchors is not None or self.fitted, "Either anchors must be provided or the transform must be fit first."
-
-        shift = anchors.mean(dim=0) if anchors is not None else self.shift
-        scale = _handle_zeros(anchors.std(dim=0)) if anchors is not None else self.scale
-
-        return (x * scale) + shift
+        return (x * self.scale) + self.shift
 
 
 class L2(Transform):
     def __init__(self) -> None:
         super().__init__(name="l2")
 
-    def _fit(self, anchors: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
-        return {"mean_norm": anchors.norm(dim=1).mean()}
+    def _fit(self, data: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
+        return {"mean_norm": data.norm(dim=1).mean()}
 
     def forward(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
         return F.normalize(x, p=2, dim=-1)
 
-    def reverse(self, x: torch.Tensor, anchors: Optional[torch.Tensor] = None, *args, **kwargs) -> torch.Tensor:
-        assert anchors is not None or self.fitted, "Either anchors must be provided or the transform must be fit first."
+    def reverse(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+        assert self.fitted, "The transform must be fit first."
 
-        mean_norm = anchors.norm(dim=1).mean() if anchors is not None else self.mean_norm
+        return x * self.mean_norm
 
-        return x * mean_norm
+
+class ZeroPadding(Transform):
+    def __init__(self, pad: int) -> None:
+        super().__init__(name="zero_padding")
+        self.register_buffer("pad", pad)
+
+    def _fit(self, data: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
+        return {}
+
+    def forward(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+        assert x.ndim == 2, "The input tensor must be 2D."
+
+        return torch.nn.functional.pad(x, (0, self.pad))
+
+    def reverse(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+        assert self.fitted, "The transform must be fit first."
+        return x[..., : -self.pad]
+
+
+class PCATruncation(Transform):
+    def __init__(self, n_components: int) -> None:
+        super().__init__(name="pca_truncation")
+        self.n_components = n_components
+
+    def _fit(self, data: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
+        raise NotImplementedError
+
+    def forward(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+        raise NotImplementedError
+
+    def reverse(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+        raise NotImplementedError
