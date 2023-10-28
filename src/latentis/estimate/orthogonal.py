@@ -20,15 +20,17 @@ class LSTSQOrthoTranslator(Estimator):
 class SVDEstimator(Estimator):
     def __init__(self) -> None:
         super().__init__("svd")
-        self.translation_matrix = None
+        # self.register_buffer("translation_matrix", None)
 
     def fit(self, source_data: torch.Tensor, target_data: torch.Tensor) -> Mapping[str, Any]:
         #  Compute the translation vector that aligns A to B using SVD.
-        assert source_data.size(1) == target_data.size(1)
+        assert source_data.size(1) == target_data.size(
+            1
+        ), f"Dimension mismatch between {source_data.size(1)} and {target_data.size(1)}. Forgot some padding/truncation transforms?"
         u, sigma, vt = torch.svd((target_data.T @ source_data).T)
         translation_matrix = u @ vt.T
 
-        self.translation_matrix = torch.as_tensor(translation_matrix, dtype=torch.float32, device=source_data.device)
+        translation_matrix = torch.as_tensor(translation_matrix, dtype=torch.float32, device=source_data.device)
         self.register_buffer("translation_matrix", translation_matrix)
 
         sigma_rank = (~sigma.isclose(torch.zeros_like(sigma), atol=1e-1).bool()).sum().item()

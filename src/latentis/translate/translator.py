@@ -53,7 +53,7 @@ class LatentTranslator(nn.Module):
             transform.fit(transformed_source_data)
             transformed_source_data = transform(transformed_source_data)
 
-        for transform in self.target_trasnforms:
+        for transform in self.target_transforms:
             transform.fit(transformed_target_data)
             transformed_target_data = transform(transformed_target_data)
 

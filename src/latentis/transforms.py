@@ -52,11 +52,11 @@ class Transform(nn.Module):
         return self._name
 
     @abstractmethod
-    def _fit(self, x: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
+    def _fit(self, data: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
         raise NotImplementedError
 
-    def fit(self, x: torch.Tensor, *args, **kwargs) -> None:
-        for key, value in self._fit(x=x, *args, **kwargs).items():
+    def fit(self, data: torch.Tensor, *args, **kwargs) -> None:
+        for key, value in self._fit(data=data, *args, **kwargs).items():
             self.register_buffer(key, value)
         self.fitted: bool = True
 
@@ -143,7 +143,7 @@ class L2(Transform):
 class ZeroPadding(Transform):
     def __init__(self, pad: int) -> None:
         super().__init__(name="zero_padding")
-        self.register_buffer("pad", pad)
+        self.register_buffer("pad", torch.as_tensor(pad))
 
     def _fit(self, data: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
         return {}
