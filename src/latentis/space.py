@@ -4,6 +4,7 @@ import copy
 from enum import auto
 from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Union
 
+from latentis.index import DataType, Index, Similarity
 from latentis.measure import Metric, MetricFn
 
 if TYPE_CHECKING:
@@ -127,16 +128,28 @@ class LatentSpace(TorchDataset):
     ):
         return translator(x=self)
 
-    # @lru_cache
-    # def to_faiss(self, normalize: bool, keys: Sequence[str]) -> FaissIndex:
-    #     index: FaissIndex = FaissIndex(d=self.vectors.size(1))
+    def to_index(
+        self,
+        similarity_fn: Similarity = Similarity.COSINE,
+        ids: Optional[Sequence[int]] = None,
+        serialization_data_type: DataType = DataType.FLOAT32,
+    ) -> Index:
+        index: Index = Index.create(
+            similarity_fn=similarity_fn,
+            num_dimensions=self.vectors.size(dim=1),
+            serialization_data_type=serialization_data_type,
+        )
+        index.resize(
+            new_size=self.vectors.size(dim=0),
+        )
 
-    #     index.add_vectors(
-    #         embeddings=list(zip(keys, self.vectors.cpu().numpy())),
-    #         normalize=normalize,
-    #     )
+        index.add_items(
+            vectors=self.vectors.cpu().numpy(),
+            ids=ids,
+        )
 
-    #     return index
+        return index
+
     def to_relative(
         self,
         projector: RelativeProjector,
