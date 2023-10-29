@@ -21,13 +21,17 @@ class Estimator(nn.Module):
     def fit(self, source_data: torch.Tensor, target_data: torch.Tensor) -> Mapping[str, Any]:
         raise NotImplementedError
 
+    @abstractmethod
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        raise NotImplementedError
 
-# class IdentityEstimator(Estimator):
-#     def __init__(self) -> None:
-#         super().__init__("identity")
 
-#     def fit(self, *args, **kwargs) -> Mapping[str, Any]:
-#         return {}
+class IdentityEstimator(Estimator):
+    def __init__(self) -> None:
+        super().__init__("identity")
 
-#     def forward(self, x: torch.Tensor) -> torch.Tensor:
-#         return x
+    def fit(self, *args, **kwargs) -> Mapping[str, Any]:
+        return {}
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return x

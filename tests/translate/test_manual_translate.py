@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Tuple
+from typing import Optional, Tuple
 
 import pytest
 import torch
@@ -7,6 +7,7 @@ from torch import nn
 
 from latentis import transforms
 from latentis.estimate.dim_matcher import ZeroPadding
+from latentis.estimate.linear import LSTSQEstimator
 from latentis.estimate.orthogonal import SVDEstimator
 from latentis.space import LatentSpace
 from latentis.translate.translator import LatentTranslator
@@ -157,92 +158,77 @@ class ManualLatentTranslation(nn.Module):
 
 
 @pytest.mark.parametrize(
-    "eq_methods",
+    "manual_method, estimator_factory",
+    [
+        ("svd", lambda: SVDEstimator(dim_matcher=ZeroPadding())),
+        ("lstsq", lambda: LSTSQEstimator()),
+    ],
+)
+@pytest.mark.parametrize(
+    "manual_centering, manual_std_correction, manual_l2_norm, source_transforms, target_transforms",
     [
         (
-            lambda: ManualLatentTranslation(
-                seed=0,
-                centering=True,
-                std_correction=True,
-                l2_norm=False,
-                method="svd",
-            ),
-            lambda: LatentTranslator(
-                random_seed=0,
-                estimator=SVDEstimator(dim_matcher=ZeroPadding()),
-                source_transforms=[transforms.Centering(), transforms.STDScaling()],
-                target_transforms=[transforms.Centering(), transforms.STDScaling()],
-            ),
+            True,
+            True,
+            False,
+            [transforms.Centering(), transforms.STDScaling()],
+            [transforms.Centering(), transforms.STDScaling()],
         ),
         (
-            lambda: ManualLatentTranslation(
-                seed=0,
-                centering=True,
-                std_correction=True,
-                l2_norm=False,
-                method="svd",
-            ),
-            lambda: LatentTranslator(
-                random_seed=0,
-                estimator=SVDEstimator(dim_matcher=ZeroPadding()),
-                source_transforms=[transforms.StandardScaling()],
-                target_transforms=[transforms.StandardScaling()],
-            ),
+            True,
+            True,
+            False,
+            [transforms.StandardScaling()],
+            [transforms.StandardScaling()],
         ),
         (
-            lambda: ManualLatentTranslation(
-                seed=0,
-                centering=True,
-                std_correction=False,
-                l2_norm=True,
-                method="svd",
-            ),
-            lambda: LatentTranslator(
-                random_seed=0,
-                estimator=SVDEstimator(dim_matcher=ZeroPadding()),
-                source_transforms=[transforms.Centering(), transforms.L2()],
-                target_transforms=[transforms.Centering(), transforms.L2()],
-            ),
+            True,
+            False,
+            True,
+            [transforms.Centering(), transforms.L2()],
+            [transforms.Centering(), transforms.L2()],
         ),
         (
-            lambda: ManualLatentTranslation(
-                seed=0,
-                centering=False,
-                std_correction=False,
-                l2_norm=True,
-                method="svd",
-            ),
-            lambda: LatentTranslator(
-                random_seed=0,
-                estimator=SVDEstimator(dim_matcher=ZeroPadding()),
-                source_transforms=[transforms.L2()],
-                target_transforms=[transforms.L2()],
-            ),
+            False,
+            False,
+            True,
+            [transforms.L2()],
+            [transforms.L2()],
         ),
         (
-            lambda: ManualLatentTranslation(
-                seed=0,
-                centering=True,
-                std_correction=False,
-                l2_norm=False,
-                method="svd",
-            ),
-            lambda: LatentTranslator(
-                random_seed=0,
-                estimator=SVDEstimator(dim_matcher=ZeroPadding()),
-                source_transforms=[transforms.Centering()],
-                target_transforms=[transforms.Centering()],
-            ),
+            True,
+            False,
+            False,
+            [transforms.Centering()],
+            [transforms.Centering()],
         ),
     ],
 )
 def test_manual_translation(
-    eq_methods: Tuple[Callable[[], ManualLatentTranslation], Callable[[], LatentTranslator]],
     parallel_spaces: Tuple[LatentSpace, LatentSpace],
+    manual_method,
+    estimator_factory,
+    manual_centering,
+    manual_std_correction,
+    manual_l2_norm,
+    source_transforms,
+    target_transforms,
 ):
-    A, B = parallel_spaces
+    manual_translator = ManualLatentTranslation(
+        seed=0,
+        centering=manual_centering,
+        std_correction=manual_std_correction,
+        l2_norm=manual_l2_norm,
+        method=manual_method,
+    )
+    translator = LatentTranslator(
+        random_seed=0,
+        estimator=estimator_factory(),
+        source_transforms=source_transforms,
+        target_transforms=target_transforms,
+    )
 
-    manual_translator, translator = eq_methods[0](), eq_methods[1]()
+    A, B = parallel_spaces
 
     manual_translator.fit(A.vectors, B.vectors)
     translator.fit(source_data=A, target_data=B)
