@@ -19,12 +19,12 @@ class Estimator(nn.Module):
         raise NotImplementedError
 
 
-class IdentityEstimator(Estimator):
-    def __init__(self) -> None:
-        super().__init__("identity")
+# class IdentityEstimator(Estimator):
+#     def __init__(self) -> None:
+#         super().__init__("identity")
 
-    def fit(self, *args, **kwargs) -> Mapping[str, Any]:
-        return {}
+#     def fit(self, *args, **kwargs) -> Mapping[str, Any]:
+#         return {}
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return x
+#     def forward(self, x: torch.Tensor) -> torch.Tensor:
+#         return x

@@ -4,17 +4,16 @@ import torch
 
 from latentis.estimate.estimator import Estimator
 
+# class LSTSQOrthoTranslator(Estimator):
+#     def __init__(self) -> None:
+#         super().__init__("lstsq_ortho")
 
-class LSTSQOrthoTranslator(Estimator):
-    def __init__(self) -> None:
-        super().__init__("lstsq_ortho")
+#     def fit(self, source_data: torch.Tensor, target_data: torch.Tensor) -> Mapping[str, Any]:
+#         translation_matrix = torch.linalg.lstsq(source_data, target_data).solution
+#         U, _, Vt = torch.svd(translation_matrix)
+#         self.translation_matrix = U @ Vt.T
 
-    def fit(self, source_data: torch.Tensor, target_data: torch.Tensor) -> Mapping[str, Any]:
-        translation_matrix = torch.linalg.lstsq(source_data, target_data).solution
-        U, _, Vt = torch.svd(translation_matrix)
-        self.translation_matrix = U @ Vt.T
-
-        return {}
+#         return {}
 
 
 class SVDEstimator(Estimator):
