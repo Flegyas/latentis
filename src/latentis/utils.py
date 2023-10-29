@@ -55,4 +55,3 @@ def seed_everything(seed: Optional[int] = None) -> int:
     torch.cuda.manual_seed_all(seed)
 
     return seed
-    return seed
