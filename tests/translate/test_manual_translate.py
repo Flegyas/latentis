@@ -239,16 +239,14 @@ def test_manual_translation(
     eq_methods: Tuple[Callable[[], ManualLatentTranslation], Callable[[], LatentTranslator]],
     parallel_spaces: Tuple[LatentSpace, LatentSpace],
 ):
-    space1, space2 = parallel_spaces
-    A = space1.vectors
-    B = space2.vectors
+    A, B = parallel_spaces
 
     manual_translator, translator = eq_methods[0](), eq_methods[1]()
 
-    manual_translator.fit(A, B)
+    manual_translator.fit(A.vectors, B.vectors)
     translator.fit(source_data=A, target_data=B)
 
-    manual_output = manual_translator.transform(A)
+    manual_output = manual_translator.transform(A.vectors)["target"]
     latentis_output = translator(A)
 
-    assert torch.allclose(manual_output["target"], latentis_output["target"])
+    assert torch.allclose(manual_output, latentis_output.vectors)

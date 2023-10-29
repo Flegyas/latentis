@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from enum import auto
 from typing import TYPE_CHECKING, Any, Dict, Mapping, Optional, Sequence
 
@@ -32,6 +34,34 @@ class LatentSpace(TorchDataset):
         self.name: str = name
         self.properties = properties
 
+    @staticmethod
+    def like(
+        space: LatentSpace,
+        name: Optional[str],
+        vectors: Optional[torch.Tensor] = None,
+        properties: Optional[Dict[str, Sequence[Any]]] = None,
+    ):
+        """Create a new space with the arguments not provided taken from the given space.
+
+        There is no copy of the vectors, so changes to the vectors of the new space will also affect the vectors of the given space.
+
+        Args:
+            space (LatentSpace): The space to copy.
+            name (Optional[str]): The name of the new space.
+            vectors (Optional[torch.Tensor], optional): The vectors of the new space.
+            properties (Optional[Dict[str, Sequence[Any]]], optional): The properties of the new space.
+
+        Returns:
+            LatentSpace: The new space, with the arguments not provided taken from the given space.
+        """
+        if name is None:
+            name = space.name
+        if vectors is None:
+            vectors = space.vectors
+        if properties is None:
+            properties = space.properties
+        return LatentSpace(name=name, vectors=vectors, properties=properties)
+
     @property
     def shape(self) -> int:
         return self.vectors.shape
@@ -45,7 +75,7 @@ class LatentSpace(TorchDataset):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(name={self.name}, vectors={self.vectors.shape}, properties={self.properties.keys()})"
 
-    def sample(self, sampler: "Sampler", n: int) -> "LatentSpace":
+    def sample(self, sampler: Sampler, n: int) -> "LatentSpace":
         """Sample n vectors from this space using the given sampler.
 
         Args:

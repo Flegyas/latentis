@@ -9,20 +9,18 @@ from latentis.translate.translator import LatentTranslator
 
 
 def test_double_fitting(parallel_spaces: Tuple[LatentSpace, LatentSpace]):
-    space1, space2 = parallel_spaces
-    A = space1.vectors
-    B = space2.vectors
+    A, B = parallel_spaces
 
     translator = LatentTranslator(
         random_seed=0,
         estimator=SVDEstimator(),
     )
     translator.fit(source_data=A, target_data=B)
-    out1 = translator(A)["target"]
+    out1 = translator(A).vectors
 
     with pytest.raises(AssertionError):
         translator.fit(source_data=A, target_data=B)
 
-    out2 = translator(A)["target"]
+    out2 = translator(A).vectors
 
     assert torch.allclose(out1, out2)

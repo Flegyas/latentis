@@ -1,10 +1,10 @@
 from typing import Any, Mapping, Optional, Sequence
 
-import torch
 from torch import nn
 
 from latentis import transforms
 from latentis.estimate.estimator import Estimator
+from latentis.space import LatentSpace
 from latentis.transforms import Transform
 from latentis.utils import seed_everything
 
@@ -39,11 +39,14 @@ class LatentTranslator(nn.Module):
             else [target_transforms]
         )
 
-    def fit(self, source_data: torch.Tensor, target_data: torch.Tensor) -> Mapping[str, Any]:
+    def fit(self, source_data: LatentSpace, target_data: LatentSpace) -> Mapping[str, Any]:
         assert not self.fitted, "Translator is already fitted."
         self.fitted = True
 
         seed_everything(self.random_seed)
+
+        source_data = source_data.vectors
+        target_data = target_data.vectors
 
         self.register_buffer("source_data", source_data)
         self.register_buffer("target_data", target_data)
@@ -75,8 +78,8 @@ class LatentTranslator(nn.Module):
 
         return self.translator_info
 
-    def forward(self, x: torch.Tensor, compute_info: bool = True) -> torch.Tensor:
-        source_x = x
+    def forward(self, x: LatentSpace, name: Optional[str] = None) -> LatentSpace:
+        source_x = x.vectors
         for transform in self.source_transforms:
             source_x = transform(x=source_x)
 
@@ -85,4 +88,4 @@ class LatentTranslator(nn.Module):
         for transform in reversed(self.target_transforms):
             target_x = transform.reverse(x=target_x)
 
-        return {"source": source_x, "target": target_x, "info": {}}
+        return LatentSpace.like(space=x, vectors=target_x, name=name)
