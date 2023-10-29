@@ -2,7 +2,6 @@ from typing import Any, Mapping, Optional, Sequence
 
 from torch import nn
 
-from latentis import transforms
 from latentis.estimate.estimator import Estimator
 from latentis.space import LatentSpace
 from latentis.transforms import Transform
@@ -16,7 +15,6 @@ class LatentTranslator(nn.Module):
         estimator: Estimator,
         source_transforms: Optional[Sequence[Transform]] = None,
         target_transforms: Optional[Sequence[Transform]] = None,
-        joint_transforms: Optional[Sequence[Transform]] = None,
     ) -> None:
         super().__init__()
         self.random_seed: int = random_seed
@@ -36,13 +34,6 @@ class LatentTranslator(nn.Module):
             else []
             if target_transforms is None
             else [target_transforms]
-        )
-        self.joint_transforms: Sequence[Transform] = nn.ModuleList(
-            joint_transforms
-            if isinstance(joint_transforms, Sequence)
-            else [transforms.ZeroPadding()]
-            if joint_transforms is None
-            else [joint_transforms]
         )
 
     def fit(self, source_data: LatentSpace, target_data: LatentSpace) -> Mapping[str, Any]:
@@ -68,12 +59,6 @@ class LatentTranslator(nn.Module):
             transform.fit(transformed_target_data)
             transformed_target_data = transform(transformed_target_data)
 
-        for transform in self.joint_transforms:
-            transform.fit(transformed_source_data, transformed_target_data)
-            transformed_source_data, transformed_target_data = transform(
-                transformed_source_data, transformed_target_data
-            )
-
         self.translator_info = self.estimator.fit(
             source_data=transformed_source_data,
             target_data=transformed_target_data,
@@ -86,16 +71,11 @@ class LatentTranslator(nn.Module):
 
     def forward(self, x: LatentSpace, name: Optional[str] = None) -> LatentSpace:
         source_x = x.vectors
+
         for transform in self.source_transforms:
             source_x = transform(x=source_x)
 
-        for transform in self.joint_transforms:
-            source_x, _ = transform(source_x=source_x, target_x=None)
-
         target_x = self.estimator(source_x)
-
-        for transform in reversed(self.joint_transforms):
-            _, target_x = transform.reverse(source_x=None, target_x=target_x)
 
         for transform in reversed(self.target_transforms):
             target_x = transform.reverse(x=target_x)

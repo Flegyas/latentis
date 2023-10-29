@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from latentis import transforms
+from latentis.estimate.dim_matcher import ZeroPadding
 from latentis.estimate.orthogonal import SVDEstimator
 from latentis.space import LatentSpace
 from latentis.translate.translator import LatentTranslator
@@ -168,7 +169,7 @@ class ManualLatentTranslation(nn.Module):
             ),
             lambda: LatentTranslator(
                 random_seed=0,
-                estimator=SVDEstimator(),
+                estimator=SVDEstimator(dim_matcher=ZeroPadding()),
                 source_transforms=[transforms.Centering(), transforms.STDScaling()],
                 target_transforms=[transforms.Centering(), transforms.STDScaling()],
             ),
@@ -183,7 +184,7 @@ class ManualLatentTranslation(nn.Module):
             ),
             lambda: LatentTranslator(
                 random_seed=0,
-                estimator=SVDEstimator(),
+                estimator=SVDEstimator(dim_matcher=ZeroPadding()),
                 source_transforms=[transforms.StandardScaling()],
                 target_transforms=[transforms.StandardScaling()],
             ),
@@ -198,7 +199,7 @@ class ManualLatentTranslation(nn.Module):
             ),
             lambda: LatentTranslator(
                 random_seed=0,
-                estimator=SVDEstimator(),
+                estimator=SVDEstimator(dim_matcher=ZeroPadding()),
                 source_transforms=[transforms.Centering(), transforms.L2()],
                 target_transforms=[transforms.Centering(), transforms.L2()],
             ),
@@ -213,7 +214,7 @@ class ManualLatentTranslation(nn.Module):
             ),
             lambda: LatentTranslator(
                 random_seed=0,
-                estimator=SVDEstimator(),
+                estimator=SVDEstimator(dim_matcher=ZeroPadding()),
                 source_transforms=[transforms.L2()],
                 target_transforms=[transforms.L2()],
             ),
@@ -228,7 +229,7 @@ class ManualLatentTranslation(nn.Module):
             ),
             lambda: LatentTranslator(
                 random_seed=0,
-                estimator=SVDEstimator(),
+                estimator=SVDEstimator(dim_matcher=ZeroPadding()),
                 source_transforms=[transforms.Centering()],
                 target_transforms=[transforms.Centering()],
             ),

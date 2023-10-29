@@ -1,7 +1,8 @@
-from typing import Any, Mapping
+from typing import Any, Mapping, Optional
 
 import torch
 
+from latentis.estimate.dim_matcher import DimMatcher
 from latentis.estimate.estimator import Estimator
 
 # class LSTSQOrthoTranslator(Estimator):
@@ -17,15 +18,17 @@ from latentis.estimate.estimator import Estimator
 
 
 class SVDEstimator(Estimator):
-    def __init__(self) -> None:
-        super().__init__("svd")
-        # self.register_buffer("translation_matrix", None)
+    def __init__(self, dim_matcher: Optional[DimMatcher]) -> None:
+        super().__init__("svd", dim_matcher=dim_matcher)
 
     def fit(self, source_data: torch.Tensor, target_data: torch.Tensor) -> Mapping[str, Any]:
-        #  Compute the translation vector that aligns A to B using SVD.
+        self.dim_matcher.fit(source_data, target_data)
+        source_data, target_data = self.dim_matcher(source_data, target_data)
         assert source_data.size(1) == target_data.size(
             1
         ), f"Dimension mismatch between {source_data.size(1)} and {target_data.size(1)}. Forgot some padding/truncation transforms?"
+
+        #  Compute the translation vector that aligns A to B using SVD.
         u, sigma, vt = torch.svd((target_data.T @ source_data).T)
         translation_matrix = u @ vt.T
 
@@ -37,4 +40,7 @@ class SVDEstimator(Estimator):
         return {"sigma_rank": sigma_rank}
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return x @ self.translation_matrix
+        x, _ = self.dim_matcher(source_x=x, target_x=None)
+        x = x @ self.translation_matrix
+        _, x = self.dim_matcher.reverse(source_x=None, target_x=x)
+        return x

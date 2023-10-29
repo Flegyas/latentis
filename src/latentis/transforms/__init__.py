@@ -1,6 +1,5 @@
 from .abstract import Transform
 from .independent import L2, Centering, StandardScaling, STDScaling
-from .joint import ZeroPadding
 
 __all__ = [
     "Transform",
@@ -9,5 +8,4 @@ __all__ = [
     "PCATruncation",
     "StandardScaling",
     "STDScaling",
-    "ZeroPadding",
 ]
