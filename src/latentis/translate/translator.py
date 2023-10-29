@@ -2,7 +2,6 @@ from typing import Any, Mapping, Optional, Sequence
 
 from torch import nn
 
-from latentis import transforms
 from latentis.estimate.estimator import Estimator
 from latentis.space import LatentSpace
 from latentis.transforms import Transform
@@ -16,12 +15,10 @@ class LatentTranslator(nn.Module):
         estimator: Estimator,
         source_transforms: Optional[Sequence[Transform]] = None,
         target_transforms: Optional[Sequence[Transform]] = None,
-        autopad: bool = True,
     ) -> None:
         super().__init__()
         self.random_seed: int = random_seed
         self.estimator: Estimator = estimator
-        self.autopad: bool = autopad
         self.fitted: bool = False
 
         self.source_transforms: Sequence[Transform] = nn.ModuleList(
@@ -51,12 +48,6 @@ class LatentTranslator(nn.Module):
         self.register_buffer("source_data", source_data)
         self.register_buffer("target_data", target_data)
 
-        pad_transform = transforms.ZeroPadding(pad=abs(source_data.size(1) - target_data.size(1)))
-        if source_data.size(1) < target_data.size(1):
-            self.source_transforms.append(pad_transform)
-        elif source_data.size(1) > target_data.size(1):
-            self.target_transforms.append(pad_transform)
-
         transformed_source_data = source_data
         transformed_target_data = target_data
 
@@ -80,6 +71,7 @@ class LatentTranslator(nn.Module):
 
     def forward(self, x: LatentSpace, name: Optional[str] = None) -> LatentSpace:
         source_x = x.vectors
+
         for transform in self.source_transforms:
             source_x = transform(x=source_x)
 

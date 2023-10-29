@@ -1,9 +1,9 @@
-from abc import abstractmethod
 from typing import Mapping
 
 import torch
 import torch.nn.functional as F
-from torch import nn
+
+from latentis.transforms.abstract import Independent
 
 
 # https://github.com/scikit-learn/scikit-learn/blob/7f9bad99d6e0a3e8ddf92a7e5561245224dab102/sklearn/preprocessing/_data.py#L87
@@ -41,36 +41,7 @@ def _handle_zeros(scale: torch.Tensor, copy=True, constant_mask=None):
         return scale
 
 
-class Transform(nn.Module):
-    def __init__(self, name: str) -> None:
-        super().__init__()
-        self._name: str = name
-        self.fitted: bool = False
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @abstractmethod
-    def _fit(self, data: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
-        raise NotImplementedError
-
-    def fit(self, data: torch.Tensor, *args, **kwargs) -> None:
-        for key, value in self._fit(data=data, *args, **kwargs).items():
-            self.register_buffer(key, value)
-        self.fitted: bool = True
-
-    def forward(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
-        raise NotImplementedError
-
-    def reverse(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
-        raise NotImplementedError
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}(name={self.name})"
-
-
-class Centering(Transform):
+class Centering(Independent):
     def __init__(self) -> None:
         super().__init__(name="centering")
 
@@ -86,7 +57,7 @@ class Centering(Transform):
         return x + self.shift
 
 
-class STDScaling(Transform):
+class STDScaling(Independent):
     def __init__(self) -> None:
         super().__init__(name="std_scaling")
 
@@ -106,7 +77,7 @@ class STDScaling(Transform):
         return x * self.scale
 
 
-class StandardScaling(Transform):
+class StandardScaling(Independent):
     def __init__(self) -> None:
         super().__init__(name="standard_scaling")
 
@@ -124,7 +95,7 @@ class StandardScaling(Transform):
         return (x * self.scale) + self.shift
 
 
-class L2(Transform):
+class L2(Independent):
     def __init__(self) -> None:
         super().__init__(name="l2")
 
@@ -138,36 +109,3 @@ class L2(Transform):
         assert self.fitted, "The transform must be fit first."
 
         return x * self.mean_norm
-
-
-class ZeroPadding(Transform):
-    def __init__(self, pad: int) -> None:
-        super().__init__(name="zero_padding")
-        self.register_buffer("pad", torch.as_tensor(pad))
-
-    def _fit(self, data: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
-        return {}
-
-    def forward(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
-        assert x.ndim == 2, "The input tensor must be 2D."
-
-        return torch.nn.functional.pad(x, (0, self.pad))
-
-    def reverse(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
-        assert self.fitted, "The transform must be fit first."
-        return x[..., : -self.pad]
-
-
-class PCATruncation(Transform):
-    def __init__(self, n_components: int) -> None:
-        super().__init__(name="pca_truncation")
-        self.n_components = n_components
-
-    def _fit(self, data: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
-        raise NotImplementedError
-
-    def forward(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
-        raise NotImplementedError
-
-    def reverse(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
-        raise NotImplementedError

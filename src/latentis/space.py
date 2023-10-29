@@ -63,7 +63,7 @@ class LatentSpace(TorchDataset):
         return LatentSpace(name=name, vectors=vectors, properties=properties)
 
     @property
-    def shape(self) -> int:
+    def shape(self) -> torch.Size:
         return self.vectors.shape
 
     def __getitem__(self, index: int) -> Mapping[str, torch.Tensor]:
