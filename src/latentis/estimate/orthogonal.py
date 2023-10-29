@@ -30,7 +30,7 @@ class SVDEstimator(Estimator):
         u, sigma, vt = torch.svd((target_data.T @ source_data).T)
         translation_matrix = u @ vt.T
 
-        translation_matrix = torch.as_tensor(translation_matrix, dtype=torch.float32, device=source_data.device)
+        translation_matrix = torch.as_tensor(translation_matrix, dtype=source_data.dtype, device=source_data.device)
         self.register_buffer("translation_matrix", translation_matrix)
 
         sigma_rank = (~sigma.isclose(torch.zeros_like(sigma), atol=1e-1).bool()).sum().item()
