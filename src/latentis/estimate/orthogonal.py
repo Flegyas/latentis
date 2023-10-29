@@ -23,7 +23,9 @@ class SVDEstimator(Estimator):
 
     def fit(self, source_data: torch.Tensor, target_data: torch.Tensor) -> Mapping[str, Any]:
         self.dim_matcher.fit(source_data, target_data)
-        source_data, target_data = self.dim_matcher(source_data, target_data)
+        dim_matcher_out = self.dim_matcher(source_data, target_data)
+        source_data, target_data = dim_matcher_out["source"], dim_matcher_out["target"]
+
         assert source_data.size(1) == target_data.size(
             1
         ), f"Dimension mismatch between {source_data.size(1)} and {target_data.size(1)}. Forgot some padding/truncation transforms?"
@@ -40,7 +42,7 @@ class SVDEstimator(Estimator):
         return {"sigma_rank": sigma_rank}
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x, _ = self.dim_matcher(source_x=x, target_x=None)
+        x = self.dim_matcher(source_x=x, target_x=None)["source"]
         x = x @ self.translation_matrix
-        _, x = self.dim_matcher.reverse(source_x=None, target_x=x)
+        x = self.dim_matcher.reverse(source_x=None, target_x=x)["target"]
         return x

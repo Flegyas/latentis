@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Mapping, Optional
+from typing import Dict, Mapping, Optional
 
 import torch
 from torch import nn
@@ -87,7 +87,7 @@ class ZeroPadding(DimMatcher):
         target_x: Optional[torch.Tensor],
         *args,
         **kwargs,
-    ) -> torch.Tensor:
+    ) -> Dict[str, torch.Tensor]:
         if self.transform_source and source_x is not None:
             assert source_x.ndim == 2, "The source tensor must be 2D."
             source_x = torch.nn.functional.pad(
@@ -104,7 +104,10 @@ class ZeroPadding(DimMatcher):
                 mode="constant",
                 value=0,
             )
-        return (source_x, target_x)
+        return {
+            "source": source_x,
+            "target": target_x,
+        }
 
     def reverse(
         self,
@@ -112,13 +115,16 @@ class ZeroPadding(DimMatcher):
         target_x: Optional[torch.Tensor],
         *args,
         **kwargs,
-    ) -> torch.Tensor:
+    ) -> Dict[str, torch.Tensor]:
         assert self.fitted, "The transform must be fit first."
         if self.transform_source and source_x is not None:
             source_x = source_x[..., : -self.source_pad]
         if self.transform_target and target_x is not None:
             target_x = target_x[..., : -self.target_pad]
-        return (source_x, target_x)
+        return {
+            "source": source_x,
+            "target": target_x,
+        }
 
 
 # class PCATruncation(DimMatcher):
