@@ -8,7 +8,7 @@ from torch import nn
 from latentis import transforms
 from latentis.estimate.dim_matcher import ZeroPadding
 from latentis.estimate.linear import LSTSQEstimator
-from latentis.estimate.orthogonal import SVDEstimator
+from latentis.estimate.orthogonal import LSTSQOrthoEstimator, SVDEstimator
 from latentis.space import LatentSpace
 from latentis.translate.translator import LatentTranslator
 
@@ -162,6 +162,7 @@ class ManualLatentTranslation(nn.Module):
     [
         ("svd", lambda: SVDEstimator(dim_matcher=ZeroPadding())),
         ("lstsq", lambda: LSTSQEstimator()),
+        ("lstsq+ortho", lambda: LSTSQOrthoEstimator()),
     ],
 )
 @pytest.mark.parametrize(
