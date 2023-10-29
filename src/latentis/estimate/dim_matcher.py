@@ -23,6 +23,7 @@ class DimMatcher(nn.Module):
         raise NotImplementedError
 
     def fit(self, source_data: torch.Tensor, target_data: torch.Tensor, *args, **kwargs) -> None:
+        assert not self.fitted, "Dimensionality matcher is already fitted."
         for key, value in self._fit(source_data=source_data, target_data=target_data, *args, **kwargs).items():
             self.register_buffer(key, value)
         self.fitted: bool = True
