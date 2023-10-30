@@ -1,9 +1,9 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import pytest
 import torch
 import torch.nn.functional as F
-from torch import nn
+from torch import Tensor, nn
 
 from latentis import transforms
 from latentis.estimate.dim_matcher import ZeroPadding
@@ -206,7 +206,7 @@ class ManualLatentTranslation(nn.Module):
     ],
 )
 def test_manual_translation(
-    parallel_spaces: Tuple[LatentSpace, LatentSpace],
+    parallel_spaces: Tuple[Union[LatentSpace, Tensor], Union[LatentSpace, Tensor]],
     manual_method,
     estimator_factory,
     manual_centering,
@@ -231,10 +231,15 @@ def test_manual_translation(
 
     A, B = parallel_spaces
 
-    manual_translator.fit(A.vectors, B.vectors)
+    manual_translator.fit(
+        A.vectors if isinstance(A, LatentSpace) else A,
+        B.vectors if isinstance(B, LatentSpace) else B,
+    )
     translator.fit(source_data=A, target_data=B)
 
-    manual_output = manual_translator.transform(A.vectors)["target"]
+    manual_output = manual_translator.transform(A.vectors if isinstance(A, LatentSpace) else A)["target"]
     latentis_output = translator(A)
 
-    assert torch.allclose(manual_output, latentis_output.vectors)
+    assert torch.allclose(
+        manual_output, latentis_output.vectors if isinstance(latentis_output, LatentSpace) else latentis_output
+    )

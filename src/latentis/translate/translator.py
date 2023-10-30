@@ -1,6 +1,6 @@
-from typing import Any, Mapping, Optional, Sequence
+from typing import Any, Mapping, Optional, Sequence, Union
 
-from torch import nn
+from torch import Tensor, nn
 
 from latentis.estimate.estimator import Estimator
 from latentis.space import LatentSpace
@@ -36,20 +36,22 @@ class LatentTranslator(nn.Module):
             else [target_transforms]
         )
 
-    def fit(self, source_data: LatentSpace, target_data: LatentSpace) -> Mapping[str, Any]:
+    def fit(
+        self, source_data: Union[LatentSpace, Tensor], target_data: Union[LatentSpace, Tensor]
+    ) -> Mapping[str, Any]:
         assert not self.fitted, "Translator is already fitted."
         self.fitted = True
 
         seed_everything(self.random_seed)
 
-        source_data = source_data.vectors
-        target_data = target_data.vectors
+        source_vectors = source_data.vectors if isinstance(source_data, LatentSpace) else source_data
+        target_vectors = target_data.vectors if isinstance(target_data, LatentSpace) else target_data
 
-        self.register_buffer("source_data", source_data)
-        self.register_buffer("target_data", target_data)
+        self.register_buffer("source_vectors", source_vectors)
+        self.register_buffer("target_vectors", target_vectors)
 
-        transformed_source_data = source_data
-        transformed_target_data = target_data
+        transformed_source_data = source_vectors
+        transformed_target_data = target_vectors
 
         for transform in self.source_transforms:
             transform.fit(transformed_source_data)
@@ -69,8 +71,10 @@ class LatentTranslator(nn.Module):
 
         return self.translator_info
 
-    def forward(self, x: LatentSpace, name: Optional[str] = None) -> LatentSpace:
-        source_x = x.vectors
+    def forward(self, x: Union[LatentSpace, Tensor], name: Optional[str] = None) -> LatentSpace:
+        assert self.fitted, "Translator must be fitted before it can be used."
+
+        source_x = x.vectors if isinstance(x, LatentSpace) else x
 
         for transform in self.source_transforms:
             source_x = transform(x=source_x)
@@ -80,4 +84,7 @@ class LatentTranslator(nn.Module):
         for transform in reversed(self.target_transforms):
             target_x = transform.reverse(x=target_x)
 
-        return LatentSpace.like(space=x, vectors=target_x, name=name)
+        if isinstance(x, LatentSpace):
+            return LatentSpace.like(space=x, vectors=target_x, name=name)
+        else:
+            return target_x

@@ -75,6 +75,13 @@ class LatentSpace(TorchDataset):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(name={self.name}, vectors={self.vectors.shape}, properties={self.properties.keys()})"
 
+    def __eq__(self, __value: object) -> bool:
+        return (
+            torch.allclose(self.vectors, __value.vectors)
+            and self.name == __value.name
+            and self.properties == __value.properties
+        )
+
     def sample(self, sampler: Sampler, n: int) -> "LatentSpace":
         """Sample n vectors from this space using the given sampler.
 

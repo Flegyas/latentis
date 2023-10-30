@@ -1,7 +1,7 @@
 from typing import Optional, Sequence, Union
 
 import torch
-from torch import nn
+from torch import Tensor, nn
 
 from latentis.space import LatentSpace, SpaceProperty
 
@@ -26,7 +26,9 @@ class Uniform(Sampler):
             suffix = ""
         self.suffix = suffix
 
-    def forward(self, *spaces: LatentSpace, n: int) -> Union[Sequence[LatentSpace], LatentSpace]:
+    def forward(
+        self, *spaces: Union[LatentSpace, Tensor], n: int
+    ) -> Union[Sequence[Union[LatentSpace, Tensor]], Union[LatentSpace, Tensor]]:
         """Samples n vectors uniformly at random from each space.
 
         Args:
@@ -40,20 +42,25 @@ class Uniform(Sampler):
         assert len(set(len(space) for space in spaces)) == 1, "All spaces must have the same number of samples"
         assert n > 0, f"n must be greater than 0, but is {n}"
         assert n <= len(spaces[0]), f"n must be smaller than the number of vectors, but is {n}"
+        assert len(set(type(space) for space in spaces)) == 1, "All spaces must be of the same class"
 
         ids = torch.randperm(len(spaces[0]), generator=self.generator)[:n]
 
-        out = tuple(
-            LatentSpace(
-                vectors=space.vectors[ids],
-                name=f"{space.name}{self.suffix}",
-                properties={
-                    SpaceProperty.SAMPLING_IDS: ids,
-                    **{key: values[ids] for key, values in space.properties.items()},
-                },
+        if isinstance(spaces[0], LatentSpace):
+            out = tuple(
+                LatentSpace(
+                    vectors=space.vectors[ids],
+                    name=f"{space.name}{self.suffix}",
+                    properties={
+                        SpaceProperty.SAMPLING_IDS: ids,
+                        **{key: values[ids] for key, values in space.properties.items()},
+                    },
+                )
+                for space in spaces
             )
-            for space in spaces
-        )
+        else:
+            out = tuple(space[ids] for space in spaces)
+
         return out[0] if len(out) == 1 else out
 
 
