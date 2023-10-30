@@ -42,70 +42,60 @@ def _handle_zeros(scale: torch.Tensor, copy=True, constant_mask=None):
 
 
 class Centering(Independent):
+    @staticmethod
+    def compute_stats(reference: torch.Tensor) -> Mapping[str, torch.Tensor]:
+        return {"shift": reference.mean(dim=0)}
+
     def __init__(self) -> None:
         super().__init__(name="centering")
 
-    def _fit(self, data: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
-        return {"shift": data.mean(dim=0)}
+    def _forward(self, x: torch.Tensor, shift: torch.Tensor) -> torch.Tensor:
+        return x - shift
 
-    def forward(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
-        assert self.fitted, "The transform must be fit first."
-        return x - self.shift
-
-    def reverse(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
-        assert self.fitted, "The transform must be fit first."
-        return x + self.shift
+    def _reverse(self, x: torch.Tensor, shift: torch.Tensor) -> torch.Tensor:
+        return x + shift
 
 
 class STDScaling(Independent):
+    @staticmethod
+    def compute_stats(reference: torch.Tensor) -> Mapping[str, torch.Tensor]:
+        return {"scale": _handle_zeros(reference.std(dim=0))}
+
     def __init__(self) -> None:
         super().__init__(name="std_scaling")
 
-    def _fit(self, data: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
-        return {"scale": _handle_zeros(data.std(dim=0))}
+    def _forward(self, x: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
+        return x / scale
 
-    def forward(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
-        assert self.fitted, "The transform must be fit first."
-
-        # scale = _handle_zeros(data.std(dim=0)) if data is not None else self.scale
-        return x / self.scale
-
-    def reverse(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
-        assert self.fitted, "The transform must be fit first."
-
-        # scale = _handle_zeros(data.std(dim=0)) if data is not None else self.scale
-        return x * self.scale
+    def _reverse(self, x: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
+        return x * scale
 
 
 class StandardScaling(Independent):
+    @staticmethod
+    def compute_stats(reference: torch.Tensor) -> Mapping[str, torch.Tensor]:
+        return {"shift": reference.mean(dim=0), "scale": _handle_zeros(reference.std(dim=0))}
+
     def __init__(self) -> None:
         super().__init__(name="standard_scaling")
 
-    def _fit(self, data: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
-        return {"shift": data.mean(dim=0), "scale": _handle_zeros(data.std(dim=0))}
+    def _forward(self, x: torch.Tensor, shift: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
+        return (x - shift) / scale
 
-    def forward(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
-        assert self.fitted, "The transform must be fit first."
-
-        return (x - self.shift) / self.scale
-
-    def reverse(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
-        assert self.fitted, "The transform must be fit first."
-
-        return (x * self.scale) + self.shift
+    def _reverse(self, x: torch.Tensor, shift: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
+        return (x * scale) + shift
 
 
 class L2(Independent):
+    @staticmethod
+    def compute_stats(reference: torch.Tensor) -> Mapping[str, torch.Tensor]:
+        return {"mean_norm": reference.norm(dim=1).mean()}
+
     def __init__(self) -> None:
         super().__init__(name="l2")
 
-    def _fit(self, data: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
-        return {"mean_norm": data.norm(dim=1).mean()}
-
-    def forward(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+    def _forward(self, x: torch.Tensor, mean_norm: torch.Tensor) -> torch.Tensor:
         return F.normalize(x, p=2, dim=-1)
 
-    def reverse(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
-        assert self.fitted, "The transform must be fit first."
-
-        return x * self.mean_norm
+    def _reverse(self, x: torch.Tensor, mean_norm: torch.Tensor) -> torch.Tensor:
+        return x * mean_norm

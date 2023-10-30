@@ -83,3 +83,23 @@ class ParallelSpaces(object):
 @pytest.fixture(params=ParallelSpaces().instances)
 def parallel_spaces(request) -> Tuple[Union[LatentSpace, Tensor], Union[LatentSpace, Tensor]]:
     return request.param
+
+
+class TensorSpaceWithRef(object):
+    seed_everything(42)
+    instances = [
+        (
+            torch.randn(space1_n, space_1_dim, dtype=torch.double),
+            torch.randn(space2_n, space2_dim, dtype=torch.double),
+        )
+        for (space1_n, space_1_dim), (space2_n, space2_dim) in [
+            ((250, 250), (100, 250)),
+            ((300, 300), (20, 300)),
+            ((1000, 700), (42, 700)),
+        ]
+    ]
+
+
+@pytest.fixture(params=TensorSpaceWithRef().instances)
+def tensor_space_with_ref(request) -> Tuple[Tensor, Tensor]:
+    return request.param
