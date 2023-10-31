@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import copy
 from enum import auto
-from typing import TYPE_CHECKING, Any, Dict, Mapping, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Union
+
+from latentis.metrics import Metric, MetricFn
 
 if TYPE_CHECKING:
     from latentis.sampling import Sampler
@@ -101,6 +103,22 @@ class LatentSpace(TorchDataset):
 
         """
         return sampler(self, n=n)
+
+    def compare(self, *others: Space, metrics: Mapping[str, Union[Metric, Callable[[Space, Space], torch.Tensor]]]):
+        """Compare this space with another space using the given metrics.
+
+        Args:
+            other (Space): The space to compare with.
+            metrics (Mapping[str, Metric]): The metrics to use.
+
+        Returns:
+            Dict[str, Any]: The results of the comparison.
+        """
+        metrics = {
+            key: metric if isinstance(metric, Metric) else MetricFn(key, metric) for key, metric in (metrics.items())
+        }
+        metrics_results = {metric_name: metric(self, *others) for metric_name, metric in metrics.items()}
+        return metrics_results
 
     # def translate(
     #     self,

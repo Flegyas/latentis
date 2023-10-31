@@ -4,7 +4,7 @@ import pytest
 import torch
 from torch import Tensor
 
-from latentis.space import LatentSpace
+from latentis import LatentSpace
 from latentis.types import Space
 from latentis.utils import seed_everything
 
