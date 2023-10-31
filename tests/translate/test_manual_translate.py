@@ -11,6 +11,7 @@ from latentis.estimate.linear import LSTSQEstimator
 from latentis.estimate.orthogonal import LSTSQOrthoEstimator, SVDEstimator
 from latentis.space import LatentSpace
 from latentis.translate.translator import LatentTranslator
+from latentis.types import Space
 
 
 def manual_svd_translation(A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
@@ -206,7 +207,7 @@ class ManualLatentTranslation(nn.Module):
     ],
 )
 def test_manual_translation(
-    parallel_spaces: Tuple[LatentSpace, LatentSpace],
+    parallel_spaces: Tuple[Space, Space],
     manual_method,
     estimator_factory,
     manual_centering,
@@ -231,10 +232,15 @@ def test_manual_translation(
 
     A, B = parallel_spaces
 
-    manual_translator.fit(A.vectors, B.vectors)
+    manual_translator.fit(
+        A.vectors if isinstance(A, LatentSpace) else A,
+        B.vectors if isinstance(B, LatentSpace) else B,
+    )
     translator.fit(source_data=A, target_data=B)
 
-    manual_output = manual_translator.transform(A.vectors)["target"]
+    manual_output = manual_translator.transform(A.vectors if isinstance(A, LatentSpace) else A)["target"]
     latentis_output = translator(A)
 
-    assert torch.allclose(manual_output, latentis_output.vectors)
+    assert torch.allclose(
+        manual_output, latentis_output.vectors if isinstance(latentis_output, LatentSpace) else latentis_output
+    )

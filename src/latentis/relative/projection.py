@@ -1,172 +1,140 @@
-# import functools
-# from typing import Optional, Sequence
+import functools
+from typing import Callable, Optional, Sequence
 
-# import torch
-# import torch.nn.functional as F
-# from torch import nn
+import torch
+import torch.nn.functional as F
+from torch import nn
 
-# from latentis.types import TransformType
-
-
-# class RelativeProjection(nn.Module):
-#     def __init__(self, name: str, func: TransformType) -> None:
-#         super().__init__()
-#         self._name: str = name
-#         self.func: TransformType = func
-
-#     @property
-#     def name(self) -> str:
-#         return self._name
-
-#     def forward(self, x: torch.Tensor, anchors: torch.Tensor) -> torch.Tensor:
-#         return self.func(x=x, anchors=anchors)
+from latentis.space import LatentSpace
+from latentis.transforms import Transform
+from latentis.types import ProjectionFunc, Space
 
 
-# def change_of_basis(x: torch.Tensor, anchors: torch.Tensor) -> torch.Tensor:
-#     return torch.linalg.lstsq(anchors.T, x.T)[0].T
+def change_of_basis_proj(x: torch.Tensor, anchors: torch.Tensor) -> torch.Tensor:
+    return torch.linalg.lstsq(anchors.T, x.T)[0].T
 
 
-# def cosine_dist(
-#     x: torch.Tensor,
-#     anchors: torch.Tensor,
-# ) -> torch.Tensor:
-#     x = F.normalize(x, p=2, dim=-1)
-#     anchors = F.normalize(anchors, p=2, dim=-1)
+def cosine_proj(
+    x: torch.Tensor,
+    anchors: torch.Tensor,
+) -> torch.Tensor:
+    x = F.normalize(x, p=2, dim=-1)
+    anchors = F.normalize(anchors, p=2, dim=-1)
 
-#     return x @ anchors.T
-
-
-# def geodesic_dist(
-#     x: torch.Tensor,
-#     anchors: torch.Tensor,
-# ) -> torch.Tensor:
-#     x = F.normalize(x, p=2, dim=-1)
-#     anchors = F.normalize(anchors, p=2, dim=-1)
-
-#     return 1 - torch.arccos(x @ anchors.T)
+    return x @ anchors.mT
 
 
-# def lp_dist(
-#     x: torch.Tensor,
-#     anchors: torch.Tensor,
-#     p: int,
-# ) -> torch.Tensor:
-#     return torch.cdist(x, anchors, p=p)
+def angular_proj(
+    x: torch.Tensor,
+    anchors: torch.Tensor,
+) -> torch.Tensor:
+    x = F.normalize(x, p=2, dim=-1)
+    anchors = F.normalize(anchors, p=2, dim=-1)
+
+    return 1 - torch.arccos(x @ anchors.mT)
 
 
-# def euclidean_dist(
-#     x: torch.Tensor,
-#     anchors: torch.Tensor,
-# ) -> torch.Tensor:
-#     return lp_dist(x=x, anchors=anchors, p=2)
+def lp_proj(
+    x: torch.Tensor,
+    anchors: torch.Tensor,
+    p: int,
+) -> torch.Tensor:
+    return torch.cdist(x, anchors, p=p)
 
 
-# class Projections:
-#     COSINE = RelativeProjection(name="cosine", func=cosine_dist)
-#     GEODESIC = RelativeProjection(name="geodesic", func=geodesic_dist)
-#     COB = RelativeProjection(name="change_of_basis", func=change_of_basis)
-#     EUCLIDEAN = RelativeProjection(name="euclidean", func=euclidean_dist)
-#     L1 = RelativeProjection(name="l1", func=functools.partial(lp_dist, p=1))
+def euclidean_proj(
+    x: torch.Tensor,
+    anchors: torch.Tensor,
+) -> torch.Tensor:
+    return lp_proj(x=x, anchors=anchors, p=2)
 
 
-# class RelativeProjector(nn.Module):
-#     # TODO: Add support for anchor optimization
-#     def __init__(
-#         self,
-#         projection: RelativeProjection,
-#         anchors: Optional[torch.Tensor] = None,
-#         abs_transforms: Optional[Sequence[TransformType]] = None,
-#         rel_transforms: Optional[Sequence[TransformType]] = None,
-#     ) -> None:
-#         super().__init__()
-#         self.projection: TransformType = projection
-
-#         self.abs_transforms = nn.ModuleList(
-#             abs_transforms
-#             if isinstance(abs_transforms, Sequence)
-#             else []
-#             if abs_transforms is None
-#             else [abs_transforms]
-#         )
-#         self.rel_transforms = nn.ModuleList(
-#             rel_transforms
-#             if isinstance(rel_transforms, Sequence)
-#             else []
-#             if rel_transforms is None
-#             else [rel_transforms]
-#         )
-
-#         if anchors is not None:
-#             self.register_buffer("anchors", anchors)
-
-#     def set_anchors(self, anchors: torch.Tensor) -> "RelativeProjector":
-#         self.register_buffer("anchors", anchors)
-#         return self
-
-#     @property
-#     def name(self) -> str:
-#         return self._name
-
-#     def forward(self, x: torch.Tensor, anchors: Optional[torch.Tensor] = None) -> torch.Tensor:
-#         assert anchors is not None or self.anchors is not None, "anchors must be provided"
-#         anchors = anchors if anchors is not None else self.anchors
-
-#         # absolute normalization/transformation
-#         transformed_x = x
-#         transformed_anchors = anchors
-#         for abs_transform in self.abs_transforms:
-#             transformed_x = abs_transform(x=transformed_x, anchors=anchors)
-#             transformed_anchors = abs_transform(x=transformed_anchors, anchors=anchors)
-
-#         # relative projection of x with respect to the anchors
-#         rel_x = self.projection(x=transformed_x, anchors=transformed_anchors)
-
-#         # relative normalization/transformation
-#         for rel_transform in self.rel_transforms:
-#             # TODO: handle the case where the rel_transform needs additional arguments (e.g. rel_anchors, x, ...)
-#             # maybe with a custom Compose object with kwargs
-#             rel_x = rel_transform(x=rel_x, anchors=anchors)
-
-#         return rel_x
+l1_proj = functools.partial(lp_proj, p=1)
 
 
-# class PointWiseProjector(RelativeProjector):
-#     def __init__(
-#         self,
-#         name: str,
-#         func: TransformType,
-#         anchors: Optional[torch.Tensor] = None,
-#         abs_transforms: Optional[Sequence[TransformType]] = None,
-#         rel_transforms: Optional[Sequence[TransformType]] = None,
-#     ) -> None:
-#         super().__init__(
-#             name=name, projection=func, anchors=anchors, abs_transforms=abs_transforms, rel_transforms=rel_transforms
-#         )
+def pointwise_wrapper(func, unsqueeze: bool = False) -> Callable[..., torch.Tensor]:
+    """This wrapper allows to apply a projection function pointwise to a batch of points and anchors.
 
-#     def forward(self, x: torch.Tensor, anchors: Optional[torch.Tensor] = None) -> torch.Tensor:
-#         assert anchors is not None or self.anchors is not None, "anchors must be provided"
-#         anchors = anchors if anchors is not None else self.anchors
+    It is useful when the projection function does not support batched inputs.
 
-#         # absolute normalization/transformation
-#         transformed_x = x
-#         transformed_anchors = anchors
-#         for abs_transform in self.abs_transforms:
-#             transformed_x = abs_transform(x=transformed_x, anchors=anchors)
-#             transformed_anchors = abs_transform(x=transformed_anchors, anchors=anchors)
+    Args:
+        func: The projection function to be wrapped.
+        unsqueeze: If True, the first dimension of the inputs will be unsqueezed before applying the projection function.
 
-#         # relative projection of x with respect to the anchors
-#         rel_x = []
-#         for point in x:
-#             partial_rel_data = []
-#             for anchor in transformed_anchors:
-#                 partial_rel_data.append(self.projection(x=point, anchors=anchor))
-#             rel_x.append(partial_rel_data)
-#         rel_x = torch.as_tensor(rel_x, dtype=anchors.dtype, device=anchors.device)
+    Returns:
+        A wrapper function that applies the projection function pointwise.
+    """
+    unsqueeze = None if unsqueeze else ...
 
-#         # relative normalization/transformation
-#         for rel_transform in self.rel_transforms:
-#             # TODO: handle the case where the rel_transform needs additional arguments (e.g. rel_anchors, x, ...)
-#             # maybe with a custom Compose object with kwargs
-#             rel_x = rel_transform(x=rel_x, anchors=anchors)
+    def wrapper(x, anchors):
+        rel_x = []
+        for point in x:
+            partial_rel_data = [func(x=point[unsqueeze], anchors=anchor[unsqueeze]) for anchor in anchors]
+            rel_x.append(partial_rel_data)
+        rel_x = torch.as_tensor(rel_x, dtype=anchors.dtype, device=anchors.device)
+        return rel_x
 
-#         return rel_x
+    return wrapper
+
+
+class RelativeProjector(nn.Module):
+    def __init__(
+        self,
+        projection_fn: ProjectionFunc,
+        name: Optional[str] = None,
+        abs_transforms: Optional[Sequence[Transform]] = None,
+        rel_transforms: Optional[Sequence[Transform]] = None,
+    ) -> None:
+        super().__init__()
+        self.projection: ProjectionFunc = projection_fn
+        self._name: str = (
+            name
+            if name is not None
+            else f"relative_{projection_fn.__name__}"
+            if hasattr(projection_fn, "__name__")
+            else "relative_projection"
+        )
+
+        self.abs_transforms = nn.ModuleList(
+            abs_transforms
+            if isinstance(abs_transforms, Sequence)
+            else []
+            if abs_transforms is None
+            else [abs_transforms]
+        )
+        self.rel_transforms = nn.ModuleList(
+            rel_transforms
+            if isinstance(rel_transforms, Sequence)
+            else []
+            if rel_transforms is None
+            else [rel_transforms]
+        )
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    def forward(self, x: Space, anchors: Space) -> Space:
+        x_vectors = x.vectors if isinstance(x, LatentSpace) else x
+        anchor_vectors = anchors.vectors if isinstance(anchors, LatentSpace) else anchors
+
+        # absolute normalization/transformation
+        transformed_x = x_vectors
+        transformed_anchors = anchor_vectors
+        for abs_transform in self.abs_transforms:
+            transformed_x = abs_transform(x=transformed_x, reference=transformed_anchors)
+            transformed_anchors = abs_transform(x=transformed_anchors, reference=transformed_anchors)
+
+        # relative projection of x with respect to the anchors
+        rel_x = self.projection(x=transformed_x, anchors=transformed_anchors)
+
+        if len(self.rel_transforms) != 0:
+            rel_anchors = self.projection(x=transformed_anchors, anchors=transformed_anchors)
+            # relative normalization/transformation
+            for rel_transform in self.rel_transforms:
+                rel_x = rel_transform(x=rel_x, reference=rel_anchors)
+
+        if isinstance(x, LatentSpace):
+            return LatentSpace.like(space=x, vectors=rel_x)
+        else:
+            return rel_x

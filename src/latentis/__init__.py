@@ -8,3 +8,7 @@ except ImportError:
         file=sys.stderr,
     )
     __version__ = "unknown"
+
+from .space import LatentSpace
+
+__all__ = ["LatentSpace", "__version__"]

@@ -1,5 +1,16 @@
+from ._transforms import (
+    L2,
+    Centering,
+    DimensionPermutation,
+    Isometry,
+    IsotropicScaling,
+    RandomDimensionPermutation,
+    RandomIsometry,
+    RandomIsotropicScaling,
+    StandardScaling,
+    STDScaling,
+)
 from .abstract import Transform
-from .independent import L2, Centering, StandardScaling, STDScaling
 
 __all__ = [
     "Transform",
@@ -8,4 +19,10 @@ __all__ = [
     "PCATruncation",
     "StandardScaling",
     "STDScaling",
+    "IsotropicScaling",
+    "RandomIsotropicScaling",
+    "DimensionPermutation",
+    "RandomDimensionPermutation",
+    "Isometry",
+    "RandomIsometry",
 ]
