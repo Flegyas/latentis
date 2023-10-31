@@ -55,7 +55,7 @@ def test_pointwise_wrapper(projection_fn, unsqueeze: bool, tensor_space_with_ref
 
 
 @pytest.mark.parametrize(
-    "projection_fn,invariance,invariant",
+    "projector,invariance,invariant",
     [
         (
             RelativeProjector(projection_fn=angular_proj),
@@ -154,7 +154,7 @@ def test_pointwise_wrapper(projection_fn, unsqueeze: bool, tensor_space_with_ref
         ),
     ],
 )
-def test_invariances(projection_fn: ProjectionFunc, x_latents: Space, anchor_latents, invariance, invariant):
+def test_invariances(projector: ProjectionFunc, x_latents: Space, anchor_latents, invariance, invariant):
     y = invariance(x_latents if isinstance(x_latents, torch.Tensor) else x_latents.vectors)
     y_anchors = invariance(anchor_latents if isinstance(anchor_latents, torch.Tensor) else anchor_latents.vectors)
 
@@ -164,7 +164,11 @@ def test_invariances(projection_fn: ProjectionFunc, x_latents: Space, anchor_lat
     if isinstance(anchor_latents, LatentSpace):
         y_anchors = LatentSpace.like(anchor_latents, vectors=y_anchors)
 
-    x_projected = projection_fn(x_latents, anchor_latents)
-    y_projected = projection_fn(y, y_anchors)
+    x_projected = projector(x_latents, anchor_latents)
+    y_projected = projector(y, y_anchors)
 
     assert not invariant or torch.allclose(x_projected, y_projected)
+
+    if isinstance(x_latents, LatentSpace):
+        space_relative = x_latents.to_relative(projector=projector, anchors=anchor_latents)
+        assert torch.allclose(space_relative.vectors, x_projected)
