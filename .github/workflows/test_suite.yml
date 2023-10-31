@@ -134,9 +134,14 @@ jobs:
           pre-commit install
           pre-commit run -v --all-files --show-diff-on-failure
 
-      - name: Test with pytest
+      - name: Test with pytest and collect coverage
         shell: bash -l {0}
         run: |
-          pytest -v
+          pytest --cov app
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 #
 #
