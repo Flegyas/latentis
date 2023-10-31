@@ -70,6 +70,7 @@ jobs:
         with:
           miniforge-variant: Mambaforge
           miniforge-version: latest
+          environment-file: ${{ env.CONDA_ENV_FILE }}
           activate-environment: ${{ env.PY_CONDA_ENV_NAME }}
           python-version: ${{ matrix.python-version }}
           use-mamba: true
@@ -82,20 +83,12 @@ jobs:
           echo "Expected: ${{ matrix.python-version }}"
           python --version | grep "Python ${{ matrix.python-version }}"
 
-      # https://stackoverflow.com/questions/70520120/attributeerror-module-setuptools-distutils-has-no-attribute-version
-      # https://github.com/pytorch/pytorch/pull/69904
-      - name: Downgrade setuptools due to a bug in PyTorch 1.10.1
-        shell: bash -l {0}
-        run: |
-          pip install setuptools==59.5.0 --upgrade
-
-      - name: Update conda environment
-        run: mamba env update -n ${{ env.PY_CONDA_ENV_NAME }} -f ${{ env.CONDA_ENV_FILE }}
-
-      - name: Update pip environment
-        shell: bash -l {0}
-        run: pip install -e ".[dev]"
-
+      # # https://stackoverflow.com/questions/70520120/attributeerror-module-setuptools-distutils-has-no-attribute-version
+      # # https://github.com/pytorch/pytorch/pull/69904
+      # - name: Downgrade setuptools due to a bug in PyTorch 1.10.1
+      #   shell: bash -l {0}
+      #   run: |
+      #     pip install setuptools==59.5.0 --upgrade
       - run: pip3 list
         shell: bash -l {0}
       - run: mamba info
