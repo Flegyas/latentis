@@ -1,16 +1,16 @@
-from typing import Tuple, Union
+from typing import Tuple
 
 import pytest
 import torch
-from torch import Tensor
 
 from latentis.estimate.dim_matcher import ZeroPadding
 from latentis.estimate.orthogonal import SVDEstimator
 from latentis.space import LatentSpace
 from latentis.translate.translator import LatentTranslator
+from latentis.types import Space
 
 
-def test_double_fitting(parallel_spaces: Tuple[Union[LatentSpace, Tensor], Union[LatentSpace, Tensor]]):
+def test_double_fitting(parallel_spaces: Tuple[Space, Space]):
     A, B = parallel_spaces
 
     translator = LatentTranslator(
