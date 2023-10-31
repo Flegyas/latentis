@@ -118,7 +118,7 @@ jobs:
       - name: Run tests and collect coverage
         shell: bash -l {0}
         run: |
-          pytest --cov=tests
+          pytest --cov=tests --cov-report xml:coverage.xml
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
