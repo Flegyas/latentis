@@ -21,7 +21,7 @@ class Transform(nn.Module):
         return f"{self.__class__.__name__}(name={self.name})"
 
     def get_stats(self) -> Mapping[str, torch.Tensor]:
-        return {k.removeprefix(_PREFIX): v for k, v in self.state_dict().items() if k.startswith(_PREFIX)}
+        return {k[len(_PREFIX) :]: v for k, v in self.state_dict().items() if k.startswith(_PREFIX)}
 
     @abstractmethod
     def compute_stats(self, reference: torch.Tensor) -> Mapping[str, torch.Tensor]:
