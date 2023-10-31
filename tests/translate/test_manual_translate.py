@@ -1,9 +1,9 @@
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple
 
 import pytest
 import torch
 import torch.nn.functional as F
-from torch import Tensor, nn
+from torch import nn
 
 from latentis import transforms
 from latentis.estimate.dim_matcher import ZeroPadding
@@ -11,6 +11,7 @@ from latentis.estimate.linear import LSTSQEstimator
 from latentis.estimate.orthogonal import LSTSQOrthoEstimator, SVDEstimator
 from latentis.space import LatentSpace
 from latentis.translate.translator import LatentTranslator
+from latentis.types import Space
 
 
 def manual_svd_translation(A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
@@ -206,7 +207,7 @@ class ManualLatentTranslation(nn.Module):
     ],
 )
 def test_manual_translation(
-    parallel_spaces: Tuple[Union[LatentSpace, Tensor], Union[LatentSpace, Tensor]],
+    parallel_spaces: Tuple[Space, Space],
     manual_method,
     estimator_factory,
     manual_centering,

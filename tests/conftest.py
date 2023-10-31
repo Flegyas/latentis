@@ -1,10 +1,11 @@
-from typing import Tuple, Union
+from typing import Tuple
 
 import pytest
 import torch
 from torch import Tensor
 
 from latentis.space import LatentSpace
+from latentis.types import Space
 from latentis.utils import seed_everything
 
 
@@ -14,7 +15,7 @@ class Space1Params(object):
         LatentSpace(
             vectors=torch.randn(1000, 128, dtype=torch.double),
             name="space1",
-            properties={
+            features={
                 "label": torch.rand(1000) > 0.5,
             },
         ),
@@ -23,7 +24,7 @@ class Space1Params(object):
 
 
 @pytest.fixture(params=Space1Params().instances, scope="session")
-def space1(request) -> Union[LatentSpace, Tensor]:
+def space1(request) -> Space:
     return request.param
 
 
@@ -33,7 +34,7 @@ class Space2Params(object):
         LatentSpace(
             vectors=torch.randn(53, 250, dtype=torch.double),
             name="space2",
-            properties={
+            features={
                 "label": torch.rand(53) > 0.5,
             },
         ),
@@ -42,7 +43,7 @@ class Space2Params(object):
 
 
 @pytest.fixture(params=Space2Params().instances, scope="session")
-def space2(request) -> Union[LatentSpace, Tensor]:
+def space2(request) -> Space:
     return request.param
 
 
@@ -81,7 +82,7 @@ class ParallelSpaces(object):
 
 
 @pytest.fixture(params=ParallelSpaces().instances)
-def parallel_spaces(request) -> Tuple[Union[LatentSpace, Tensor], Union[LatentSpace, Tensor]]:
+def parallel_spaces(request) -> Tuple[Space, Space]:
     return request.param
 
 
@@ -93,9 +94,9 @@ class TensorSpaceWithRef(object):
             torch.randn(space2_n, space2_dim, dtype=torch.double),
         )
         for (space1_n, space_1_dim), (space2_n, space2_dim) in [
-            ((250, 250), (100, 250)),
+            ((10, 250), (100, 250)),
             ((300, 300), (20, 300)),
-            ((1000, 700), (42, 700)),
+            ((100, 700), (42, 700)),
         ]
     ]
 

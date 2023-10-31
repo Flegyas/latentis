@@ -20,15 +20,12 @@ class Transform(nn.Module):
     def __repr__(self):
         return f"{self.__class__.__name__}(name={self.name})"
 
-
-class Independent(Transform):
-    @staticmethod
-    @abstractmethod
-    def compute_stats(reference: torch.Tensor) -> Mapping[str, torch.Tensor]:
-        raise NotImplementedError
-
     def get_stats(self) -> Mapping[str, torch.Tensor]:
         return {k.removeprefix(_PREFIX): v for k, v in self.state_dict().items() if k.startswith(_PREFIX)}
+
+    @abstractmethod
+    def compute_stats(self, reference: torch.Tensor) -> Mapping[str, torch.Tensor]:
+        raise NotImplementedError
 
     def fit(self, reference: torch.Tensor, *args, **kwargs) -> None:
         for key, value in self.compute_stats(reference=reference, *args, **kwargs).items():
@@ -60,24 +57,3 @@ class Independent(Transform):
         )
 
         return self._reverse(x=x, **stats)
-
-
-class Joint(Transform):
-    @abstractmethod
-    def _fit(self, source_data: torch.Tensor, target_data: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
-        raise NotImplementedError
-
-    def fit(self, source_data: torch.Tensor, target_data: torch.Tensor, *args, **kwargs) -> None:
-        for key, value in self._fit(source_data=source_data, target_data=target_data, *args, **kwargs).items():
-            self.register_buffer(key, value)
-        self.fitted: bool = True
-
-    def forward(
-        self, source_x: Optional[torch.Tensor], target_x: Optional[torch.Tensor], *args, **kwargs
-    ) -> torch.Tensor:
-        raise NotImplementedError
-
-    def reverse(
-        self, source_x: Optional[torch.Tensor], target_x: Optional[torch.Tensor], *args, **kwargs
-    ) -> torch.Tensor:
-        raise NotImplementedError

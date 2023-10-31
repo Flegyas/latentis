@@ -1,14 +1,12 @@
-from typing import Union
-
-import pytest as pytest
+import pytest
 import torch
-from torch import Tensor
 
 from latentis.sampling import Uniform
 from latentis.space import LatentSpace, SpaceProperty
+from latentis.types import Space
 
 
-def test_uniform_sampler(space1: Union[LatentSpace, Tensor], space2: Union[LatentSpace, Tensor]):
+def test_uniform_sampler(space1: Space, space2: Space):
     # Test invalid inputs
     uniform = Uniform()
     with pytest.raises(AssertionError):
@@ -36,7 +34,7 @@ def test_uniform_sampler(space1: Union[LatentSpace, Tensor], space2: Union[Laten
     # Test sampling ids are present but different
     if isinstance(space1, LatentSpace) and isinstance(space2, LatentSpace):
         assert not torch.all(
-            subspace1.properties[SpaceProperty.SAMPLING_IDS] == subspace2.properties[SpaceProperty.SAMPLING_IDS]
+            subspace1.features[SpaceProperty.SAMPLING_IDS] == subspace2.features[SpaceProperty.SAMPLING_IDS]
         )
 
     # Parallel sampling given same seed
@@ -49,7 +47,7 @@ def test_uniform_sampler(space1: Union[LatentSpace, Tensor], space2: Union[Laten
     # Test sampling ids are present and the same
     if isinstance(space1, LatentSpace) and isinstance(space2, LatentSpace):
         assert torch.all(
-            subspace1.properties[SpaceProperty.SAMPLING_IDS] == space1_2.properties[SpaceProperty.SAMPLING_IDS]
+            subspace1.features[SpaceProperty.SAMPLING_IDS] == space1_2.features[SpaceProperty.SAMPLING_IDS]
         ).item()
 
     # Parallel sampling in the same call
@@ -60,5 +58,28 @@ def test_uniform_sampler(space1: Union[LatentSpace, Tensor], space2: Union[Laten
     # Test sampling ids are present and the same
     if isinstance(space1, LatentSpace) and isinstance(space2, LatentSpace):
         assert torch.all(
-            subspace1.properties[SpaceProperty.SAMPLING_IDS] == space1_2.properties[SpaceProperty.SAMPLING_IDS]
+            subspace1.features[SpaceProperty.SAMPLING_IDS] == space1_2.features[SpaceProperty.SAMPLING_IDS]
         )
+
+
+# @pytest.mark.parametrize(
+#     "targets, num_classes",
+#     (
+#         (
+#             (
+#                 torch.randint(10, size=(100,)),
+#                 10,
+#             ),
+#             (
+#                 torch.randint(2, size=(100,)),
+#                 2,
+#             ),
+#         )
+#     ),
+# )
+# @pytest.mark.parametrize("samples_per_class", (1, 2, 3, 4, 5, 50, 150))
+# def test_stratified_sampling(targets, num_classes, samples_per_class):
+#     sampled_indices = stratified_sampling(targets, samples_per_class=samples_per_class)
+#     sampled_targets = targets[sampled_indices]
+#     assert sampled_targets.shape[0] == num_classes * samples_per_class
+#     assert torch.equal(sampled_targets, torch.arange(num_classes).repeat_interleave(samples_per_class))

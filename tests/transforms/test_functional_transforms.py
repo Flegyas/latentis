@@ -1,20 +1,37 @@
+import functools
+
 import pytest
 import torch
 
-from latentis.transforms import L2, Centering, Independent, StandardScaling, STDScaling
+from latentis.transforms import (
+    L2,
+    Centering,
+    IsotropicScaling,
+    RandomDimensionPermutation,
+    RandomIsometry,
+    RandomIsotropicScaling,
+    StandardScaling,
+    STDScaling,
+    Transform,
+)
 
 
 @pytest.mark.parametrize(
-    "transform_type",
+    "transform_type,invertible",
     [
-        Centering,
-        L2,
-        STDScaling,
-        StandardScaling,
+        (Centering, True),
+        (L2, False),
+        (STDScaling, True),
+        (StandardScaling, True),
+        (functools.partial(RandomIsotropicScaling, low=0.5, high=2.0, random_seed=42), True),
+        (functools.partial(IsotropicScaling, scale=1.0), True),
+        (functools.partial(RandomDimensionPermutation, random_seed=42), True),
+        (functools.partial(RandomIsometry, random_seed=42), True),
     ],
 )
 def test_functional_transforms(
-    transform_type: Independent,
+    transform_type: Transform,
+    invertible: bool,
     tensor_space_with_ref,
 ):
     space, reference = tensor_space_with_ref
@@ -35,3 +52,5 @@ def test_functional_transforms(
 
     assert torch.allclose(rev_out1, rev_out2)
     assert torch.allclose(rev_out1, rev_out3)
+
+    assert not invertible or torch.allclose(space, rev_out1)

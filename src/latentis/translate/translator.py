@@ -1,10 +1,11 @@
-from typing import Any, Mapping, Optional, Sequence, Union
+from typing import Any, Mapping, Optional, Sequence
 
-from torch import Tensor, nn
+from torch import nn
 
 from latentis.estimate.estimator import Estimator
 from latentis.space import LatentSpace
 from latentis.transforms import Transform
+from latentis.types import Space
 from latentis.utils import seed_everything
 
 
@@ -36,9 +37,7 @@ class LatentTranslator(nn.Module):
             else [target_transforms]
         )
 
-    def fit(
-        self, source_data: Union[LatentSpace, Tensor], target_data: Union[LatentSpace, Tensor]
-    ) -> Mapping[str, Any]:
+    def fit(self, source_data: Space, target_data: Space) -> Mapping[str, Any]:
         assert not self.fitted, "Translator is already fitted."
         self.fitted = True
 
@@ -71,7 +70,7 @@ class LatentTranslator(nn.Module):
 
         return self.translator_info
 
-    def forward(self, x: Union[LatentSpace, Tensor], name: Optional[str] = None) -> LatentSpace:
+    def forward(self, x: Space, name: Optional[str] = None) -> LatentSpace:
         assert self.fitted, "Translator must be fitted before it can be used."
 
         source_x = x.vectors if isinstance(x, LatentSpace) else x

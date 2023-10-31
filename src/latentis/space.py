@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import copy
 from enum import auto
 from typing import TYPE_CHECKING, Any, Dict, Mapping, Optional, Sequence
 
 if TYPE_CHECKING:
     from latentis.sampling import Sampler
+    from latentis.relative.projection import RelativeProjector
+    from latentis.types import Space
 
 import torch
 from torch.utils.data import Dataset as TorchDataset
@@ -25,21 +28,24 @@ class LatentSpace(TorchDataset):
         self,
         vectors: torch.Tensor,
         name: str,
-        properties: Optional[Dict[str, Sequence[Any]]] = None,
+        features: Optional[Dict[str, Sequence[Any]]] = None,
     ):
-        assert properties is None or all(len(values) == vectors.size(0) for values in properties.values())
-        if properties is None:
-            properties = {}
+        assert isinstance(vectors, torch.Tensor)
+        assert features is None or all(len(values) == vectors.size(0) for values in features.values())
+        if features is None:
+            features = {}
         self.vectors: torch.Tensor = vectors
         self.name: str = name
-        self.properties = properties
+        self.features = features
 
-    @staticmethod
+    @classmethod
     def like(
+        cls,
         space: LatentSpace,
-        name: Optional[str],
+        name: Optional[str] = None,
         vectors: Optional[torch.Tensor] = None,
-        properties: Optional[Dict[str, Sequence[Any]]] = None,
+        features: Optional[Dict[str, Sequence[Any]]] = None,
+        deepcopy: bool = False,
     ):
         """Create a new space with the arguments not provided taken from the given space.
 
@@ -49,7 +55,7 @@ class LatentSpace(TorchDataset):
             space (LatentSpace): The space to copy.
             name (Optional[str]): The name of the new space.
             vectors (Optional[torch.Tensor], optional): The vectors of the new space.
-            properties (Optional[Dict[str, Sequence[Any]]], optional): The properties of the new space.
+            features (Optional[Dict[str, Sequence[Any]]], optional): The features of the new space.
 
         Returns:
             LatentSpace: The new space, with the arguments not provided taken from the given space.
@@ -57,29 +63,30 @@ class LatentSpace(TorchDataset):
         if name is None:
             name = space.name
         if vectors is None:
-            vectors = space.vectors
-        if properties is None:
-            properties = space.properties
-        return LatentSpace(name=name, vectors=vectors, properties=properties)
+            vectors = space.vectors if not deepcopy else copy.deepcopy(space.vectors)
+        if features is None:
+            features = space.features if not deepcopy else copy.deepcopy(space.features)
+        # TODO: test deepcopy
+        return LatentSpace(name=name, vectors=vectors, features=features)
 
     @property
     def shape(self) -> torch.Size:
         return self.vectors.shape
 
     def __getitem__(self, index: int) -> Mapping[str, torch.Tensor]:
-        return {"x": self.vectors[index], **{key: values[index] for key, values in self.properties.items()}}
+        return {"x": self.vectors[index], **{key: values[index] for key, values in self.features.items()}}
 
     def __len__(self) -> int:
         return self.vectors.size(0)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(name={self.name}, vectors={self.vectors.shape}, properties={self.properties.keys()})"
+        return f"{self.__class__.__name__}(name={self.name}, vectors={self.vectors.shape}, features={self.features.keys()})"
 
     def __eq__(self, __value: object) -> bool:
         return (
-            torch.allclose(self.vectors, __value.vectors)
-            and self.name == __value.name
-            and self.properties == __value.properties
+            self.name == __value.name
+            and self.features == __value.features
+            and torch.allclose(self.vectors, __value.vectors)
         )
 
     def sample(self, sampler: Sampler, n: int) -> "LatentSpace":
@@ -118,65 +125,60 @@ class LatentSpace(TorchDataset):
     #     )
 
     #     return index
+    def to_relative(
+        self,
+        projector: RelativeProjector,
+        anchors: Space,
+        # sampler: Optional[Sampler] = None,
+        # n: Optional[int] = None,
+        # random_seed: int = None,
+    ) -> "LatentSpace":
+        relative_vectors = projector(
+            x=self.vectors,
+            anchors=anchors,
+        )
 
-    # def to_relative(
-    #     self,
-    #     projection_name: str,
-    #     projection_func: Callable[[torch.Tensor], Tuple[torch.Tensor, torch.Tensor]],
-    #     anchor_choice: str = None,
-    #     seed: int = None,
-    #     anchors: Optional[Mapping[str, torch.Tensor]] = None,
-    #     num_anchors: int = None,
-    # ) -> "RelativeSpace":
-    #     assert self.encoding_type != "relative"  # TODO: for now
-    #     assert (anchors is None) or (num_anchors is None)
-
-    #     anchors = (
-    #         self.get_anchors(anchor_choice=anchor_choice, seed=seed, num_anchors=num_anchors)
-    #         if anchors is None
-    #         else anchors
-    #     )
-
-    #     anchor_keys, anchor_latents = list(zip(*anchors.items()))
-    #     anchor_latents = torch.stack(anchor_latents, dim=0).cpu()
-
-    #     relative_vectors = projection_func(
-    #         anchors=anchor_latents,
-    #         points=self.vectors,
-    #     )
-
-    #     return RelativeSpace(
-    #         keys=self.key2index.keys(),
-    #         vectors=relative_vectors,
-    #         labels=self.labels,
-    #         encoder=self.encoder,
-    #         anchors=anchor_keys,
-    #         projection=projection_name,
-    #         num_classes=self.num_classes,
-    #     )
+        return RelativeSpace.like(
+            space=self,
+            name=f"{self.name}/{projector.name}",
+            vectors=relative_vectors,
+            anchors=anchors,
+        )
 
 
-# class RelativeSpace(LatentSpace):
-#     def __init__(
-#         self,
-#         keys: Sequence[str],
-#         vectors: torch.Tensor,
-#         labels: torch.Tensor,
-#         anchors: Sequence[str],
-#         projection: str,
-#         num_classes: int,
-#         encoder: str = None,
-#     ):
-#         super().__init__(
-#             encoding_type="relative",
-#             keys=keys,
-#             num_classes=num_classes,
-#             vectors=vectors,
-#             labels=labels,
-#             encoder=encoder,
-#         )
-#         self.anchors: Sequence[str] = anchors
-#         self.projection: str = projection
+class RelativeSpace(LatentSpace):
+    @classmethod
+    def like(
+        cls,
+        space: RelativeSpace,
+        name: Optional[str] = None,
+        vectors: Optional[torch.Tensor] = None,
+        features: Optional[Dict[str, Sequence[Any]]] = None,
+        anchors: Optional[Space] = None,
+        deepcopy: bool = False,
+    ):
+        if name is None:
+            name = space.name
 
-#     def __repr__(self) -> str:
-#         return f"LatentSpace(encoding_type={self.encoding_type}, projection={self.projection}, encoder={self.encoder}, shape={self.shape})"
+        if vectors is None:
+            vectors = space.vectors if not deepcopy else space.vectors.clone()
+
+        if features is None:
+            features = (
+                space.features if not deepcopy else {key: values.clone() for key, values in space.features.items()}
+            )
+
+        if anchors is None:
+            anchors = space.anchors if not deepcopy else copy.deepcopy(space.anchors)
+
+        return cls(name=name, vectors=vectors, features=features, anchors=anchors)
+
+    def __init__(
+        self,
+        vectors: torch.Tensor,
+        name: str,
+        features: Dict[str, Sequence[Any]] | None = None,
+        anchors: Space | None = None,
+    ):
+        super().__init__(vectors=vectors, name=name, features=features)
+        self.anchors: Space = anchors
