@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from latentis import transforms
+from latentis.estimate.affine import SGDAffineTranslator
 from latentis.estimate.dim_matcher import ZeroPadding
 from latentis.estimate.linear import LSTSQEstimator
 from latentis.estimate.orthogonal import LSTSQOrthoEstimator, SVDEstimator
@@ -82,11 +83,15 @@ class ManualLatentTranslation(nn.Module):
         if self.method == "linear":
             with torch.enable_grad():
                 translation = nn.Linear(
-                    encoding_anchors.size(1), decoding_anchors.size(1), device=encoding_anchors.device
+                    encoding_anchors.size(1),
+                    decoding_anchors.size(1),
+                    device=encoding_anchors.device,
+                    dtype=encoding_anchors.dtype,
+                    bias=True,
                 )
                 optimizer = torch.optim.Adam(translation.parameters(), lr=1e-3)
 
-                for _ in range(300):
+                for _ in range(20):
                     optimizer.zero_grad()
                     loss = F.mse_loss(translation(encoding_anchors), decoding_anchors)
                     loss.backward()
@@ -164,6 +169,7 @@ class ManualLatentTranslation(nn.Module):
         ("svd", lambda: SVDEstimator(dim_matcher=ZeroPadding())),
         ("lstsq", lambda: LSTSQEstimator()),
         ("lstsq+ortho", lambda: LSTSQOrthoEstimator()),
+        ("linear", lambda: SGDAffineTranslator(num_steps=20)),
     ],
 )
 @pytest.mark.parametrize(
