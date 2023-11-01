@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from latentis import transforms
+from latentis import transform
 from latentis.estimate.affine import SGDAffineTranslator
 from latentis.estimate.dim_matcher import ZeroPadding
 from latentis.estimate.linear import LSTSQEstimator
@@ -179,36 +179,36 @@ class ManualLatentTranslation(nn.Module):
             True,
             True,
             False,
-            [transforms.Centering(), transforms.STDScaling()],
-            [transforms.Centering(), transforms.STDScaling()],
+            [transform.Centering(), transform.STDScaling()],
+            [transform.Centering(), transform.STDScaling()],
         ),
         (
             True,
             True,
             False,
-            [transforms.StandardScaling()],
-            [transforms.StandardScaling()],
+            [transform.StandardScaling()],
+            [transform.StandardScaling()],
         ),
         (
             True,
             False,
             True,
-            [transforms.Centering(), transforms.L2()],
-            [transforms.Centering(), transforms.L2()],
+            [transform.Centering(), transform.L2()],
+            [transform.Centering(), transform.L2()],
         ),
         (
             False,
             False,
             True,
-            [transforms.L2()],
-            [transforms.L2()],
+            [transform.L2()],
+            [transform.L2()],
         ),
         (
             True,
             False,
             False,
-            [transforms.Centering()],
-            [transforms.Centering()],
+            [transform.Centering()],
+            [transform.Centering()],
         ),
     ],
 )

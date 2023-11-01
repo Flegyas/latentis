@@ -4,11 +4,11 @@ import copy
 from enum import auto
 from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Union
 
-from latentis.metrics import Metric, MetricFn
+from latentis.measure import Metric, MetricFn
 
 if TYPE_CHECKING:
-    from latentis.sampling import Sampler
-    from latentis.relative.projection import RelativeProjector
+    from latentis.sample import Sampler
+    from latentis.project.relative import RelativeProjector
     from latentis.types import Space
 
 import torch

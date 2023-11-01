@@ -3,7 +3,7 @@ import functools
 import pytest
 import torch
 
-from latentis.transforms import (
+from latentis.transform import (
     L2,
     Centering,
     IsotropicScaling,

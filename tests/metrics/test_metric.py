@@ -4,7 +4,7 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from latentis.metrics import MetricFn
+from latentis.measure import MetricFn
 from latentis.types import Space
 
 

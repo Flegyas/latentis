@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from latentis import LatentSpace
-from latentis.transforms import Transform
+from latentis.transform import Transform
 from latentis.types import ProjectionFunc, Space
 
 
