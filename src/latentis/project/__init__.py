@@ -1,4 +1,4 @@
-from .projection import (
+from .relative import (
     ProjectionFunc,
     RelativeProjector,
     angular_proj,

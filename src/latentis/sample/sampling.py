@@ -70,6 +70,11 @@ class Uniform(Sampler):
 # #     return {"keys": anchor_fps.cpu(), "anchors": x[anchor_fps.to(x.device)]}
 
 
+# class KMeansSampler(Sampler):
+#     def forward(self, *spaces: Space, n: int) -> Union[Sequence[Space], Space]:
+#         pass
+
+
 # def kmeans_sampling(x: torch.Tensor, num_anchors: int, seed: int) -> LatentSpace:
 #     vectors = F.normalize(x, p=2, dim=-1)
 #     clustered = KMeans(n_clusters=num_anchors, random_state=seed).fit_predict(vectors.cpu().numpy())
@@ -101,12 +106,3 @@ class Uniform(Sampler):
 
 #     def sample(self, x: torch.Tensor, num_anchors: int, seed: int) -> LatentSpace:
 #         return self.sampling_func(x=x, num_anchors=num_anchors, seed=seed)
-
-
-# class Samplers:
-#     UNIFORM = AnchorSampler(name="uniform", sampling_func=uniform_sampling)
-#     FPS = AnchorSampler(name="fps", sampling_func=fps_sampling)
-#     KMEANS = AnchorSampler(name="kmeans", sampling_func=kmeans_sampling)
-#     UNIFORM = AnchorSampler(name="uniform", sampling_func=uniform_sampling)
-#     FPS = AnchorSampler(name="fps", sampling_func=fps_sampling)
-#     KMEANS = AnchorSampler(name="kmeans", sampling_func=kmeans_sampling)

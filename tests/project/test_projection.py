@@ -4,19 +4,19 @@ import pytest
 import torch
 from scipy.stats import ortho_group
 
-from tests.relative.conftest import LATENT_DIM
+from tests.project.conftest import LATENT_DIM
 
-from latentis import LatentSpace, transforms
-from latentis.relative import (
+from latentis import LatentSpace, transform
+from latentis.project import (
     RelativeProjector,
     angular_proj,
     change_of_basis_proj,
     cosine_proj,
     euclidean_proj,
     l1_proj,
+    lp_proj,
     pointwise_wrapper,
 )
-from latentis.relative.projection import lp_proj
 from latentis.types import ProjectionFunc, Space
 from latentis.utils import seed_everything
 
@@ -68,7 +68,7 @@ def test_pointwise_wrapper(projection_fn, unsqueeze: bool, tensor_space_with_ref
             False,
         ),
         (
-            RelativeProjector(projection_fn=angular_proj, abs_transforms=[transforms.Centering()]),
+            RelativeProjector(projection_fn=angular_proj, abs_transforms=[transform.Centering()]),
             lambda x: x @ random_ortho_matrix(random_seed=42) + 100,
             True,
         ),
@@ -78,12 +78,12 @@ def test_pointwise_wrapper(projection_fn, unsqueeze: bool, tensor_space_with_ref
             True,
         ),
         (
-            RelativeProjector(projection_fn=cosine_proj, abs_transforms=[transforms.Centering()]),
+            RelativeProjector(projection_fn=cosine_proj, abs_transforms=[transform.Centering()]),
             lambda x: (x + 20) @ random_ortho_matrix(42),
             True,
         ),
         (
-            RelativeProjector(projection_fn=cosine_proj, abs_transforms=[transforms.Centering()]),
+            RelativeProjector(projection_fn=cosine_proj, abs_transforms=[transform.Centering()]),
             lambda x: (x) @ random_ortho_matrix(42) + 20,
             True,
         ),
@@ -128,17 +128,17 @@ def test_pointwise_wrapper(projection_fn, unsqueeze: bool, tensor_space_with_ref
             False,
         ),
         (
-            RelativeProjector(projection_fn=cosine_proj, abs_transforms=transforms.Centering()),
+            RelativeProjector(projection_fn=cosine_proj, abs_transforms=transform.Centering()),
             lambda x: (x + 100) * random_isotropic_scaling(42),
             True,
         ),
         (
-            RelativeProjector(projection_fn=cosine_proj, abs_transforms=transforms.Centering()),
+            RelativeProjector(projection_fn=cosine_proj, abs_transforms=transform.Centering()),
             lambda x: (x + 100) * random_isotropic_scaling(42) + 100,
             True,
         ),
         (
-            RelativeProjector(projection_fn=change_of_basis_proj, abs_transforms=transforms.Centering()),
+            RelativeProjector(projection_fn=change_of_basis_proj, abs_transforms=transform.Centering()),
             lambda x: (x + 100) * random_isotropic_scaling(42),
             True,
         ),
