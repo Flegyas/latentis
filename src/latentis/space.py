@@ -8,8 +8,9 @@ from latentis.measure import Metric, MetricFn
 
 if TYPE_CHECKING:
     from latentis.sample import Sampler
-    from latentis.project.relative import RelativeProjector
+    from latentis.project import RelativeProjector
     from latentis.types import Space
+    from latentis.translate import LatentTranslator
 
 import torch
 from torch.utils.data import Dataset as TorchDataset
@@ -120,18 +121,11 @@ class LatentSpace(TorchDataset):
         metrics_results = {metric_name: metric(self, *others) for metric_name, metric in metrics.items()}
         return metrics_results
 
-    # def translate(
-    #     self,
-    #     translation: LatentTranslator,
-    # ):
-    #     result = translation(x=self.vectors)
-
-    #     return LatentSpace(
-    #         name=self._name,
-    #         vectors=result["target"],
-    #         keys=self.key2index.keys(),
-    #         labels=self.labels,
-    #     )
+    def translate(
+        self,
+        translator: LatentTranslator,
+    ):
+        return translator(x=self)
 
     # @lru_cache
     # def to_faiss(self, normalize: bool, keys: Sequence[str]) -> FaissIndex:

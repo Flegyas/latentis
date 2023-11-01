@@ -4,7 +4,7 @@ import pytest
 import torch
 from scipy.stats import ortho_group
 
-from tests.relative.conftest import LATENT_DIM
+from tests.project.conftest import LATENT_DIM
 
 from latentis import LatentSpace, transform
 from latentis.project import (

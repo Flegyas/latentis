@@ -250,3 +250,9 @@ def test_manual_translation(
     assert torch.allclose(
         manual_output, latentis_output.vectors if isinstance(latentis_output, LatentSpace) else latentis_output
     )
+
+    if isinstance(A, LatentSpace):
+        assert torch.allclose(
+            manual_output,
+            A.translate(translator=translator).vectors,
+        )
