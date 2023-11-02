@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from latentis import LatentSpace
-from latentis.transform import Transform
+from latentis.brick import Brick
 from latentis.types import ProjectionFunc, Space
 
 
@@ -82,8 +82,8 @@ class RelativeProjector(nn.Module):
         self,
         projection_fn: ProjectionFunc,
         name: Optional[str] = None,
-        abs_transforms: Optional[Sequence[Transform]] = None,
-        rel_transforms: Optional[Sequence[Transform]] = None,
+        abs_transforms: Optional[Sequence[Brick]] = None,
+        rel_transforms: Optional[Sequence[Brick]] = None,
     ) -> None:
         super().__init__()
         self.projection: ProjectionFunc = projection_fn
@@ -122,8 +122,12 @@ class RelativeProjector(nn.Module):
         transformed_x = x_vectors
         transformed_anchors = anchor_vectors
         for abs_transform in self.abs_transforms:
-            transformed_x = abs_transform(x=transformed_x, reference=transformed_anchors)
-            transformed_anchors = abs_transform(x=transformed_anchors, reference=transformed_anchors)
+            transformed_x = abs_transform(
+                x=transformed_x, state=abs_transform.fit(reference=transformed_anchors, save=False)
+            )
+            transformed_anchors = abs_transform(
+                x=transformed_anchors, state=abs_transform.fit(reference=transformed_anchors, save=False)
+            )
 
         # relative projection of x with respect to the anchors
         rel_x = self.projection(x=transformed_x, anchors=transformed_anchors)
@@ -132,7 +136,7 @@ class RelativeProjector(nn.Module):
             rel_anchors = self.projection(x=transformed_anchors, anchors=transformed_anchors)
             # relative normalization/transformation
             for rel_transform in self.rel_transforms:
-                rel_x = rel_transform(x=rel_x, reference=rel_anchors)
+                rel_x = rel_transform(x=rel_x, state=rel_transform.fit(reference=rel_anchors, save=False))
 
         if isinstance(x, LatentSpace):
             return LatentSpace.like(space=x, vectors=rel_x)

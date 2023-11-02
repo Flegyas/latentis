@@ -2,9 +2,9 @@ from typing import Any, Mapping, Optional, Sequence
 
 from torch import nn
 
+from latentis.brick import Brick
 from latentis.estimate.estimator import Estimator
 from latentis.space import LatentSpace
-from latentis.transform import Transform
 from latentis.types import Space
 from latentis.utils import seed_everything
 
@@ -14,22 +14,22 @@ class LatentTranslator(nn.Module):
         self,
         random_seed: int,
         estimator: Estimator,
-        source_transforms: Optional[Sequence[Transform]] = None,
-        target_transforms: Optional[Sequence[Transform]] = None,
+        source_transforms: Optional[Sequence[Brick]] = None,
+        target_transforms: Optional[Sequence[Brick]] = None,
     ) -> None:
         super().__init__()
         self.random_seed: int = random_seed
         self.estimator: Estimator = estimator
         self.fitted: bool = False
 
-        self.source_transforms: Sequence[Transform] = nn.ModuleList(
+        self.source_transforms: Sequence[Brick] = nn.ModuleList(
             source_transforms
             if isinstance(source_transforms, Sequence)
             else []
             if source_transforms is None
             else [source_transforms]
         )
-        self.target_transforms: Sequence[Transform] = nn.ModuleList(
+        self.target_transforms: Sequence[Brick] = nn.ModuleList(
             target_transforms
             if isinstance(target_transforms, Sequence)
             else []

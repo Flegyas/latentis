@@ -1,4 +1,4 @@
-from ._transforms import (
+from ._transform import (
     L2,
     Centering,
     DimensionPermutation,
@@ -10,10 +10,11 @@ from ._transforms import (
     StandardScaling,
     STDScaling,
 )
-from .abstract import Transform
+from .abstract import Brick, BrickState
 
 __all__ = [
-    "Transform",
+    "Brick",
+    "BrickState",
     "L2",
     "Centering",
     "PCATruncation",
