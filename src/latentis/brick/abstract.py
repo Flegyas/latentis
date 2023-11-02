@@ -5,6 +5,8 @@ from typing import Any, Mapping, Optional
 import torch
 from torch import nn
 
+from latentis.brick._errors import NotReversableBrickError
+
 pylogger = logging.getLogger(__name__)
 
 BrickState = Mapping[str, Any]
@@ -46,4 +48,4 @@ class Brick(nn.Module):
 
     @abstractmethod
     def reverse(self, *args, state: Optional[BrickState] = None, **kwargs) -> torch.Tensor:
-        raise NotImplementedError
+        raise NotReversableBrickError
