@@ -4,7 +4,7 @@
     <img align="center" alt="CI" src="https://github.com/Flegyas/latentis/actions/workflows/test_suite.yml/badge.svg?branch=main">
     <img align="center" alt="Coverage" src="https://codecov.io/gh/Flegyas/latentis/graph/badge.svg?token=UQHBAEEUTM"/>
     <img align="center" alt="Docs" src="https://img.shields.io/github/deployments/flegyas/latentis/github-pages?label=docs">
-    <img align="center" alt="Python" src="https://img.shields.io/badge/python-3.10-blue.svg">
+    <img align="center" alt="Python" src="https://img.shields.io/pypi/pyversions/latentis">
     <img align="center" alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg">
 </p>
 

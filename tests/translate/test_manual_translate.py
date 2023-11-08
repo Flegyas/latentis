@@ -5,7 +5,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from latentis import transforms
+from latentis import transform
+from latentis.estimate.affine import SGDAffineTranslator
 from latentis.estimate.dim_matcher import ZeroPadding
 from latentis.estimate.linear import LSTSQEstimator
 from latentis.estimate.orthogonal import LSTSQOrthoEstimator, SVDEstimator
@@ -82,11 +83,15 @@ class ManualLatentTranslation(nn.Module):
         if self.method == "linear":
             with torch.enable_grad():
                 translation = nn.Linear(
-                    encoding_anchors.size(1), decoding_anchors.size(1), device=encoding_anchors.device
+                    encoding_anchors.size(1),
+                    decoding_anchors.size(1),
+                    device=encoding_anchors.device,
+                    dtype=encoding_anchors.dtype,
+                    bias=True,
                 )
                 optimizer = torch.optim.Adam(translation.parameters(), lr=1e-3)
 
-                for _ in range(300):
+                for _ in range(20):
                     optimizer.zero_grad()
                     loss = F.mse_loss(translation(encoding_anchors), decoding_anchors)
                     loss.backward()
@@ -164,6 +169,7 @@ class ManualLatentTranslation(nn.Module):
         ("svd", lambda: SVDEstimator(dim_matcher=ZeroPadding())),
         ("lstsq", lambda: LSTSQEstimator()),
         ("lstsq+ortho", lambda: LSTSQOrthoEstimator()),
+        ("linear", lambda: SGDAffineTranslator(num_steps=20)),
     ],
 )
 @pytest.mark.parametrize(
@@ -173,36 +179,36 @@ class ManualLatentTranslation(nn.Module):
             True,
             True,
             False,
-            [transforms.Centering(), transforms.STDScaling()],
-            [transforms.Centering(), transforms.STDScaling()],
+            [transform.Centering(), transform.STDScaling()],
+            [transform.Centering(), transform.STDScaling()],
         ),
         (
             True,
             True,
             False,
-            [transforms.StandardScaling()],
-            [transforms.StandardScaling()],
+            [transform.StandardScaling()],
+            [transform.StandardScaling()],
         ),
         (
             True,
             False,
             True,
-            [transforms.Centering(), transforms.L2()],
-            [transforms.Centering(), transforms.L2()],
+            [transform.Centering(), transform.L2()],
+            [transform.Centering(), transform.L2()],
         ),
         (
             False,
             False,
             True,
-            [transforms.L2()],
-            [transforms.L2()],
+            [transform.L2()],
+            [transform.L2()],
         ),
         (
             True,
             False,
             False,
-            [transforms.Centering()],
-            [transforms.Centering()],
+            [transform.Centering()],
+            [transform.Centering()],
         ),
     ],
 )
@@ -244,3 +250,9 @@ def test_manual_translation(
     assert torch.allclose(
         manual_output, latentis_output.vectors if isinstance(latentis_output, LatentSpace) else latentis_output
     )
+
+    if isinstance(A, LatentSpace):
+        assert torch.allclose(
+            manual_output,
+            A.translate(translator=translator).vectors,
+        )

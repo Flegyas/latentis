@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from latentis.sampling import Uniform
+from latentis.sample import Uniform
 from latentis.space import LatentSpace, SpaceProperty
 from latentis.types import Space
 

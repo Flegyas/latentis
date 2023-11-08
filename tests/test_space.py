@@ -1,4 +1,4 @@
-from latentis.sampling import Uniform
+from latentis.sample import Uniform
 from latentis.space import LatentSpace
 from latentis.types import Space
 

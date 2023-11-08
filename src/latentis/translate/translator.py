@@ -4,7 +4,7 @@ from torch import nn
 
 from latentis.estimate.estimator import Estimator
 from latentis.space import LatentSpace
-from latentis.transforms import Transform
+from latentis.transform import Transform
 from latentis.types import Space
 from latentis.utils import seed_everything
 
@@ -84,6 +84,6 @@ class LatentTranslator(nn.Module):
             target_x = transform.reverse(x=target_x)
 
         if isinstance(x, LatentSpace):
-            return LatentSpace.like(space=x, vectors=target_x, name=name)
+            return LatentSpace.like(space=x, vectors=target_x, name=name if name is not None else x.name)
         else:
             return target_x

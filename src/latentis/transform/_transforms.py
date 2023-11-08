@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 from scipy.stats import ortho_group
 
-from latentis.transforms.abstract import Transform
+from latentis.transform.abstract import Transform
 
 
 # https://github.com/scikit-learn/scikit-learn/blob/7f9bad99d6e0a3e8ddf92a7e5561245224dab102/sklearn/preprocessing/_data.py#L87

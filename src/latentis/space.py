@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import copy
 from enum import auto
-from typing import TYPE_CHECKING, Any, Dict, Mapping, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Union
+
+from latentis.measure import Metric, MetricFn
 
 if TYPE_CHECKING:
-    from latentis.sampling import Sampler
-    from latentis.relative.projection import RelativeProjector
+    from latentis.sample import Sampler
+    from latentis.project import RelativeProjector
     from latentis.types import Space
+    from latentis.translate import LatentTranslator
 
 import torch
 from torch.utils.data import Dataset as TorchDataset
@@ -102,18 +105,27 @@ class LatentSpace(TorchDataset):
         """
         return sampler(self, n=n)
 
-    # def translate(
-    #     self,
-    #     translation: LatentTranslator,
-    # ):
-    #     result = translation(x=self.vectors)
+    def compare(self, *others: Space, metrics: Mapping[str, Union[Metric, Callable[[Space, Space], torch.Tensor]]]):
+        """Compare this space with another space using the given metrics.
 
-    #     return LatentSpace(
-    #         name=self._name,
-    #         vectors=result["target"],
-    #         keys=self.key2index.keys(),
-    #         labels=self.labels,
-    #     )
+        Args:
+            other (Space): The space to compare with.
+            metrics (Mapping[str, Metric]): The metrics to use.
+
+        Returns:
+            Dict[str, Any]: The results of the comparison.
+        """
+        metrics = {
+            key: metric if isinstance(metric, Metric) else MetricFn(key, metric) for key, metric in (metrics.items())
+        }
+        metrics_results = {metric_name: metric(self, *others) for metric_name, metric in metrics.items()}
+        return metrics_results
+
+    def translate(
+        self,
+        translator: LatentTranslator,
+    ):
+        return translator(x=self)
 
     # @lru_cache
     # def to_faiss(self, normalize: bool, keys: Sequence[str]) -> FaissIndex:
