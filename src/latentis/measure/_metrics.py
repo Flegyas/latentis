@@ -34,7 +34,6 @@ class Metric(nn.Module):
         return result[0] if len(result) == 1 else result
 
 
-# TODO
 class MetricFn(Metric):
     def __init__(self, key: str, fn: Callable([Space, Space], torch.Tensor)) -> None:
         super().__init__(fn.__name__ if hasattr(fn, "__name__") else key)
