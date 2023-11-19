@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from latentis.types import Space
 
 
-class Metric(nn.Module):
+class PairwiseMetric(nn.Module):
     def __init__(self, name: str) -> None:
         super().__init__()
         self._name: str = name
@@ -25,27 +25,21 @@ class Metric(nn.Module):
         return self._name
 
     @abstractmethod
-    def _forward(self, space1: Space, space2: Space) -> Mapping[str, Any]:
+    def forward(self, x: Space, y: Space) -> Sequence[Mapping[str, Any]]:
         raise NotImplementedError
 
-    def forward(self, space1: Space, *others: Space) -> Sequence[Mapping[str, Any]]:
-        result = [self._forward(space1, other) for other in others]
 
-        return result[0] if len(result) == 1 else result
-
-
-# TODO
-class MetricFn(Metric):
+class MetricFn(PairwiseMetric):
     def __init__(self, key: str, fn: Callable([Space, Space], torch.Tensor)) -> None:
         super().__init__(fn.__name__ if hasattr(fn, "__name__") else key)
         self.key = key
         self.fn = fn
 
-    def _forward(self, space1: Space, space2: Space) -> Mapping[str, Any]:
-        if isinstance(space1, latentis.LatentSpace):
-            space1 = space1.vectors
+    def forward(self, x: Space, y: Space) -> Mapping[str, Any]:
+        if isinstance(x, latentis.LatentSpace):
+            x = x.vectors
 
-        if isinstance(space2, latentis.LatentSpace):
-            space2 = space2.vectors
+        if isinstance(y, latentis.LatentSpace):
+            y = y.vectors
 
-        return {self.key: self.fn(space1, space2)}
+        return {self.key: self.fn(x, y)}
