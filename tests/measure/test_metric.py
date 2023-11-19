@@ -44,6 +44,7 @@ def test_metric(metric_fn: Callable[[Space, Space], torch.Tensor], same_shape_sp
     ],
 )
 def test_cka(mode: CKAMode, same_shape_spaces, different_dim_spaces):
+
     for spaces in [same_shape_spaces, different_dim_spaces]:
         space1, space2 = spaces
         cka = CKA(mode=mode)
@@ -57,7 +58,12 @@ def test_cka(mode: CKAMode, same_shape_spaces, different_dim_spaces):
         assert symm_cka_result == pytest.approx(cka_result, abs=TOL)
 
         # check that GPU works correctly
-        # cka_gpu = CKA(mode=mode, device=torch.device("cuda"))
-        # cka_result = cka_gpu(space1, space2)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if device.type == "cuda":
+            cka_gpu = CKA(mode=mode, device=device)
+            cka_result = cka_gpu(space1, space2)
 
-        # assert cka_result.device.type == "cuda"
+            assert cka_result.device.type == "cuda"
+
+
+

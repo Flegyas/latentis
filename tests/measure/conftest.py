@@ -117,3 +117,10 @@ def precomputed_cka():
     cka_instance = PrecomputedCKA()
 
     return cka_instance.params
+
+@pytest.fixture(params=DifferentDimSpaces().instances)
+def different_dim_spaces(request) -> Tuple[Space, Space]:
+    return request.param
+#
+
+
