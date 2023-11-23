@@ -9,7 +9,11 @@ exclude_lines = [
     "raise NotImplementedError()",
     "pragma: nocover",
     "if __name__ == .__main__.:",
-    "if TYPE_CHECKING:"
+    "if TYPE_CHECKING:",
+]
+omit = [
+    # ignore all test cases in tests/
+    "tests/*",
 ]
 
 [tool.black]
@@ -17,7 +21,7 @@ line-length = 120
 include = '\.pyi?$'
 
 [tool.mypy]
-files= ["src/**/*.py", "test/*.py"]
+files = ["src/**/*.py", "test/*.py"]
 ignore_missing_imports = true
 
 [tool.isort]
