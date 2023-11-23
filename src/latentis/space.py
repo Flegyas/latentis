@@ -4,8 +4,8 @@ import copy
 from enum import auto
 from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Union
 
-from latentis.index import DataType, Index, Similarity
-from latentis.measure import Metric, MetricFn
+from latentis.measure import MetricFn
+from latentis.search import SearchIndex, SearchMetric
 
 if TYPE_CHECKING:
     from latentis.sample import Sampler
@@ -106,7 +106,9 @@ class LatentSpace(TorchDataset):
         """
         return sampler(self, n=n)
 
-    def compare(self, *others: Space, metrics: Mapping[str, Union[Metric, Callable[[Space, Space], torch.Tensor]]]):
+    def compare(
+        self, *others: Space, metrics: Mapping[str, Union[SearchMetric, Callable[[Space, Space], torch.Tensor]]]
+    ):
         """Compare this space with another space using the given metrics.
 
         Args:
@@ -117,7 +119,8 @@ class LatentSpace(TorchDataset):
             Dict[str, Any]: The results of the comparison.
         """
         metrics = {
-            key: metric if isinstance(metric, Metric) else MetricFn(key, metric) for key, metric in (metrics.items())
+            key: metric if isinstance(metric, SearchMetric) else MetricFn(key, metric)
+            for key, metric in (metrics.items())
         }
         metrics_results = {metric_name: metric(self, *others) for metric_name, metric in metrics.items()}
         return metrics_results
@@ -130,22 +133,20 @@ class LatentSpace(TorchDataset):
 
     def to_index(
         self,
-        similarity_fn: Similarity = Similarity.COSINE,
-        ids: Optional[Sequence[int]] = None,
-        serialization_data_type: DataType = DataType.FLOAT32,
-    ) -> Index:
-        index: Index = Index.create(
-            similarity_fn=similarity_fn,
+        metric_fn: SearchMetric,
+        keys: Optional[Sequence[str]] = None,
+        transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+    ) -> SearchIndex:
+        index: SearchIndex = SearchIndex.create(
+            metric_fn=metric_fn,
             num_dimensions=self.vectors.size(dim=1),
-            serialization_data_type=serialization_data_type,
-        )
-        index.resize(
-            new_size=self.vectors.size(dim=0),
+            name=self.name,
+            transform=transform,
         )
 
         index.add_items(
-            vectors=self.vectors.cpu().numpy(),
-            ids=ids,
+            vectors=self.vectors.cpu(),
+            keys=keys,
         )
 
         return index
