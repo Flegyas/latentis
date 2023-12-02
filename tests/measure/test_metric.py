@@ -45,25 +45,64 @@ def test_metric(metric_fn: Callable[[Space, Space], torch.Tensor], same_shape_sp
 )
 def test_cka(mode: CKAMode, same_shape_spaces, different_dim_spaces):
 
+    # test object-oriented interface
+    space1, space2 = same_shape_spaces[0], same_shape_spaces[1]
+
+    # check that GPU works correctly
+    cka_gpu = CKA(mode=mode, device=torch.device("cuda"))
+    cka_result = cka_gpu(space1, space2)
+
+    assert cka_result.device.type == "cuda"
+
+    cka_none = CKA(mode=mode, device=None)
+    cka_result = cka_none(space1, space2)
+
+    assert cka_result.device.type == "cpu"
+
+    cka_gpu = cka_none.to('cuda')
+    cka_result = cka_gpu(space1, space2)
+
+    assert cka_result.device.type == "cuda"
+
     for spaces in [same_shape_spaces, different_dim_spaces]:
         space1, space2 = spaces
         cka = CKA(mode=mode)
-        cka_result = cka(space1, space2)
+
+        # check that CKA is 1 for identical spaces
+        cka_result = cka(space1, space1)
+        assert cka_result == pytest.approx(1.0, abs=TOL)
 
         # cka must stay in 0, 1 range
+        cka_result = cka(space1, space2)
         assert 0.0 - TOL <= cka_result <= 1.0 + TOL
 
         # cka is symmetric
         symm_cka_result = cka(space2, space1)
         assert symm_cka_result == pytest.approx(cka_result, abs=TOL)
 
-        # check that GPU works correctly
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        if device.type == "cuda":
-            cka_gpu = CKA(mode=mode, device=device)
-            cka_result = cka_gpu(space1, space2)
+    # test functional interface
+    space1, space2 = same_shape_spaces[0], same_shape_spaces[1]
+    cka_result = CKA(mode=mode, device='cpu')(space1, space2)
 
-            assert cka_result.device.type == "cuda"
+    assert cka_result == pytest.approx(CKA(mode=mode)(space1, space2), abs=TOL)
+    assert cka_result.device.type == 'cpu'
+
+    cka_result = CKA(mode=mode, device='cuda')(space1, space2)
+    assert cka_result.device.type == 'cuda'
+
+    cka_result = CKA(mode=mode, device=None)(space1, space2)
+    assert cka_result.device.type == 'cpu'
+
+
+
+
+
+
+
+
+
+
+
 
 
 
