@@ -4,6 +4,8 @@ import torch
 import math
 from enum import auto
 
+from latentis.measure.functional import cka, kernel_hsic, linear_hsic
+
 try:
     # be ready for 3.10 when it drops
     from enum import StrEnum
@@ -44,9 +46,9 @@ class CKA(Metric):
         
         self.mode = mode 
         if self.mode == CKAMode.LINEAR:
-            self.hsic = self.linear_HSIC
+            self.hsic = linear_hsic
         elif self.mode == CKAMode.RBF:
-            self.hsic = self.kernel_HSIC
+            self.hsic = kernel_hsic
         else:
             raise NotImplementedError(f"No such mode {self.mode}")
 
@@ -70,121 +72,21 @@ class CKA(Metric):
             Computed CKA value.
         """
 
-        if isinstance(space1, latentis.LatentSpace):
-            space1 = space1.vectors
-
-        if isinstance(space2, latentis.LatentSpace):
-            space2 = space2.vectors
-
-        assert space1.shape[0] == space2.shape[0], "X and Y must have the same number of samples."
-        
-        space1 = space1.to(self.device)
-        space2 = space2.to(self.device)
-
-        hsic = self.hsic(space1, space2, sigma)
-
-        var1 = torch.sqrt(self.hsic(space1, space1, sigma))
-        var2 = torch.sqrt(self.hsic(space2, space2, sigma))
-
-        cka_result = hsic / (var1 * var2)
-        
-        assert 0 - self.tolerance <= cka_result <= 1 + self.tolerance , "CKA value must be between 0 and 1."
-
-        return cka_result
-        
-    def linear_HSIC(self, X: torch.Tensor, Y: torch.Tensor, *args, **kwargs) -> torch.Tensor:
-        """
-        Compute HSIC for linear kernels.
-
-        This method is used in the computation of linear CKA.
-
-        Args:
-            X, Y: Input matrices.
-
-        Returns:
-            The computed HSIC value.
-        """
-
-        # inter-sample similarity matrices for both spaces ~(N, N)
-        L_X = X @ X.T
-        L_Y = Y @ Y.T
-
-        return torch.sum(self.centering(L_X) * self.centering(L_Y))
+        return cka(space1, space2, hsic=self.hsic, sigma=sigma, device=self.device, tolerance=self.tolerance)
     
-    def kernel_HSIC(self, X: torch.Tensor, Y:torch.Tensor, sigma):
+    def to(self, device):
         """
-        Compute HSIC (Hilbert-Schmidt Independence Criterion) for RBF kernels.
-
-        This is used in the computation of kernel CKA.
+        Move the CKA instance to a specific torch device.
 
         Args:
-            X, Y: Input matrices.
-            sigma: The RBF kernel width.
+            device: The torch device (e.g., CPU or GPU) to move the instance to.
 
         Returns:
-            The computed HSIC value.
+            The CKA instance on the specified device.
         """
-        return torch.sum(self.centering(self.rbf(X, sigma)) * self.centering(self.rbf(Y, sigma)))
+        self.device = device
+        return self
 
-    def centering(self, K: torch.Tensor) -> torch.Tensor:
-        """
-        Center the kernel matrix K using the centering matrix H = I_n - (1/n) 1 * 1^T. (Eq. 3 in the paper)
 
-        This method is used in the calculation of HSIC.
 
-        Args:
-            K: The kernel matrix to be centered.
 
-        Returns:
-            The centered kernel matrix.
-        """
-        n = K.shape[0]
-        unit = torch.ones([n, n]).type_as(K) 
-        identity_mat = torch.eye(n).type_as(K)
-        H = identity_mat - unit / n
-
-        return H @ K @ H
-
-    def rbf(self, X: torch.Tensor, sigma=None):
-        """
-        Compute the RBF (Radial Basis Function) kernel for a matrix X.
-
-        If sigma is not provided, it is computed based on the median distance.
-
-        Args:
-            X: The input matrix.
-            sigma: Optional parameter to specify the RBF kernel width.
-
-        Returns:
-            The RBF kernel matrix.
-        """
-
-        GX = X @ X.T
-        KX = torch.diag(GX) - GX + (torch.diag(GX) - GX).T
-        
-        if sigma is None:
-            mdist = torch.median(KX[KX != 0])
-            sigma = math.sqrt(mdist)
-        
-        KX *= -0.5 / (sigma * sigma)
-        KX = torch.exp(KX)
-
-        return KX
-
-def CKAFn(space1: torch.Tensor, space2: torch.Tensor, mode: CKAMode, device: torch.device = None, sigma=None):
-    """
-    Compute the Centered Kernel Alignment (CKA) between two spaces.
-
-    Args:
-        space1: First embedding matrix or LatentSpace object.
-        space2: Second embedding matrix or LatentSpace object.
-        mode: The mode of CKA (CKAMode.LINEAR or CKAMode.RBF).
-        device: The torch device (e.g., CPU or GPU) to perform calculations on. Defaults to None.
-        sigma: Optional parameter for RBF kernel. Only used when mode is CKAMode.RBF.
-
-    Returns:
-        The computed CKA value.
-    """
-    cka = CKA(mode, device)
-
-    return cka._forward(space1, space2, sigma)
