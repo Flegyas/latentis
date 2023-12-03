@@ -96,12 +96,13 @@ def test_cka(mode: CKAMode, same_shape_spaces, different_dim_spaces, precomputed
     assert cka_result == pytest.approx(CKA(mode=mode)(space1, space2), abs=TOL)
     assert cka_result.device.type == "cpu"
 
-    if isinstance(space1, torch.Tensor):
-        space1 = space1.to("cuda")
-        space2 = space2.to("cuda")
-    else:
-        space1.vectors = space1.vectors.to("cuda")
-        space2.vectors = space2.vectors.to("cuda")
+    if torch.cuda.is_available():
+        if isinstance(space1, torch.Tensor):
+            space1 = space1.to("cuda")
+            space2 = space2.to("cuda")
+        else:
+            space1.vectors = space1.vectors.to("cuda")
+            space2.vectors = space2.vectors.to("cuda")
 
-    cka_result = cka_fn(space1, space2, hsic=hsic)
-    assert cka_result.device.type == "cuda"
+        cka_result = cka_fn(space1, space2, hsic=hsic)
+        assert cka_result.device.type == "cuda"
