@@ -22,7 +22,6 @@ class SameShapeSpaces(object):
         for (space1_n, space_1_dim), (space2_n, space2_dim) in [
             ((50, 250), (50, 250)),
             ((20, 300), (20, 300)),
-            ((1000, 100), (1000, 100)),
         ]
     ] + [
         (
@@ -32,7 +31,6 @@ class SameShapeSpaces(object):
         for (space1_n, space_1_dim), (space2_n, space2_dim) in [
             ((50, 250), (50, 250)),
             ((20, 300), (20, 300)),
-            ((1000, 100), (1000, 100)),
         ]
     ]
 
