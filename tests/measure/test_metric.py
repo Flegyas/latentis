@@ -5,10 +5,11 @@ import torch
 import torch.nn.functional as F
 
 from latentis.measure import MetricFn
-from latentis.types import Space
 from latentis.measure.cka import CKA, CKAMode
+from latentis.types import Space
 
-TOL = 1e-6 
+TOL = 1e-6
+
 
 @pytest.mark.parametrize(
     "metric_fn",
@@ -54,7 +55,7 @@ def test_cka(mode: CKAMode, same_shape_spaces, different_dim_spaces, precomputed
 
     assert cka_result.device.type == "cpu"
 
-    cka_gpu = cka_none.to('cuda')
+    cka_gpu = cka_none.to("cuda")
     cka_result = cka_gpu(space1, space2)
 
     assert cka_result.device.type == "cuda"
@@ -77,35 +78,19 @@ def test_cka(mode: CKAMode, same_shape_spaces, different_dim_spaces, precomputed
 
     # test functional interface
     space1, space2 = same_shape_spaces[0], same_shape_spaces[1]
-    cka_result = CKA(mode=mode, device='cpu')(space1, space2)
+    cka_result = CKA(mode=mode, device="cpu")(space1, space2)
 
     assert cka_result == pytest.approx(CKA(mode=mode)(space1, space2), abs=TOL)
-    assert cka_result.device.type == 'cpu'
-    
-    cka_result = CKA(mode=mode, device='cuda')(space1, space2)
-    assert cka_result.device.type == 'cuda'
+    assert cka_result.device.type == "cpu"
+
+    cka_result = CKA(mode=mode, device="cuda")(space1, space2)
+    assert cka_result.device.type == "cuda"
 
     cka_result = CKA(mode=mode, device=None)(space1, space2)
-    assert cka_result.device.type == 'cpu'   
+    assert cka_result.device.type == "cpu"
 
     # check that the cka results didn't change from stored computations
-    cka_result = CKA(mode=mode, device='cpu')(precomputed_cka['stored_space1'], precomputed_cka['stored_space2'])
+    cka_result = CKA(mode=mode, device="cpu")(precomputed_cka["stored_space1"], precomputed_cka["stored_space2"])
 
     # higher tolerance because of the RBF kernel being noisy
     assert cka_result == pytest.approx(precomputed_cka[mode], abs=1e-4)
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
