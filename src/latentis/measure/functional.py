@@ -52,7 +52,8 @@ def linear_hsic(X: torch.Tensor, Y: torch.Tensor, *args, **kwargs) -> torch.Tens
     This method is used in the computation of linear CKA.
 
     Args:
-        X, Y: Input matrices (num_samples, embedding_dim).
+        X: shape (N, D), first embedding matrix.
+        Y: shape (N, D'), second embedding matrix.
 
     Returns:
         The computed HSIC value.
@@ -62,7 +63,7 @@ def linear_hsic(X: torch.Tensor, Y: torch.Tensor, *args, **kwargs) -> torch.Tens
     L_X = X @ X.T
     L_Y = Y @ Y.T
 
-    return torch.sum(centering(L_X) * centering(L_Y))
+    return torch.sum(center_kernel_matrix(L_X) * center_kernel_matrix(L_Y))
 
 def kernel_hsic(X: torch.Tensor, Y:torch.Tensor, sigma):
     """
@@ -71,15 +72,16 @@ def kernel_hsic(X: torch.Tensor, Y:torch.Tensor, sigma):
     This is used in the computation of kernel CKA.
 
     Args:
-        X, Y: Input matrices (num_samples, embedding_dim).
+        X: shape (N, D), first embedding matrix.
+        Y: shape (N, D'), second embedding matrix.
         sigma: The RBF kernel width.
 
     Returns:
         The computed HSIC value.
     """
-    return torch.sum(centering(rbf(X, sigma)) * centering(rbf(Y, sigma)))
+    return torch.sum(center_kernel_matrix(rbf(X, sigma)) * center_kernel_matrix(rbf(Y, sigma)))
 
-def centering(K: torch.Tensor) -> torch.Tensor:
+def center_kernel_matrix(K: torch.Tensor) -> torch.Tensor:
     """
     Center the kernel matrix K using the centering matrix H = I_n - (1/n) 1 * 1^T. (Eq. 3 in the paper)
 

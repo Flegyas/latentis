@@ -8,7 +8,7 @@ from latentis.measure import MetricFn
 from latentis.types import Space
 from latentis.measure.cka import CKA, CKAMode
 
-TOL = 1e-6
+TOL = 1e-6 
 
 @pytest.mark.parametrize(
     "metric_fn",
@@ -38,7 +38,7 @@ def test_metric(metric_fn: Callable[[Space, Space], torch.Tensor], same_shape_sp
         (CKAMode.RBF),
     ],
 )
-def test_cka(mode: CKAMode, same_shape_spaces, different_dim_spaces):
+def test_cka(mode: CKAMode, same_shape_spaces, different_dim_spaces, precomputed_cka):
 
     # test object-oriented interface
     space1, space2 = same_shape_spaces[0], same_shape_spaces[1]
@@ -86,7 +86,15 @@ def test_cka(mode: CKAMode, same_shape_spaces, different_dim_spaces):
     assert cka_result.device.type == 'cuda'
 
     cka_result = CKA(mode=mode, device=None)(space1, space2)
-    assert cka_result.device.type == 'cpu'    
+    assert cka_result.device.type == 'cpu'   
+
+    # check that the cka results didn't change from stored computations
+    cka_result = CKA(mode=mode, device='cpu')(precomputed_cka['stored_space1'], precomputed_cka['stored_space2'])
+
+    # higher tolerance because of the RBF kernel being noisy
+    assert cka_result == pytest.approx(precomputed_cka[mode], abs=1e-4)
+
+    
 
 
 
