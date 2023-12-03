@@ -23,7 +23,7 @@ def rbf_cka(space1: torch.Tensor, space2: torch.Tensor, sigma: float = None):
     return cka(space1, space2, hsic=kernel_hsic, sigma=sigma)
 
 
-def cka(space1: torch.Tensor, space2: torch.Tensor, hsic: callable, sigma: float = None, device=None, tolerance=1e-6):
+def cka(space1: torch.Tensor, space2: torch.Tensor, hsic: callable, sigma: float = None, tolerance=1e-6):
 
     if isinstance(space1, latentis.LatentSpace):
         space1 = space1.vectors
@@ -32,10 +32,6 @@ def cka(space1: torch.Tensor, space2: torch.Tensor, hsic: callable, sigma: float
         space2 = space2.vectors
 
     assert space1.shape[0] == space2.shape[0], "X and Y must have the same number of samples."
-
-
-    space1 = space1.to(device)
-    space2 = space2.to(device)
 
     numerator = hsic(space1, space2, sigma)
 
@@ -119,8 +115,7 @@ def rbf(X: torch.Tensor, sigma=None):
         The RBF kernel matrix.
     """
     GX = X @ X.T
-    KX = torch.diag(GX) - GX + (torch.diag(GX) - GX).T
-
+    KX = torch.diag(GX).type_as(X) - GX + (torch.diag(GX) - GX).T
 
     if sigma is None:
         mdist = torch.median(KX[KX != 0])

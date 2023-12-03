@@ -4,6 +4,7 @@ import torch
 
 from latentis.measure._metrics import Metric
 from latentis.measure.functional import cka, kernel_hsic, linear_hsic
+from latentis.space import LatentSpace
 
 try:
     # be ready for 3.10 when it drops
@@ -48,7 +49,7 @@ class CKA(Metric):
         else:
             raise NotImplementedError(f"No such mode {self.mode}")
 
-        self.device = device
+        self.device = device if device else torch.device("cpu")
 
         # to avoid numerical issues in the assertions
         self.tolerance = 1e-6
@@ -66,9 +67,14 @@ class CKA(Metric):
         Returns:
             Computed CKA value.
         """
-        return cka(
-            space1=space1, space2=space2, hsic=self.hsic, sigma=sigma, device=self.device, tolerance=self.tolerance
-        )
+        if isinstance(space1, torch.Tensor) and isinstance(space2, torch.Tensor):
+            space1 = space1.to(self.device)
+            space2 = space2.to(self.device)
+        if isinstance(space1, LatentSpace) and isinstance(space2, LatentSpace):
+            space1.vectors = space1.vectors.to(self.device)
+            space2.vectors = space2.vectors.to(self.device)
+
+        return cka(space1=space1, space2=space2, hsic=self.hsic, sigma=sigma, tolerance=self.tolerance)
 
     def to(self, device):
         """Move the CKA instance to a specific torch device.
