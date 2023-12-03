@@ -64,15 +64,15 @@ class CKA(Metric):
         Depending on the mode, it either computes linear or RBF kernel based CKA.
 
         Args:
-            X: shape (N, D), first embedding matrix.
-            Y: shape (N, D'), second embedding matrix.
+            space1: shape (N, D), first embedding matrix.
+            space2: shape (N, D'), second embedding matrix.
             sigma: Optional parameter for RBF kernel.
 
         Returns:
             Computed CKA value.
         """
 
-        return cka(space1, space2, hsic=self.hsic, sigma=sigma, device=self.device, tolerance=self.tolerance)
+        return cka(space1=space1, space2=space2, hsic=self.hsic, sigma=sigma, device=self.device, tolerance=self.tolerance)
     
     def to(self, device):
         """
