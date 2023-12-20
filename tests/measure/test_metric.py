@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 from latentis.measure import MetricFn
 from latentis.measure.cka import CKA, CKAMode
-from latentis.measure.functional import cka as cka_fn
+from latentis.measure.functional import cka as cka_fn, linear_cka, rbf_cka
 from latentis.measure.functional import kernel_hsic, linear_hsic
 from latentis.types import Space
 
@@ -50,6 +50,9 @@ def test_cka(mode: CKAMode, same_shape_spaces, different_dim_spaces, precomputed
     cka_result = cka_none(space1, space2)
 
     assert cka_result.device.type == "cpu"
+
+    cka_result_func = linear_cka(space1, space2) if mode == CKAMode.LINEAR else rbf_cka(space1, space2)
+    assert cka_result == pytest.approx(cka_result_func, abs=TOL)
 
     # check that GPU works correctly
     if torch.cuda.is_available():
