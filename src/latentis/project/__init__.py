@@ -1,6 +1,6 @@
 from .relative import (
     ProjectionFunc,
-    RelativeProjector,
+    RelativeProjection,
     angular_proj,
     change_of_basis_proj,
     cosine_proj,
@@ -12,7 +12,7 @@ from .relative import (
 
 __all__ = [
     "ProjectionFunc",
-    "RelativeProjector",
+    "RelativeProjection",
     "cosine_proj",
     "angular_proj",
     "l1_proj",
