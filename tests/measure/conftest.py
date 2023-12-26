@@ -11,11 +11,11 @@ class SameShapeSpaces(object):
     instances = [
         (
             LatentSpace(
-                vectors=torch.randn(space1_n, space_1_dim, dtype=torch.double),
+                vector_source=torch.randn(space1_n, space_1_dim, dtype=torch.double),
                 name="space1",
             ),
             LatentSpace(
-                vectors=torch.randn(space2_n, space2_dim, dtype=torch.double),
+                vector_source=torch.randn(space2_n, space2_dim, dtype=torch.double),
                 name="space2",
             ),
         )

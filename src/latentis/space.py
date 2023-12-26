@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import copy
+import logging
+from abc import abstractmethod
 from enum import auto
 from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Union
 
@@ -9,7 +11,6 @@ from latentis.search import SearchIndex, SearchMetric
 
 if TYPE_CHECKING:
     from latentis.sample import Sampler
-    from latentis.project import RelativeProjector
     from latentis.types import Space
     from latentis.translate import LatentTranslator
 
@@ -22,33 +23,95 @@ try:
 except ImportError:
     from backports.strenum import StrEnum
 
+pylogger = logging.getLogger(__name__)
+
 
 class SpaceProperty(StrEnum):
     SAMPLING_IDS = auto()
 
 
+class VectorSource:
+    @abstractmethod
+    def shape(self) -> torch.Size:
+        raise NotImplementedError
+
+    @abstractmethod
+    def __getitem__(self, index: int) -> torch.Tensor:
+        raise NotImplementedError
+
+    @abstractmethod
+    def __len__(self) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    def as_tensor(self) -> torch.Tensor:
+        raise NotImplementedError
+
+    @abstractmethod
+    def __eq__(self, __value: VectorSource) -> bool:
+        raise NotImplementedError
+
+
+class TorchVectorSource(VectorSource):
+    def __init__(self, vectors: torch.Tensor):
+        self._vectors = vectors
+
+    def shape(self) -> torch.Size:
+        return self._vectors.shape
+
+    def __getitem__(self, index: int) -> torch.Tensor:
+        return self._vectors[index]
+
+    def __len__(self) -> int:
+        return self._vectors.size(0)
+
+    def __eq__(self, __value: TorchVectorSource) -> bool:
+        assert isinstance(__value, TorchVectorSource), f"Expected {TorchVectorSource}, got {type(__value)}"
+        return torch.allclose(self._vectors, __value.as_tensor())
+
+    def as_tensor(self) -> torch.Tensor:
+        return self._vectors
+
+
 class LatentSpace(TorchDataset):
     def __init__(
         self,
-        vectors: torch.Tensor,
-        name: str,
-        features: Optional[Dict[str, Sequence[Any]]] = None,
+        vector_source: Union[torch.Tensor, VectorSource],
+        metadata: Optional[Dict[str, Any]] = None,
+        name: str = "",
     ):
-        assert isinstance(vectors, torch.Tensor)
-        assert features is None or all(len(values) == vectors.size(0) for values in features.values())
-        if features is None:
-            features = {}
-        self.vectors: torch.Tensor = vectors
+        assert isinstance(
+            vector_source, (torch.Tensor, VectorSource)
+        ), f"Expected {torch.Tensor} or {VectorSource}, got {type(vector_source)}"
         self.name: str = name
-        self.features = features
+        if metadata is None:
+            metadata = {}
+        self._vector_source: torch.Tensor = (
+            TorchVectorSource(vector_source) if torch.is_tensor(vector_source) else vector_source
+        )
+        self.metadata = metadata
+
+    @property
+    def vectors(self) -> torch.Tensor:
+        return self._vector_source.as_tensor()
+
+    def to_memory(self) -> "LatentSpace":
+        if isinstance(self._vector_source, torch.Tensor):
+            pylogger.info("Already in memory, skipping.")
+            return self
+
+        return LatentSpace.like(
+            space=self,
+            vector_source=self.as_tensor(),
+        )
 
     @classmethod
     def like(
         cls,
         space: LatentSpace,
         name: Optional[str] = None,
-        vectors: Optional[torch.Tensor] = None,
-        features: Optional[Dict[str, Sequence[Any]]] = None,
+        vector_source: Optional[VectorSource] = None,
+        metadata: Optional[Dict[str, Any]] = None,
         deepcopy: bool = False,
     ):
         """Create a new space with the arguments not provided taken from the given space.
@@ -58,39 +121,39 @@ class LatentSpace(TorchDataset):
         Args:
             space (LatentSpace): The space to copy.
             name (Optional[str]): The name of the new space.
-            vectors (Optional[torch.Tensor], optional): The vectors of the new space.
-            features (Optional[Dict[str, Sequence[Any]]], optional): The features of the new space.
+            vector_source (Optional[torch.Tensor], optional): The vectors of the new space.
+            metadata (Optional[Dict[str, Any]], optional): The metadata of the new space.
 
         Returns:
             LatentSpace: The new space, with the arguments not provided taken from the given space.
         """
         if name is None:
             name = space.name
-        if vectors is None:
-            vectors = space.vectors if not deepcopy else copy.deepcopy(space.vectors)
-        if features is None:
-            features = space.features if not deepcopy else copy.deepcopy(space.features)
+        if vector_source is None:
+            vector_source = space.vector_source if not deepcopy else copy.deepcopy(space.vector_source)
+        if metadata is None:
+            metadata = space.metadata if not deepcopy else copy.deepcopy(space.metadata)
         # TODO: test deepcopy
-        return LatentSpace(name=name, vectors=vectors, features=features)
+        return LatentSpace(name=name, vector_source=vector_source, metadata=metadata)
 
     @property
     def shape(self) -> torch.Size:
         return self.vectors.shape
 
     def __getitem__(self, index: int) -> Mapping[str, torch.Tensor]:
-        return {"x": self.vectors[index], **{key: values[index] for key, values in self.features.items()}}
+        return self._vector_source[index]
 
     def __len__(self) -> int:
-        return self.vectors.size(0)
+        return len(self._vector_source)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(name={self.name}, vectors={self.vectors.shape}, features={self.features.keys()})"
+        return f"{self.__class__.__name__}(name={self.name}, vectors={self.vectors.shape}, metadata={self.metadata})"
 
     def __eq__(self, __value: object) -> bool:
         return (
             self.name == __value.name
-            and self.features == __value.features
-            and torch.allclose(self.vectors, __value.vectors)
+            and self.metadata == __value.metadata
+            and self._vector_source == __value._vector_source
         )
 
     def sample(self, sampler: Sampler, n: int) -> "LatentSpace":
@@ -150,61 +213,3 @@ class LatentSpace(TorchDataset):
         )
 
         return index
-
-    def to_relative(
-        self,
-        projector: RelativeProjector,
-        anchors: Space,
-        # sampler: Optional[Sampler] = None,
-        # n: Optional[int] = None,
-        # random_seed: int = None,
-    ) -> "LatentSpace":
-        relative_vectors = projector(
-            x=self.vectors,
-            anchors=anchors,
-        )
-
-        return RelativeSpace.like(
-            space=self,
-            name=f"{self.name}/{projector.name}",
-            vectors=relative_vectors,
-            anchors=anchors,
-        )
-
-
-class RelativeSpace(LatentSpace):
-    @classmethod
-    def like(
-        cls,
-        space: RelativeSpace,
-        name: Optional[str] = None,
-        vectors: Optional[torch.Tensor] = None,
-        features: Optional[Dict[str, Sequence[Any]]] = None,
-        anchors: Optional[Space] = None,
-        deepcopy: bool = False,
-    ):
-        if name is None:
-            name = space.name
-
-        if vectors is None:
-            vectors = space.vectors if not deepcopy else space.vectors.clone()
-
-        if features is None:
-            features = (
-                space.features if not deepcopy else {key: values.clone() for key, values in space.features.items()}
-            )
-
-        if anchors is None:
-            anchors = space.anchors if not deepcopy else copy.deepcopy(space.anchors)
-
-        return cls(name=name, vectors=vectors, features=features, anchors=anchors)
-
-    def __init__(
-        self,
-        vectors: torch.Tensor,
-        name: str,
-        features: Dict[str, Sequence[Any]] | None = None,
-        anchors: Space | None = None,
-    ):
-        super().__init__(vectors=vectors, name=name, features=features)
-        self.anchors: Space = anchors

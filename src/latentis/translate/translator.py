@@ -84,6 +84,6 @@ class LatentTranslator(nn.Module):
             target_x = transform.reverse(x=target_x)
 
         if isinstance(x, LatentSpace):
-            return LatentSpace.like(space=x, vectors=target_x, name=name if name is not None else x.name)
+            return LatentSpace.like(space=x, vector_source=target_x, name=name if name is not None else x.name)
         else:
             return target_x
