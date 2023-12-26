@@ -1,14 +1,10 @@
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
 
 import torch
 from torch import nn
 
-from latentis.space import LatentSpace
-
-if TYPE_CHECKING:
-    from latentis.types import Space
+from latentis.space import LatentSpace, SpaceProperty
+from latentis.types import Space
 
 
 class Sampler(nn.Module):
@@ -52,11 +48,12 @@ class Uniform(Sampler):
         if isinstance(spaces[0], LatentSpace):
             out = tuple(
                 LatentSpace(
-                    vector_source=space.vectors[ids],
-                    # features={
-                    #     SpaceProperty.SAMPLING_IDS: ids,
-                    #     **{key: values[ids] for key, values in space.features.items()},
-                    # },
+                    vectors=space.vectors[ids],
+                    name=f"{space.name}{self.suffix}",
+                    features={
+                        SpaceProperty.SAMPLING_IDS: ids,
+                        **{key: values[ids] for key, values in space.features.items()},
+                    },
                 )
                 for space in spaces
             )
