@@ -1,36 +1,63 @@
-from abc import abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import auto
-from typing import Mapping, Tuple
+from typing import Mapping, Sequence, Tuple
 
 from datasets import ClassLabel, Dataset, load_dataset
+from datasets.arrow_dataset import FeatureType
 
 from latentis.types import StrEnum
 
 
-class DataType(StrEnum):
+class FeatureDataType(StrEnum):
     TEXT = auto()
     IMAGE = auto()
-    MIXED = auto()
+
+
+class FeatureProperty(StrEnum):
+    LANGUAGE = auto()
+
+
+class TaskProperty(StrEnum):
+    pass
 
 
 @dataclass(frozen=True)
 class Feature:
-    input_col: str
-    output_col: str
+    col_name: str
+    data_type: FeatureDataType
+    properties: Mapping[FeatureProperty, str] = field(default_factory=lambda: {})
 
 
-DEFAULT_FEATURE = Feature(input_col="input", output_col="output")
+class TaskType(StrEnum):
+    CLASSIFICATION = auto()
+    AUTOENCODING = auto()
 
 
-def update_input_output(dataset, input_col: str, output_col: str):
+@dataclass(frozen=True)
+class Task:
+    col_name: str
+    task_type: TaskType
+    properties: Mapping[TaskProperty, str] = field(default_factory=lambda: {})
+
+
+@dataclass(
+    frozen=True,
+)
+class FeatureMapping:
+    source_col: str
+    target_col: str
+
+
+def map_features(dataset: Dataset, *feature_mappings: FeatureMapping):
     dataset = dataset.map(
-        lambda x: {DEFAULT_FEATURE.input_col: x[input_col], DEFAULT_FEATURE.output_col: x[output_col]}
+        lambda x: {feature_mapping.target_col: x[feature_mapping.source_col] for feature_mapping in feature_mappings}
     )
-    dataset = dataset.cast_column(
-        DEFAULT_FEATURE.output_col,
-        dataset.features[output_col],
-    )
+
+    for feature_mapping in feature_mappings:
+        dataset = dataset.cast_column(
+            feature_mapping.target_col,
+            FeatureType(dtype=dataset.features[feature_mapping.source_col].dtype),
+        )
 
     return dataset
 
@@ -38,20 +65,20 @@ def update_input_output(dataset, input_col: str, output_col: str):
 @dataclass
 class DatasetFactory:
     hf_key: Tuple[str, ...]
-    data_type2feature: Mapping[DataType, Feature]
+    features: Sequence[Feature]
+    tasks: Sequence[Task]
     split: str
     perc: float = 1
     seed: int = 42
 
-    @abstractmethod
     def preprocess(self, dataset: Dataset) -> Dataset:
-        raise NotImplementedError
+        return dataset
 
     def build(self, remove_columns: bool = True):
         dataset = load_dataset(
             *self.hf_key,
             split=self.split,
-            use_auth_token=True,
+            token=True,
         )
 
         # Select a random subset, if needed
@@ -59,12 +86,13 @@ class DatasetFactory:
             dataset = dataset.shuffle(seed=self.seed).select(list(range(int(len(dataset) * self.perc))))
 
         start_columns = dataset.column_names
+        core_columns = set([feature.col_name for feature in self.features] + [task.col_name for task in self.tasks])
 
         # Preprocess the dataset
         dataset = self.preprocess(dataset)
 
         if remove_columns:
-            dataset = dataset.remove_columns(start_columns)
+            dataset = dataset.remove_columns([col for col in start_columns if col not in core_columns])
 
         dataset = dataset
 
@@ -75,19 +103,22 @@ class DBPedia14(DatasetFactory):
     def __init__(self, split: str, perc: float, seed: int):
         super().__init__(
             hf_key=("dbpedia_14",),
-            data_type2feature={DataType.TEXT: DEFAULT_FEATURE},
+            features=[
+                Feature(col_name="content", data_type=FeatureDataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"})
+            ],
+            tasks=[
+                Task(col_name="label", task_type=TaskType.CLASSIFICATION),
+            ],
             split=split,
             perc=perc,
             seed=seed,
         )
 
     def preprocess(self, dataset: Dataset):
-        def clean_sample(example):
-            example["content"] = example["content"].strip('"').strip()
-            return example
+        def transform(batch):
+            return [sample["content"].strip('"').strip() for sample in batch]
 
-        dataset = dataset.map(clean_sample)
-        dataset = update_input_output(dataset, input_col="content", output_col="label")
+        dataset.set_transform(transform, columns=["content"], output_all_columns=True)
 
         return dataset
 
@@ -96,22 +127,18 @@ class TREC(DatasetFactory):
     def __init__(self, split: str, perc: float, seed: int, fine_grained: bool = False):
         super().__init__(
             hf_key=("trec",),
-            data_type2feature={DataType.TEXT: DEFAULT_FEATURE},
+            features=[
+                Feature(col_name="text", data_type=FeatureDataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"})
+            ],
+            tasks=[
+                Task(col_name="coarse_label" if not fine_grained else "fine_label", task_type=TaskType.CLASSIFICATION),
+            ],
             split=split,
             perc=perc,
             seed=seed,
         )
 
         self.fine_grained = fine_grained
-
-    def preprocess(self, dataset: Dataset):
-        dataset = update_input_output(
-            dataset,
-            input_col="text",
-            output_col="coarse_label" if not self.fine_grained else "fine_label",
-        )
-
-        return dataset
 
     def __repr__(self):
         return super().__repr__()[:-1] + f" , fine_grained={self.fine_grained})"
@@ -195,11 +222,16 @@ class TREC(DatasetFactory):
 #         return dataset
 
 
-class AgNews(DatasetFactory):
+class AGNews(DatasetFactory):
     def __init__(self, split: str, perc: float, seed: int):
         super().__init__(
             hf_key=("ag_news",),
-            data_type2feature={DataType.TEXT: DEFAULT_FEATURE},
+            features=[
+                Feature(col_name="text", data_type=FeatureDataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"})
+            ],
+            tasks=[
+                Task(col_name="label", task_type=TaskType.CLASSIFICATION),
+            ],
             split=split,
             perc=perc,
             seed=seed,
@@ -213,8 +245,6 @@ class AgNews(DatasetFactory):
                 names=list(set(dataset["label"])),
             ),
         )
-
-        dataset = update_input_output(dataset, input_col="text", output_col="label")
 
         return dataset
 
@@ -223,7 +253,12 @@ class IMDB(DatasetFactory):
     def __init__(self, split: str, perc: float, seed: int):
         super().__init__(
             hf_key=("imdb",),
-            data_type2feature={DataType.TEXT: DEFAULT_FEATURE},
+            features=[
+                Feature(col_name="text", data_type=FeatureDataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"})
+            ],
+            tasks=[
+                Task(col_name="label", task_type=TaskType.CLASSIFICATION),
+            ],
             split=split,
             perc=perc,
             seed=seed,
@@ -237,7 +272,5 @@ class IMDB(DatasetFactory):
                 names=list(set(dataset["label"])),
             ),
         )
-
-        dataset = update_input_output(dataset, input_col="text", output_col="label")
 
         return dataset
