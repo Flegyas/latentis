@@ -1,17 +1,34 @@
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Tuple
+from enum import auto
+from typing import Mapping, Tuple
 
 from datasets import ClassLabel, Dataset, load_dataset
 
-INPUT_COL: str = "input"
-OUTPUT_COL: str = "output"
+from latentis.types import StrEnum
+
+
+class DataType(StrEnum):
+    TEXT = auto()
+    IMAGE = auto()
+    MIXED = auto()
+
+
+@dataclass(frozen=True)
+class Feature:
+    input_col: str
+    output_col: str
+
+
+DEFAULT_FEATURE = Feature(input_col="input", output_col="output")
 
 
 def update_input_output(dataset, input_col: str, output_col: str):
-    dataset = dataset.map(lambda x: {INPUT_COL: x[input_col], OUTPUT_COL: x[output_col]})
+    dataset = dataset.map(
+        lambda x: {DEFAULT_FEATURE.input_col: x[input_col], DEFAULT_FEATURE.output_col: x[output_col]}
+    )
     dataset = dataset.cast_column(
-        OUTPUT_COL,
+        DEFAULT_FEATURE.output_col,
         dataset.features[output_col],
     )
 
@@ -19,13 +36,12 @@ def update_input_output(dataset, input_col: str, output_col: str):
 
 
 @dataclass
-class DatasetInfo:
+class DatasetFactory:
     hf_key: Tuple[str, ...]
+    data_type2feature: Mapping[DataType, Feature]
     split: str
     perc: float = 1
     seed: int = 42
-    input_col: str = INPUT_COL
-    output_col: str = OUTPUT_COL
 
     @abstractmethod
     def preprocess(self, dataset: Dataset) -> Dataset:
@@ -55,10 +71,11 @@ class DatasetInfo:
         return dataset
 
 
-class DBPedia14(DatasetInfo):
+class DBPedia14(DatasetFactory):
     def __init__(self, split: str, perc: float, seed: int):
         super().__init__(
             hf_key=("dbpedia_14",),
+            data_type2feature={DataType.TEXT: DEFAULT_FEATURE},
             split=split,
             perc=perc,
             seed=seed,
@@ -75,10 +92,11 @@ class DBPedia14(DatasetInfo):
         return dataset
 
 
-class TREC(DatasetInfo):
+class TREC(DatasetFactory):
     def __init__(self, split: str, perc: float, seed: int, fine_grained: bool = False):
         super().__init__(
             hf_key=("trec",),
+            data_type2feature={DataType.TEXT: DEFAULT_FEATURE},
             split=split,
             perc=perc,
             seed=seed,
@@ -87,7 +105,6 @@ class TREC(DatasetInfo):
         self.fine_grained = fine_grained
 
     def preprocess(self, dataset: Dataset):
-        print(dataset)
         dataset = update_input_output(
             dataset,
             input_col="text",
@@ -178,10 +195,11 @@ class TREC(DatasetInfo):
 #         return dataset
 
 
-class AgNews(DatasetInfo):
+class AgNews(DatasetFactory):
     def __init__(self, split: str, perc: float, seed: int):
         super().__init__(
             hf_key=("ag_news",),
+            data_type2feature={DataType.TEXT: DEFAULT_FEATURE},
             split=split,
             perc=perc,
             seed=seed,
@@ -201,10 +219,11 @@ class AgNews(DatasetInfo):
         return dataset
 
 
-class IMDB(DatasetInfo):
+class IMDB(DatasetFactory):
     def __init__(self, split: str, perc: float, seed: int):
         super().__init__(
             hf_key=("imdb",),
+            data_type2feature={DataType.TEXT: DEFAULT_FEATURE},
             split=split,
             perc=perc,
             seed=seed,
