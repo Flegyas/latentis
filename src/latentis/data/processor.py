@@ -136,6 +136,7 @@ class TREC(DataProcessor):
                 Feature(col_name="text", data_type=FeatureDataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"})
             ],
             tasks=[
+                # TODO: maybe a "fine_grained" property?
                 Task(col_name="coarse_label", task_type=TaskType.CLASSIFICATION),
                 Task(col_name="fine_label", task_type=TaskType.CLASSIFICATION),
             ],
@@ -285,6 +286,7 @@ class CIFAR100(DataProcessor):
                 Feature(col_name="image", data_type=FeatureDataType.IMAGE),
             ],
             tasks=[
+                # TODO: maybe a "fine_grained" property?
                 Task(col_name="fine_label", task_type=TaskType.CLASSIFICATION),
                 Task(col_name="coarse_label", task_type=TaskType.CLASSIFICATION),
             ],
@@ -312,5 +314,43 @@ class CIFAR100(DataProcessor):
                     names=list(set(dataset["train"][label])),
                 ),
             )
+
+        return dataset
+
+
+class FashionMNIST(DataProcessor):
+    def __init__(self):
+        super().__init__(
+            dataset_name="fashion_mnist",
+            load_dataset_params=dict(path="fashion_mnist"),
+            features=[
+                Feature(col_name="image", data_type=FeatureDataType.IMAGE),
+            ],
+            tasks=[
+                Task(col_name="label", task_type=TaskType.CLASSIFICATION),
+            ],
+        )
+
+    def _process(self, dataset: DatasetDict) -> DatasetDict:
+        transforms = Compose(
+            [
+                ToTensor(),
+            ]
+        )
+
+        dataset = dataset.map(
+            lambda images: {"image": [transforms(image.convert("RGB")) for image in images]},
+            input_columns=["image"],
+            batched=True,
+        )
+        dataset = dataset.with_format("torch", columns=["image"])
+
+        dataset = dataset.cast_column(
+            "label",
+            ClassLabel(
+                num_classes=len(set(dataset["train"]["label"])),
+                names=list(set(dataset["train"]["label"])),
+            ),
+        )
 
         return dataset
