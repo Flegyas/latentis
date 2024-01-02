@@ -11,7 +11,7 @@ from latentis.search import SearchIndex, SearchMetric
 
 if TYPE_CHECKING:
     from latentis.sample import Sampler
-    from latentis.project import RelativeProjector
+    from latentis.project import RelativeProjection
     from latentis.types import Space
     from latentis.translate import LatentTranslator
 
@@ -218,20 +218,20 @@ class LatentSpace(TorchDataset):
 
     def to_relative(
         self,
-        projector: RelativeProjector,
+        projection: RelativeProjection,
         anchors: Space,
         # sampler: Optional[Sampler] = None,
         # n: Optional[int] = None,
         # random_seed: int = None,
     ) -> "LatentSpace":
-        relative_vectors = projector(
+        relative_vectors = projection(
             x=self.vectors,
             anchors=anchors,
         )
 
         return RelativeSpace.like(
             space=self,
-            name=f"{self.name}/{projector.name}",
+            name=f"{self.name}/{projection.name}",
             vector_source=relative_vectors,
             anchors=anchors,
         )
