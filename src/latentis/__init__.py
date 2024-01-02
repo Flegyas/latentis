@@ -16,8 +16,11 @@ from pathlib import Path
 import git
 
 from .space import LatentSpace
+from latentis.utils import load_envs
 
 logger = logging.getLogger(__name__)
+
+load_envs()
 
 try:
     PROJECT_ROOT = Path(git.Repo(Path.cwd(), search_parent_directories=True).working_dir)

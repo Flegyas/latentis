@@ -48,7 +48,7 @@ class Uniform(Sampler):
         if isinstance(spaces[0], LatentSpace):
             out = tuple(
                 LatentSpace(
-                    vectors=space.vectors[ids],
+                    vector_source=space.vectors[ids],
                     name=f"{space.name}{self.suffix}",
                     features={
                         SpaceProperty.SAMPLING_IDS: ids,

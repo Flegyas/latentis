@@ -135,6 +135,6 @@ class RelativeProjector(nn.Module):
                 rel_x = rel_transform(x=rel_x, reference=rel_anchors)
 
         if isinstance(x, LatentSpace):
-            return LatentSpace.like(space=x, vectors=rel_x)
+            return LatentSpace.like(space=x, vector_source=rel_x)
         else:
             return rel_x

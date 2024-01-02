@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import copy
+import logging
+from abc import abstractmethod
 from enum import auto
 from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Union
 
@@ -22,32 +24,95 @@ try:
 except ImportError:
     from backports.strenum import StrEnum
 
+pylogger = logging.getLogger(__name__)
+
 
 class SpaceProperty(StrEnum):
     SAMPLING_IDS = auto()
 
 
+class VectorSource:
+    @abstractmethod
+    def shape(self) -> torch.Size:
+        raise NotImplementedError
+
+    @abstractmethod
+    def __getitem__(self, index: int) -> torch.Tensor:
+        raise NotImplementedError
+
+    @abstractmethod
+    def __len__(self) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    def as_tensor(self) -> torch.Tensor:
+        raise NotImplementedError
+
+    @abstractmethod
+    def __eq__(self, __value: VectorSource) -> bool:
+        raise NotImplementedError
+
+
+class TorchVectorSource(VectorSource):
+    def __init__(self, vectors: torch.Tensor):
+        self._vectors = vectors
+
+    def shape(self) -> torch.Size:
+        return self._vectors.shape
+
+    def __getitem__(self, index: int) -> torch.Tensor:
+        return self._vectors[index]
+
+    def __len__(self) -> int:
+        return self._vectors.size(0)
+
+    def __eq__(self, __value: TorchVectorSource) -> bool:
+        assert isinstance(__value, TorchVectorSource), f"Expected {TorchVectorSource}, got {type(__value)}"
+        return torch.allclose(self._vectors, __value.as_tensor())
+
+    def as_tensor(self) -> torch.Tensor:
+        return self._vectors
+
+
 class LatentSpace(TorchDataset):
     def __init__(
         self,
-        vectors: torch.Tensor,
         name: str,
+        vector_source: Union[torch.Tensor, VectorSource],
         features: Optional[Dict[str, Sequence[Any]]] = None,
     ):
-        assert isinstance(vectors, torch.Tensor)
-        assert features is None or all(len(values) == vectors.size(0) for values in features.values())
+        assert isinstance(vector_source, torch.Tensor) or isinstance(
+            vector_source, VectorSource
+        ), f"Expected {torch.Tensor} or {VectorSource}, got {type(vector_source)}"
+        assert features is None or all(len(values) == vector_source.size(0) for values in features.values())
+        self.name: str = name
         if features is None:
             features = {}
-        self.vectors: torch.Tensor = vectors
-        self.name: str = name
+        self._vector_source: torch.Tensor = (
+            TorchVectorSource(vector_source) if torch.is_tensor(vector_source) else vector_source
+        )
         self.features = features
+
+    @property
+    def vectors(self) -> torch.Tensor:
+        return self._vector_source.as_tensor()
+
+    def to_memory(self) -> "LatentSpace":
+        if isinstance(self._vector_source, torch.Tensor):
+            pylogger.info("Already in memory, skipping.")
+            return self
+
+        return LatentSpace.like(
+            space=self,
+            vector_source=self.as_tensor,
+        )
 
     @classmethod
     def like(
         cls,
         space: LatentSpace,
         name: Optional[str] = None,
-        vectors: Optional[torch.Tensor] = None,
+        vector_source: Optional[VectorSource] = None,
         features: Optional[Dict[str, Sequence[Any]]] = None,
         deepcopy: bool = False,
     ):
@@ -66,22 +131,22 @@ class LatentSpace(TorchDataset):
         """
         if name is None:
             name = space.name
-        if vectors is None:
-            vectors = space.vectors if not deepcopy else copy.deepcopy(space.vectors)
+        if vector_source is None:
+            vector_source = space.vector_source if not deepcopy else copy.deepcopy(space.vector_source)
         if features is None:
             features = space.features if not deepcopy else copy.deepcopy(space.features)
         # TODO: test deepcopy
-        return LatentSpace(name=name, vectors=vectors, features=features)
+        return LatentSpace(name=name, vector_source=vector_source, features=features)
 
     @property
     def shape(self) -> torch.Size:
         return self.vectors.shape
 
     def __getitem__(self, index: int) -> Mapping[str, torch.Tensor]:
-        return {"x": self.vectors[index], **{key: values[index] for key, values in self.features.items()}}
+        return {"x": self._vector_source[index], **{key: values[index] for key, values in self.features.items()}}
 
     def __len__(self) -> int:
-        return self.vectors.size(0)
+        return len(self._vector_source)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(name={self.name}, vectors={self.vectors.shape}, features={self.features.keys()})"
@@ -167,7 +232,7 @@ class LatentSpace(TorchDataset):
         return RelativeSpace.like(
             space=self,
             name=f"{self.name}/{projector.name}",
-            vectors=relative_vectors,
+            vector_source=relative_vectors,
             anchors=anchors,
         )
 
@@ -178,7 +243,7 @@ class RelativeSpace(LatentSpace):
         cls,
         space: RelativeSpace,
         name: Optional[str] = None,
-        vectors: Optional[torch.Tensor] = None,
+        vector_source: Optional[Union[torch.Tensor, VectorSource]] = None,
         features: Optional[Dict[str, Sequence[Any]]] = None,
         anchors: Optional[Space] = None,
         deepcopy: bool = False,
@@ -186,8 +251,8 @@ class RelativeSpace(LatentSpace):
         if name is None:
             name = space.name
 
-        if vectors is None:
-            vectors = space.vectors if not deepcopy else space.vectors.clone()
+        if vector_source is None:
+            vector_source = space._vector_source if not deepcopy else space._vector_source.clone()
 
         if features is None:
             features = (
@@ -197,14 +262,14 @@ class RelativeSpace(LatentSpace):
         if anchors is None:
             anchors = space.anchors if not deepcopy else copy.deepcopy(space.anchors)
 
-        return cls(name=name, vectors=vectors, features=features, anchors=anchors)
+        return cls(name=name, vectors=vector_source, features=features, anchors=anchors)
 
     def __init__(
         self,
-        vectors: torch.Tensor,
+        vector_source: Union[torch.Tensor, VectorSource],
         name: str,
         features: Dict[str, Sequence[Any]] | None = None,
         anchors: Space | None = None,
     ):
-        super().__init__(vectors=vectors, name=name, features=features)
+        super().__init__(vector_source=vector_source, name=name, features=features)
         self.anchors: Space = anchors

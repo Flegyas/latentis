@@ -159,10 +159,10 @@ def test_invariances(projector: ProjectionFunc, x_latents: Space, anchor_latents
     y_anchors = invariance(anchor_latents if isinstance(anchor_latents, torch.Tensor) else anchor_latents.vectors)
 
     if isinstance(x_latents, LatentSpace):
-        y = LatentSpace.like(x_latents, vectors=y)
+        y = LatentSpace.like(x_latents, vector_source=y)
 
     if isinstance(anchor_latents, LatentSpace):
-        y_anchors = LatentSpace.like(anchor_latents, vectors=y_anchors)
+        y_anchors = LatentSpace.like(anchor_latents, vector_source=y_anchors)
 
     x_projected = projector(x_latents, anchor_latents)
     y_projected = projector(y, y_anchors)
