@@ -20,33 +20,31 @@ class EncodeMode(StrEnum):
 
 @torch.no_grad()
 def batch_encode(
-    encoding,
+    batch,
     encoder: PreTrainedModel,
-    prefix: str,
+    encoder_name: str,
     modes: Sequence[EncodeMode] = EncodeMode.MEAN,
     only_last: bool = False,
     return_tensors: str = "pt",
 ):
+    batch = batch["tokenizer_result"]
     modes = set(modes)
+    mask = batch["attention_mask"] * batch["special_tokens_mask"].bool().logical_not()
+    del batch["special_tokens_mask"]
 
-    mask = encoding["attention_mask"] * encoding["special_tokens_mask"].bool().logical_not()
-    del encoding["special_tokens_mask"]
+    batch = batch.to(encoder.device)
 
-    encoding = encoding.to(encoder.device)
-
-    if prefix.startswith("openai/clip"):
-        encodings = [encoder.text_model(**encoding, return_dict=True)["last_hidden_state"]]
+    if encoder_name.startswith("openai/clip"):
+        encodings = [encoder.text_model(**batch, return_dict=True)["last_hidden_state"]]
     else:
-        encodings = encoder(**encoding)["hidden_states"]
+        encodings = encoder(**batch)["hidden_states"]
 
-    raw_encodings = {
-        f"{prefix}_raw_encoding_{i_layer}": layer_encoding for i_layer, layer_encoding in enumerate(encodings)
-    }
+    raw_encodings = {f"raw_encoding_{i_layer}": layer_encoding for i_layer, layer_encoding in enumerate(encodings)}
 
     result = {} if EncodeMode.RAW not in modes else raw_encodings
     if EncodeMode.TOKEN in modes:
         token_encodings = {
-            f"{prefix}_token_encoding_{i_layer}": [
+            f"token_encoding_{i_layer}": [
                 sample_encoding[sample_mask].cpu().numpy() for sample_encoding, sample_mask in zip(layer_encoding, mask)
             ]
             for i_layer, layer_encoding in enumerate(encodings)
@@ -55,7 +53,7 @@ def batch_encode(
 
     if EncodeMode.MEAN in modes:
         pooled_encodings = {
-            f"{prefix}_mean_encoding_{i_layer}": (
+            f"mean_encoding_{i_layer}": (
                 torch.stack(
                     [
                         sample_encoding[sample_mask].mean(dim=0)
@@ -68,10 +66,10 @@ def batch_encode(
         }
         if only_last:
             pooled_encodings = {
-                f"{prefix}_mean_encoding": list(pooled_encodings.values())[-1].clone()
+                "mean_encoding": list(pooled_encodings.values())[-1].clone()
             }  # the standard encoding is set to be the one from the last layer
         else:
-            pooled_encodings[f"{prefix}_mean_encoding"] = list(pooled_encodings.values())[
+            pooled_encodings["mean_encoding"] = list(pooled_encodings.values())[
                 -1
             ].clone()  # the standard encoding is set to be the one from the last layer
 
@@ -79,7 +77,7 @@ def batch_encode(
 
     if EncodeMode.SUM in modes:
         pooled_encodings = {
-            f"{prefix}_sum_encoding_{i_layer}": (
+            f"sum_encoding_{i_layer}": (
                 torch.stack(
                     [
                         sample_encoding[sample_mask].sum(dim=0)
@@ -93,10 +91,10 @@ def batch_encode(
 
         if only_last:
             pooled_encodings = {
-                f"{prefix}_sum_encoding": list(pooled_encodings.values())[-1].clone()
+                "sum_encoding": list(pooled_encodings.values())[-1].clone()
             }  # the standard encoding is set to be the one from the last layer
         else:
-            pooled_encodings[f"{prefix}_sum_encoding"] = list(pooled_encodings.values())[
+            pooled_encodings["sum_encoding"] = list(pooled_encodings.values())[
                 -1
             ].clone()  # the standard encoding is set to be the one from the last layer
 
@@ -104,18 +102,16 @@ def batch_encode(
 
     if EncodeMode.CLS in modes:
         pooled_encodings = {
-            f"{prefix}_cls_encoding_{i_layer}": layer_encoding[
-                :, 0, :
-            ]  # TODO: adapt to encoders without CLS as first token
+            f"cls_encoding_{i_layer}": layer_encoding[:, 0, :]  # TODO: adapt to encoders without CLS as first token
             for i_layer, layer_encoding in enumerate(raw_encodings.values())
         }
 
         if only_last:
             pooled_encodings = {
-                f"{prefix}_cls_encoding": list(pooled_encodings.values())[-1].clone()
+                "cls_encoding": list(pooled_encodings.values())[-1].clone()
             }  # the standard encoding is set to be the one from the last layer
         else:
-            pooled_encodings[f"{prefix}_cls_encoding"] = list(pooled_encodings.values())[
+            pooled_encodings["cls_encoding"] = list(pooled_encodings.values())[
                 -1
             ].clone()  # the standard encoding is set to be the one from the last layer
 

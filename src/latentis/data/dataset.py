@@ -5,18 +5,19 @@ from datetime import datetime
 from enum import auto
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping, Sequence, Union
 
 import pyarrow as pa
 import pyarrow.parquet as pq
 import torch
 from datasets import DatasetDict
+from torch import nn
 
 from latentis.data import BENCHMARK_DIR
 from latentis.types import StrEnum
 
 
-class FeatureType(StrEnum):
+class DataType(StrEnum):
     TEXT = auto()
     IMAGE = auto()
     LABEL = auto()
@@ -32,11 +33,16 @@ class DatasetProperty(StrEnum):
 
 
 # make it json serializable
-@dataclass(frozen=True)
+@dataclass(
+    frozen=True,
+)
 class Feature:
     col_name: str
-    feature_type: FeatureType
+    data_type: DataType
     properties: Mapping[FeatureProperty, str] = field(default_factory=lambda: {})
+
+    def __hash__(self):
+        return hash((self.col_name, self.data_type, tuple(self.properties.items())))
 
 
 @dataclass(frozen=True)
@@ -49,12 +55,12 @@ class LatentisDataset:
     _METADATA_FILE_NAME: str = "metadata.json"
 
     @classmethod
-    def get_key(cls, dataset_name: str, perc: float, properties: Mapping[DatasetProperty, Any]) -> str:
+    def get_key(cls, dataset_name: str, perc: float, metadata: Mapping[DatasetProperty, Any]) -> str:
         hashcode = sha256()
 
         hashcode.update(dataset_name.encode())
         hashcode.update(str(perc).encode())
-        hashcode.update(json.dumps(properties, sort_keys=True).encode())
+        hashcode.update(json.dumps(metadata, sort_keys=True).encode())
 
         return hashcode.hexdigest()[:8]
 
@@ -65,19 +71,30 @@ class LatentisDataset:
         id_column: str,
         features: Sequence[Feature],
         perc: float = 1,
-        properties: Mapping[str, Any] = {},
+        metadata: Mapping[str, Any] = {},
         parent_dir: Path = BENCHMARK_DIR,
     ):
+        assert isinstance(dataset, DatasetDict), f"Expected {DatasetDict}, got {type(dataset)}"
+        assert len(set(features)) == len(features), f"Features {features} contain duplicates!"
+        assert len(features) > 0, f"Features {features} must not be empty!"
+        assert all(
+            id_column in dataset[split].column_names for split in dataset.keys()
+        ), f"ID column {id_column} not in all splits of dataset {dataset}"
+        assert all(
+            feature.col_name in dataset[split].column_names for feature in features for split in dataset.keys()
+        ), f"Specified features not in all splits of dataset {dataset}"
+        assert 0 < perc <= 1, f"Percentage {perc} not in (0, 1]"
+
         self.name: str = name
         self.dataset = dataset
         self.id_column: str = id_column
-        self.features = features
+        self.features = set(features)
         self.perc = perc
-        self.properties = properties
+        self.metadata = metadata
         self.parent_dir = parent_dir
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(features={self.features}, perc={self.perc}, properties={self.properties})"
+        return f"{self.__class__.__name__}(features={self.features}, perc={self.perc}, metadata={self.metadata})"
 
     #
     # def load_encodings(self, encoding2splits: Mapping[str, Sequence[str]]) -> Mapping[str, Mapping[str, torch.Tensor]]:
@@ -133,7 +150,7 @@ class LatentisDataset:
                 encodings_path = (
                     self.parent_dir
                     / self.name
-                    / LatentisDataset.get_key(dataset_name=self.name, perc=self.perc, properties=self.properties)
+                    / LatentisDataset.get_key(dataset_name=self.name, perc=self.perc, metadata=self.metadata)
                     / "encodings"
                     / encoding
                     / split
@@ -173,28 +190,47 @@ class LatentisDataset:
     #         parent_dir=self.parent_dir,
     #     )
 
-    def get_available_encodings(self) -> Mapping[str, Sequence[str]]:
-        """Scans the encodings directory of this dataset and returns the available ones.
+    def add_decoder(self, encoding_key: str, decoder: nn.Module):
+        raise NotImplementedError
+
+    def load_decoders(self, encodings: Sequence[str]) -> Mapping[str, nn.Module]:
+        raise NotImplementedError
+
+    def get_available_encodings(
+        self, *features: Feature
+    ) -> Union[Mapping[str, Sequence[str]], Mapping[Feature, Mapping[str, Sequence[str]]]]:
+        """Scans the encodings directory and returns a mapping from feature to available encodings.
 
         Returns:
-            Mapping[str, Sequence[str]]: Mapping from encoding key to splits
+            Mapping[str, Sequence[str]]: Mapping from feature to available encodings.
 
         """
-        encoded_dir = (
-            self.parent_dir
-            / self.name
-            / LatentisDataset.get_key(dataset_name=self.name, perc=self.perc, properties=self.properties)
-            / "encodings"
-        )
+        raise NotImplementedError
+        # assert len(features) == 0 or all(
+        #     feature in self.features for feature in features
+        # ), f"Features {features} not available in dataset {self.name}!"
+        # features = features or self.features
 
-        if not encoded_dir.exists():
-            return []
+        # encodings_dir = (
+        #     self.parent_dir
+        #     / self.name
+        #     / LatentisDataset.get_key(dataset_name=self.name, perc=self.perc, metadata=self.metadata)
+        #     / "encodings"
+        # )
+        # if not encodings_dir.exists():
+        #     return {}
 
-        return {
-            encoding_path.name: list(encoding_path.iterdir())
-            for encoding_path in encoded_dir.iterdir()
-            if encoding_path.is_dir()
-        }
+        # available_features = [
+        #     feature
+        #     for feature in self.features
+        #     if (encodings_dir / feature.col_name).exists() and (encodings_dir / feature.col_name).is_dir()
+        # ]
+
+        # return {
+        #     encoding_path.name: list(encoding_path.iterdir())
+        #     for encoding_path in encoded_dir.iterdir()
+        #     if encoding_path.is_dir()
+        # }
 
     # DATASETS VERSION
     # def add_encoding(self, encoding_key: str, split: str, id2encoding: Mapping[str, torch.Tensor]):
@@ -254,7 +290,7 @@ class LatentisDataset:
 
     #     db.multi_insert(indices=ids, data_list=data_list, log=True)
 
-    def add_encoding(self, encoding_key: str, split: str, id2encoding: Mapping[str, torch.Tensor]):
+    def add_encoding(self, feature: Feature, encoding_key: str, split: str, id2encoding: Mapping[str, torch.Tensor]):
         ids, encodings = zip(*id2encoding.items())
         data_list = [
             {self.id_column: sample_id, "encoding": encoding.numpy()} for sample_id, encoding in zip(ids, encodings)
@@ -265,10 +301,11 @@ class LatentisDataset:
         target_path = (
             self.parent_dir
             / self.name
-            / LatentisDataset.get_key(dataset_name=self.name, perc=self.perc, properties=self.properties)
+            / LatentisDataset.get_key(dataset_name=self.name, perc=self.perc, metadata=self.metadata)
             / "encodings"
-            / encoding_key
+            / feature.col_name
             / split
+            / encoding_key
             / "encodings.parquet"
         )
 
@@ -282,7 +319,7 @@ class LatentisDataset:
 
     def save_to_disk(self, overwrite: bool = False):
         dataset_path = self.parent_dir / self.name
-        instance_path = dataset_path / LatentisDataset.get_key(dataset_name=self.name, perc=self.perc, properties={})
+        instance_path = dataset_path / LatentisDataset.get_key(dataset_name=self.name, perc=self.perc, metadata={})
         processed_path = instance_path / "processed"
 
         # path = parent_dir / (
@@ -300,9 +337,9 @@ class LatentisDataset:
         data = {
             "name": self.name,
             "id_column": self.id_column,
-            "features": self.features,
+            "features": tuple(self.features),
             "perc": self.perc,
-            "properties": self.properties,
+            "metadata": self.metadata,
             "timestamp": str(datetime.now()),
             "timestamp_ms": int(datetime.now().timestamp()),
         }
@@ -315,13 +352,13 @@ class LatentisDataset:
         cls,
         dataset_name: str,
         perc: float,
-        properties: Mapping[DatasetProperty, Any] = {},
+        metadata: Mapping[DatasetProperty, Any] = {},
         parent_dir: Path = BENCHMARK_DIR,
     ) -> "LatentisDataset":
         path: Path = (
             parent_dir
             / dataset_name
-            / LatentisDataset.get_key(dataset_name=dataset_name, perc=perc, properties=properties)
+            / LatentisDataset.get_key(dataset_name=dataset_name, perc=perc, metadata=metadata)
             / "processed"
         )
 
@@ -335,7 +372,7 @@ class LatentisDataset:
 
         features = [Feature(**feature) for feature in data["features"]]
         perc = data["perc"]
-        properties = data["properties"]
+        metadata = data["metadata"]
         id_column = data["id_column"]
 
         processed_dataset = LatentisDataset(
@@ -344,7 +381,7 @@ class LatentisDataset:
             id_column=id_column,
             features=features,
             perc=perc,
-            properties=properties,
+            metadata=metadata,
         )
 
         return processed_dataset

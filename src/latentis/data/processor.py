@@ -5,7 +5,7 @@ from typing import Any, Mapping, Sequence
 from datasets import ClassLabel, Dataset, DatasetDict, load_dataset
 from torchvision.transforms import Compose, ToTensor
 
-from latentis.data.dataset import Feature, FeatureMapping, FeatureProperty, FeatureType, LatentisDataset
+from latentis.data.dataset import DataType, Feature, FeatureMapping, FeatureProperty, LatentisDataset
 
 pylogger = logging.getLogger(__name__)
 
@@ -40,13 +40,13 @@ class DataProcessor:
         dataset_name: str,
         load_dataset_params: Mapping[str, Any],
         features: Sequence[Feature],
-        properties={},
+        metadata={},
         id_column: str = "sample_id",
     ):
         self.dataset_name: str = dataset_name
         self.load_dataset_params = load_dataset_params
         self.features = features
-        self.properties = properties
+        self.metadata = metadata
         self.id_column = id_column
 
     @abstractmethod
@@ -84,7 +84,7 @@ class DataProcessor:
             id_column=self.id_column,
             features=self.features,
             perc=perc,
-            properties=self.properties,
+            metadata=self.metadata,
         )
 
         return processed_dataset
@@ -96,8 +96,8 @@ class DBPedia14(DataProcessor):
             dataset_name="dbpedia_14",
             load_dataset_params=dict(path="dbpedia_14"),
             features=[
-                Feature(col_name="x", feature_type=FeatureType.TEXT, properties={FeatureProperty.LANGUAGE: "en"}),
-                Feature(col_name="y", feature_type=FeatureType.LABEL),
+                Feature(col_name="x", data_type=DataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"}),
+                Feature(col_name="y", data_type=DataType.LABEL),
             ],
         )
 
@@ -120,15 +120,15 @@ class TREC(DataProcessor):
             dataset_name="trec",
             load_dataset_params=dict(path="trec"),
             features=[
-                Feature(col_name="text", feature_type=FeatureType.TEXT, properties={FeatureProperty.LANGUAGE: "en"}),
+                Feature(col_name="text", data_type=DataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"}),
                 Feature(
                     col_name="coarse_label",
-                    feature_type=FeatureType.LABEL,
+                    data_type=DataType.LABEL,
                     properties={FeatureProperty.FINE_GRAINED: False},
                 ),
                 Feature(
                     col_name="fine_label",
-                    feature_type=FeatureType.LABEL,
+                    data_type=DataType.LABEL,
                     properties={FeatureProperty.FINE_GRAINED: True},
                 ),
             ],
@@ -144,8 +144,8 @@ class AGNews(DataProcessor):
             dataset_name="ag_news",
             load_dataset_params=dict(path="ag_news"),
             features=[
-                Feature(col_name="text", feature_type=FeatureType.TEXT, properties={FeatureProperty.LANGUAGE: "en"}),
-                Feature(col_name="label", feature_type=FeatureType.LABEL),
+                Feature(col_name="text", data_type=DataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"}),
+                Feature(col_name="label", data_type=DataType.LABEL),
             ],
         )
 
@@ -167,8 +167,8 @@ class IMDB(DataProcessor):
             dataset_name="imdb",
             load_dataset_params=dict(path="imdb"),
             features=[
-                Feature(col_name="text", feature_type=FeatureType.TEXT, properties={FeatureProperty.LANGUAGE: "en"}),
-                Feature(col_name="label", feature_type=FeatureType.LABEL),
+                Feature(col_name="text", data_type=DataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"}),
+                Feature(col_name="label", data_type=DataType.LABEL),
             ],
         )
 
@@ -195,8 +195,8 @@ class MNIST(DataProcessor):
             dataset_name="mnist",
             load_dataset_params=dict(path="mnist"),
             features=[
-                Feature(col_name="image", feature_type=FeatureType.IMAGE),
-                Feature(col_name="label", feature_type=FeatureType.LABEL),
+                Feature(col_name="image", data_type=DataType.IMAGE),
+                Feature(col_name="label", data_type=DataType.LABEL),
             ],
         )
 
@@ -231,8 +231,8 @@ class CIFAR10(DataProcessor):
             dataset_name="cifar10",
             load_dataset_params=dict(path="cifar10"),
             features=[
-                Feature(col_name="image", feature_type=FeatureType.IMAGE),
-                Feature(col_name="label", feature_type=FeatureType.LABEL),
+                Feature(col_name="image", data_type=DataType.IMAGE),
+                Feature(col_name="label", data_type=DataType.LABEL),
             ],
         )
 
@@ -267,15 +267,15 @@ class CIFAR100(DataProcessor):
             dataset_name="cifar100",
             load_dataset_params=dict(path="cifar100"),
             features=[
-                Feature(col_name="image", feature_type=FeatureType.IMAGE),
+                Feature(col_name="image", data_type=DataType.IMAGE),
                 Feature(
                     col_name="fine_label",
-                    feature_type=FeatureType.LABEL,
+                    data_type=DataType.LABEL,
                     properties={FeatureProperty.FINE_GRAINED: True},
                 ),
                 Feature(
                     col_name="coarse_label",
-                    feature_type=FeatureType.LABEL,
+                    data_type=DataType.LABEL,
                     properties={FeatureProperty.FINE_GRAINED: False},
                 ),
             ],
@@ -313,8 +313,8 @@ class FashionMNIST(DataProcessor):
             dataset_name="fashion_mnist",
             load_dataset_params=dict(path="fashion_mnist"),
             features=[
-                Feature(col_name="image", feature_type=FeatureType.IMAGE),
-                Feature(col_name="label", feature_type=FeatureType.LABEL),
+                Feature(col_name="image", data_type=DataType.IMAGE),
+                Feature(col_name="label", data_type=DataType.LABEL),
             ],
         )
 
