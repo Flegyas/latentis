@@ -16,41 +16,27 @@ from latentis.data import BENCHMARK_DIR
 from latentis.types import StrEnum
 
 
-class FeatureDataType(StrEnum):
+class FeatureType(StrEnum):
     TEXT = auto()
     IMAGE = auto()
+    LABEL = auto()
 
 
 class FeatureProperty(StrEnum):
     LANGUAGE = auto()
-
-
-class TaskProperty(StrEnum):
-    pass
+    FINE_GRAINED = auto()
 
 
 class DatasetProperty(StrEnum):
-    FINE_GRAINED = auto()
+    pass
 
 
 # make it json serializable
 @dataclass(frozen=True)
 class Feature:
     col_name: str
-    data_type: FeatureDataType
+    feature_type: FeatureType
     properties: Mapping[FeatureProperty, str] = field(default_factory=lambda: {})
-
-
-class TaskType(StrEnum):
-    CLASSIFICATION = auto()
-    AUTOENCODING = auto()
-
-
-@dataclass(frozen=True)
-class Task:
-    col_name: str
-    task_type: TaskType
-    properties: Mapping[TaskProperty, str] = field(default_factory=lambda: {})
 
 
 @dataclass(frozen=True)
@@ -78,7 +64,6 @@ class LatentisDataset:
         dataset: DatasetDict,
         id_column: str,
         features: Sequence[Feature],
-        tasks: Sequence[Task],
         perc: float = 1,
         properties: Mapping[str, Any] = {},
         parent_dir: Path = BENCHMARK_DIR,
@@ -87,13 +72,12 @@ class LatentisDataset:
         self.dataset = dataset
         self.id_column: str = id_column
         self.features = features
-        self.tasks = tasks
         self.perc = perc
         self.properties = properties
         self.parent_dir = parent_dir
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(features={self.features}, tasks={self.tasks}, perc={self.perc}, properties={self.properties})"
+        return f"{self.__class__.__name__}(features={self.features}, perc={self.perc}, properties={self.properties})"
 
     #
     # def load_encodings(self, encoding2splits: Mapping[str, Sequence[str]]) -> Mapping[str, Mapping[str, torch.Tensor]]:
@@ -135,7 +119,6 @@ class LatentisDataset:
     #         dataset=result,
     #         id_column=self.id_column,
     #         features=self.features,
-    #         tasks=self.tasks,
     #         perc=self.perc,
     #         properties=self.properties,
     #         parent_dir=self.parent_dir,
@@ -185,7 +168,6 @@ class LatentisDataset:
     #         dataset=result,
     #         id_column=self.id_column,
     #         features=self.features,
-    #         tasks=self.tasks,
     #         perc=self.perc,
     #         properties=self.properties,
     #         parent_dir=self.parent_dir,
@@ -319,7 +301,6 @@ class LatentisDataset:
             "name": self.name,
             "id_column": self.id_column,
             "features": self.features,
-            "tasks": self.tasks,
             "perc": self.perc,
             "properties": self.properties,
             "timestamp": str(datetime.now()),
@@ -353,7 +334,6 @@ class LatentisDataset:
             data = json.load(f)
 
         features = [Feature(**feature) for feature in data["features"]]
-        tasks = [Task(**task) for task in data["tasks"]]
         perc = data["perc"]
         properties = data["properties"]
         id_column = data["id_column"]
@@ -363,7 +343,6 @@ class LatentisDataset:
             dataset=dataset,
             id_column=id_column,
             features=features,
-            tasks=tasks,
             perc=perc,
             properties=properties,
         )

@@ -5,15 +5,7 @@ from typing import Any, Mapping, Sequence
 from datasets import ClassLabel, Dataset, DatasetDict, load_dataset
 from torchvision.transforms import Compose, ToTensor
 
-from latentis.data.dataset import (
-    Feature,
-    FeatureDataType,
-    FeatureMapping,
-    FeatureProperty,
-    LatentisDataset,
-    Task,
-    TaskType,
-)
+from latentis.data.dataset import Feature, FeatureMapping, FeatureProperty, FeatureType, LatentisDataset
 
 pylogger = logging.getLogger(__name__)
 
@@ -48,14 +40,12 @@ class DataProcessor:
         dataset_name: str,
         load_dataset_params: Mapping[str, Any],
         features: Sequence[Feature],
-        tasks: Sequence[Task],
         properties={},
         id_column: str = "sample_id",
     ):
         self.dataset_name: str = dataset_name
         self.load_dataset_params = load_dataset_params
         self.features = features
-        self.tasks = tasks
         self.properties = properties
         self.id_column = id_column
 
@@ -77,7 +67,7 @@ class DataProcessor:
                 }
             )
         start_columns = {col for cols in dataset.column_names.values() for col in cols}
-        core_columns = set([feature.col_name for feature in self.features] + [task.col_name for task in self.tasks])
+        core_columns = {feature.col_name for feature in self.features}
 
         dataset: DatasetDict = self._process(dataset=dataset)
 
@@ -93,7 +83,6 @@ class DataProcessor:
             name=self.dataset_name,
             id_column=self.id_column,
             features=self.features,
-            tasks=self.tasks,
             perc=perc,
             properties=self.properties,
         )
@@ -107,10 +96,8 @@ class DBPedia14(DataProcessor):
             dataset_name="dbpedia_14",
             load_dataset_params=dict(path="dbpedia_14"),
             features=[
-                Feature(col_name="x", data_type=FeatureDataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"})
-            ],
-            tasks=[
-                Task(col_name="y", task_type=TaskType.CLASSIFICATION),
+                Feature(col_name="x", feature_type=FeatureType.TEXT, properties={FeatureProperty.LANGUAGE: "en"}),
+                Feature(col_name="y", feature_type=FeatureType.LABEL),
             ],
         )
 
@@ -133,12 +120,17 @@ class TREC(DataProcessor):
             dataset_name="trec",
             load_dataset_params=dict(path="trec"),
             features=[
-                Feature(col_name="text", data_type=FeatureDataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"})
-            ],
-            tasks=[
-                # TODO: maybe a "fine_grained" property?
-                Task(col_name="coarse_label", task_type=TaskType.CLASSIFICATION),
-                Task(col_name="fine_label", task_type=TaskType.CLASSIFICATION),
+                Feature(col_name="text", feature_type=FeatureType.TEXT, properties={FeatureProperty.LANGUAGE: "en"}),
+                Feature(
+                    col_name="coarse_label",
+                    feature_type=FeatureType.LABEL,
+                    properties={FeatureProperty.FINE_GRAINED: False},
+                ),
+                Feature(
+                    col_name="fine_label",
+                    feature_type=FeatureType.LABEL,
+                    properties={FeatureProperty.FINE_GRAINED: True},
+                ),
             ],
         )
 
@@ -152,10 +144,8 @@ class AGNews(DataProcessor):
             dataset_name="ag_news",
             load_dataset_params=dict(path="ag_news"),
             features=[
-                Feature(col_name="text", data_type=FeatureDataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"})
-            ],
-            tasks=[
-                Task(col_name="label", task_type=TaskType.CLASSIFICATION),
+                Feature(col_name="text", feature_type=FeatureType.TEXT, properties={FeatureProperty.LANGUAGE: "en"}),
+                Feature(col_name="label", feature_type=FeatureType.LABEL),
             ],
         )
 
@@ -177,10 +167,8 @@ class IMDB(DataProcessor):
             dataset_name="imdb",
             load_dataset_params=dict(path="imdb"),
             features=[
-                Feature(col_name="text", data_type=FeatureDataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"})
-            ],
-            tasks=[
-                Task(col_name="label", task_type=TaskType.CLASSIFICATION),
+                Feature(col_name="text", feature_type=FeatureType.TEXT, properties={FeatureProperty.LANGUAGE: "en"}),
+                Feature(col_name="label", feature_type=FeatureType.LABEL),
             ],
         )
 
@@ -207,10 +195,8 @@ class MNIST(DataProcessor):
             dataset_name="mnist",
             load_dataset_params=dict(path="mnist"),
             features=[
-                Feature(col_name="image", data_type=FeatureDataType.IMAGE),
-            ],
-            tasks=[
-                Task(col_name="label", task_type=TaskType.CLASSIFICATION),
+                Feature(col_name="image", feature_type=FeatureType.IMAGE),
+                Feature(col_name="label", feature_type=FeatureType.LABEL),
             ],
         )
 
@@ -245,10 +231,8 @@ class CIFAR10(DataProcessor):
             dataset_name="cifar10",
             load_dataset_params=dict(path="cifar10"),
             features=[
-                Feature(col_name="image", data_type=FeatureDataType.IMAGE),
-            ],
-            tasks=[
-                Task(col_name="label", task_type=TaskType.CLASSIFICATION),
+                Feature(col_name="image", feature_type=FeatureType.IMAGE),
+                Feature(col_name="label", feature_type=FeatureType.LABEL),
             ],
         )
 
@@ -283,12 +267,17 @@ class CIFAR100(DataProcessor):
             dataset_name="cifar100",
             load_dataset_params=dict(path="cifar100"),
             features=[
-                Feature(col_name="image", data_type=FeatureDataType.IMAGE),
-            ],
-            tasks=[
-                # TODO: maybe a "fine_grained" property?
-                Task(col_name="fine_label", task_type=TaskType.CLASSIFICATION),
-                Task(col_name="coarse_label", task_type=TaskType.CLASSIFICATION),
+                Feature(col_name="image", feature_type=FeatureType.IMAGE),
+                Feature(
+                    col_name="fine_label",
+                    feature_type=FeatureType.LABEL,
+                    properties={FeatureProperty.FINE_GRAINED: True},
+                ),
+                Feature(
+                    col_name="coarse_label",
+                    feature_type=FeatureType.LABEL,
+                    properties={FeatureProperty.FINE_GRAINED: False},
+                ),
             ],
         )
 
@@ -324,10 +313,8 @@ class FashionMNIST(DataProcessor):
             dataset_name="fashion_mnist",
             load_dataset_params=dict(path="fashion_mnist"),
             features=[
-                Feature(col_name="image", data_type=FeatureDataType.IMAGE),
-            ],
-            tasks=[
-                Task(col_name="label", task_type=TaskType.CLASSIFICATION),
+                Feature(col_name="image", feature_type=FeatureType.IMAGE),
+                Feature(col_name="label", feature_type=FeatureType.LABEL),
             ],
         )
 
