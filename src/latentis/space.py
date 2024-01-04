@@ -1,21 +1,22 @@
 from __future__ import annotations
 
 import copy
+import json
 import logging
-from abc import abstractmethod
 from enum import auto
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Union
 
-from latentis.measure import MetricFn
 from latentis.search import SearchIndex, SearchMetric
+from latentis.vector_source import InMemorySource, VectorSource
 
 if TYPE_CHECKING:
     from latentis.sample import Sampler
     from latentis.types import Space
     from latentis.translate import LatentTranslator
+    from latentis.measure import MetricFn
 
 import torch
-from torch.utils.data import Dataset as TorchDataset
 
 try:
     # be ready for 3.10 when it drops
@@ -27,69 +28,56 @@ pylogger = logging.getLogger(__name__)
 
 
 class SpaceProperty(StrEnum):
-    SAMPLING_IDS = auto()
+    VECTOR_SOURCE = auto()
 
 
-class VectorSource:
-    @abstractmethod
-    def shape(self) -> torch.Size:
-        raise NotImplementedError
-
-    @abstractmethod
-    def __getitem__(self, index: int) -> torch.Tensor:
-        raise NotImplementedError
-
-    @abstractmethod
-    def __len__(self) -> int:
-        raise NotImplementedError
-
-    @abstractmethod
-    def as_tensor(self) -> torch.Tensor:
-        raise NotImplementedError
-
-    @abstractmethod
-    def __eq__(self, __value: VectorSource) -> bool:
-        raise NotImplementedError
-
-
-class TorchVectorSource(VectorSource):
-    def __init__(self, vectors: torch.Tensor):
-        self._vectors = vectors
-
-    def shape(self) -> torch.Size:
-        return self._vectors.shape
-
-    def __getitem__(self, index: int) -> torch.Tensor:
-        return self._vectors[index]
-
-    def __len__(self) -> int:
-        return self._vectors.size(0)
-
-    def __eq__(self, __value: TorchVectorSource) -> bool:
-        assert isinstance(__value, TorchVectorSource), f"Expected {TorchVectorSource}, got {type(__value)}"
-        return torch.allclose(self._vectors, __value.as_tensor())
-
-    def as_tensor(self) -> torch.Tensor:
-        return self._vectors
-
-
-class LatentSpace(TorchDataset):
+class LatentSpace:
     def __init__(
         self,
         vector_source: Union[torch.Tensor, VectorSource],
         metadata: Optional[Dict[str, Any]] = None,
-        name: str = "",
+        name: str = "space",
     ):
         assert isinstance(
             vector_source, (torch.Tensor, VectorSource)
         ), f"Expected {torch.Tensor} or {VectorSource}, got {type(vector_source)}"
+        assert name is not None and len(name.strip()) > 0, "Name must be a non-empty string."
+
         self.name: str = name
         if metadata is None:
             metadata = {}
         self._vector_source: torch.Tensor = (
-            TorchVectorSource(vector_source) if torch.is_tensor(vector_source) else vector_source
+            InMemorySource(vector_source) if torch.is_tensor(vector_source) else vector_source
         )
+        if SpaceProperty.VECTOR_SOURCE not in metadata:
+            metadata[SpaceProperty.VECTOR_SOURCE] = type(self._vector_source).__name__
+
         self.metadata = metadata
+
+    def save_to_disk(self, parent_dir: Path, name: Optional[str] = None):
+        if name is None:
+            name = self.name
+
+        path = parent_dir / name
+        path.mkdir(parents=True, exist_ok=False)
+
+        # save VectorSource
+        self._vector_source.save_to_disk(path / "vectors")
+
+        # save metadata
+        with open(parent_dir / "metadata.json", "w") as fw:
+            json.dump(self.metadata, fw, indent=4, default=lambda o: o.__dict__)
+
+    @classmethod
+    def load_from_disk(cls, path: Path) -> LatentSpace:
+        # load VectorSource
+        vector_source = InMemorySource.load_from_disk(path / "vectors")
+
+        # load metadata
+        with open(path / "metadata.json", "r") as fr:
+            metadata = json.load(fr)
+
+        return LatentSpace(vector_source=vector_source, metadata=metadata)
 
     @property
     def vectors(self) -> torch.Tensor:

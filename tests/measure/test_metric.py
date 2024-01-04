@@ -1,11 +1,15 @@
-from typing import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Callable
 
 import pytest
 import torch
 import torch.nn.functional as F
 
 from latentis.measure import MetricFn
-from latentis.types import Space
+
+if TYPE_CHECKING:
+    from latentis.types import Space
 
 
 @pytest.mark.parametrize(

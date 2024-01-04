@@ -1,10 +1,15 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 import torch
 
 from latentis import LatentSpace
-from latentis.types import Space
 from latentis.utils import seed_everything
 
+if TYPE_CHECKING:
+    from latentis.types import Space
 BATCH_DIM = 4
 LATENT_DIM = 8
 N_CLASSES = 10
@@ -23,7 +28,7 @@ class Anchor1Params(object):
 
 
 @pytest.fixture(params=Anchor1Params().instances, scope="session")
-def anchor_latents(request) -> Space:
+def x_anchors(request) -> Space:
     return request.param
 
 
@@ -49,5 +54,5 @@ class X1Params(object):
 
 
 @pytest.fixture(params=X1Params().instances, scope="session")
-def x_latents() -> torch.Tensor:
+def x() -> torch.Tensor:
     return torch.randn(BATCH_DIM, LATENT_DIM, dtype=torch.double)

@@ -1,6 +1,12 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from latentis.sample import Uniform
 from latentis.space import LatentSpace
-from latentis.types import Space
+
+if TYPE_CHECKING:
+    from latentis.types import Space
 
 
 def test_space_len(space1: Space):

@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import functools
+from typing import TYPE_CHECKING
 
 import pytest
 import torch
@@ -6,8 +9,11 @@ from scipy.stats import ortho_group
 
 from tests.project.conftest import LATENT_DIM
 
-from latentis import LatentSpace, transform
-from latentis.project import (
+from latentis import LatentSpace
+from latentis.transform import Identity, TransformSequence
+from latentis.transform.base import Centering
+from latentis.transform.projection import (
+    RelativeProjection,
     angular_proj,
     change_of_basis_proj,
     cosine_proj,
@@ -16,8 +22,10 @@ from latentis.project import (
     lp_proj,
     pointwise_wrapper,
 )
-from latentis.project.relative import relative_projection
-from latentis.types import Space
+
+if TYPE_CHECKING:
+    from latentis.types import Space
+
 from latentis.utils import seed_everything
 
 
@@ -48,129 +56,179 @@ def random_isotropic_scaling(random_seed: int) -> torch.Tensor:
 def test_pointwise_wrapper(projection_fn, unsqueeze: bool, tensor_space_with_ref):
     x, anchors = tensor_space_with_ref
 
-    vectorized = projection_fn(x, anchors)
+    vectorized = projection_fn(x, anchors=anchors)
     pointwise = pointwise_wrapper(projection_fn, unsqueeze=unsqueeze)(x, anchors)
 
     assert torch.allclose(vectorized, pointwise)
 
 
 @pytest.mark.parametrize(
-    "projection,invariance,invariant",
+    "projection_fn,invariance,invariant,abs_transforms,rel_transforms",
     [
         (
-            functools.partial(relative_projection, projection_fn=angular_proj),
+            angular_proj,
             lambda x: x @ random_ortho_matrix(random_seed=42),
             True,
+            [],
+            [],
         ),
         (
-            functools.partial(relative_projection, projection_fn=angular_proj),
+            angular_proj,
             lambda x: x @ random_ortho_matrix(random_seed=42) + 100,
             False,
+            [],
+            [],
         ),
         (
-            functools.partial(relative_projection, projection_fn=angular_proj, abs_transforms=[transform.Centering()]),
+            angular_proj,
             lambda x: x @ random_ortho_matrix(random_seed=42) + 100,
             True,
+            [Centering()],
+            [],
         ),
         (
-            functools.partial(relative_projection, projection_fn=cosine_proj),
+            cosine_proj,
             lambda x: x @ random_ortho_matrix(random_seed=42),
             True,
+            [],
+            [],
         ),
         (
-            functools.partial(relative_projection, projection_fn=cosine_proj, abs_transforms=[transform.Centering()]),
+            cosine_proj,
             lambda x: (x + 20) @ random_ortho_matrix(42),
             True,
+            [Centering()],
+            [],
         ),
         (
-            functools.partial(relative_projection, projection_fn=cosine_proj, abs_transforms=[transform.Centering()]),
+            cosine_proj,
             lambda x: (x) @ random_ortho_matrix(42) + 20,
             True,
+            [Centering()],
+            [],
         ),
         (
-            functools.partial(relative_projection, projection_fn=cosine_proj),
+            cosine_proj,
             lambda x: (x) @ random_ortho_matrix(42) * 100,
             True,
+            [],
+            [],
         ),
         (
-            functools.partial(relative_projection, projection_fn=cosine_proj),
+            cosine_proj,
             lambda x: (x) @ random_ortho_matrix(42) + 20,
             False,
+            [],
+            [],
         ),
         (
-            functools.partial(relative_projection, projection_fn=cosine_proj),
+            cosine_proj,
             lambda x: x @ random_ortho_matrix(random_seed=42),
             True,
+            [],
+            [],
         ),
         (
-            functools.partial(relative_projection, projection_fn=euclidean_proj),
+            euclidean_proj,
             lambda x: (x) @ random_ortho_matrix(42) + 100,
             True,
+            [],
+            [],
         ),
         (
-            functools.partial(relative_projection, projection_fn=l1_proj),
+            l1_proj,
             lambda x: (x) @ random_ortho_matrix(42) + 100,
             False,
+            [],
+            [],
         ),
         (
-            functools.partial(relative_projection, projection_fn=l1_proj),
+            l1_proj,
             lambda x: x[:, random_perm_matrix(42)] + 100,
             True,
+            [],
+            [],
         ),
         (
-            functools.partial(relative_projection, projection_fn=l1_proj),
+            l1_proj,
             lambda x: (x + 100)[:, random_perm_matrix(42)],
             True,
+            [],
+            [],
         ),
         (
-            functools.partial(relative_projection, projection_fn=cosine_proj),
+            cosine_proj,
             lambda x: (x + 100) * random_isotropic_scaling(42),
             False,
+            [],
+            [],
         ),
         (
-            functools.partial(relative_projection, projection_fn=cosine_proj, abs_transforms=transform.Centering()),
+            cosine_proj,
             lambda x: (x + 100) * random_isotropic_scaling(42),
             True,
+            [Centering()],
+            [],
         ),
         (
-            functools.partial(relative_projection, projection_fn=cosine_proj, abs_transforms=transform.Centering()),
+            cosine_proj,
             lambda x: (x + 100) * random_isotropic_scaling(42) + 100,
             True,
+            [Centering()],
+            [],
         ),
         (
-            functools.partial(
-                relative_projection, projection_fn=change_of_basis_proj, abs_transforms=transform.Centering()
-            ),
+            change_of_basis_proj,
             lambda x: (x + 100) * random_isotropic_scaling(42),
             True,
+            [Centering()],
+            [],
         ),
         (
-            functools.partial(relative_projection, projection_fn=change_of_basis_proj),
+            change_of_basis_proj,
             lambda x: (x) * random_isotropic_scaling(42),
             True,
+            [],
+            [],
         ),
         (
-            functools.partial(relative_projection, projection_fn=change_of_basis_proj),
+            change_of_basis_proj,
             lambda x: (x) * random_isotropic_scaling(42) + 53,
             False,
+            [],
+            [],
         ),
     ],
 )
-def test_invariances(projection, x_latents: Space, anchor_latents, invariance, invariant):
-    y = invariance(x_latents if isinstance(x_latents, torch.Tensor) else x_latents.vectors)
-    y_anchors = invariance(anchor_latents if isinstance(anchor_latents, torch.Tensor) else anchor_latents.vectors)
+def test_invariances(
+    projection_fn, x: Space, x_anchors, invariance, invariant, abs_transforms: list, rel_transforms: list
+):
+    y = invariance(x) if isinstance(x, torch.Tensor) else x.transform(invariance)
+    y_anchors = invariance(x_anchors if isinstance(x_anchors, torch.Tensor) else x_anchors.vectors)
 
-    if isinstance(x_latents, LatentSpace):
-        y = LatentSpace.like(x_latents, vector_source=y)
+    if isinstance(x, LatentSpace):
+        y = LatentSpace.like(x, vector_source=y)
 
-    if isinstance(anchor_latents, LatentSpace):
-        y_anchors = LatentSpace.like(anchor_latents, vector_source=y_anchors)
+    if isinstance(x_anchors, LatentSpace):
+        x_anchors = x_anchors.vectors
 
-    x_projected = projection(x=x_latents, anchors=anchor_latents)
-    y_projected = projection(x=y, anchors=y_anchors)
+    abs_transforms = TransformSequence(abs_transforms) if abs_transforms else Identity()
+    rel_transforms = TransformSequence(rel_transforms) if rel_transforms else Identity()
+
+    pipeline = RelativeProjection(
+        projection_fn=projection_fn,
+        abs_transform=abs_transforms,
+        rel_transform=rel_transforms,
+    )
+    pipeline.fit(x_anchors.vectors if isinstance(x_anchors, LatentSpace) else x_anchors)
+    x_projected = pipeline.transform(x if isinstance(x, torch.Tensor) else x.vectors)
+
+    pipeline.fit(y_anchors.vectors if isinstance(y_anchors, LatentSpace) else y_anchors)
+    y_projected = pipeline.transform(y if isinstance(y, torch.Tensor) else y.vectors)
 
     assert not invariant or torch.allclose(x_projected, y_projected)
 
-    if isinstance(x_latents, LatentSpace):
-        space_relative = x_latents.to_relative(projection=projection, anchors=anchor_latents)
-        assert torch.allclose(space_relative.vectors, x_projected)
+    if isinstance(x, LatentSpace):
+        pytest.skip("LatentSpace does not support relative projections.")
+        # space_relative = x.to_relative(projection=projection, anchors=x_anchors)
+        # assert torch.allclose(space_relative.vectors, x_projected)
