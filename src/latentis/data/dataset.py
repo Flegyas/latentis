@@ -11,6 +11,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import torch
 from datasets import DatasetDict
+from torch import nn
 
 from latentis.data import BENCHMARK_DIR
 from latentis.types import StrEnum
@@ -172,6 +173,12 @@ class LatentisDataset:
     #         properties=self.properties,
     #         parent_dir=self.parent_dir,
     #     )
+
+    def add_decoder(self, encoding_key: str, decoder: nn.Module):
+        raise NotImplementedError
+
+    def load_decoders(self, encodings: Sequence[str]) -> Mapping[str, nn.Module]:
+        raise NotImplementedError
 
     def get_available_encodings(self) -> Mapping[str, Sequence[str]]:
         """Scans the encodings directory of this dataset and returns the available ones.
