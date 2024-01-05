@@ -4,7 +4,8 @@ import copy
 from enum import auto
 from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Union
 
-from latentis.measure import Metric, MetricFn
+from latentis.measure import MetricFn
+from latentis.search import SearchIndex, SearchMetric
 
 if TYPE_CHECKING:
     from latentis.sample import Sampler
@@ -105,7 +106,9 @@ class LatentSpace(TorchDataset):
         """
         return sampler(self, n=n)
 
-    def compare(self, *others: Space, metrics: Mapping[str, Union[Metric, Callable[[Space, Space], torch.Tensor]]]):
+    def compare(
+        self, *others: Space, metrics: Mapping[str, Union[SearchMetric, Callable[[Space, Space], torch.Tensor]]]
+    ):
         """Compare this space with another space using the given metrics.
 
         Args:
@@ -116,7 +119,8 @@ class LatentSpace(TorchDataset):
             Dict[str, Any]: The results of the comparison.
         """
         metrics = {
-            key: metric if isinstance(metric, Metric) else MetricFn(key, metric) for key, metric in (metrics.items())
+            key: metric if isinstance(metric, SearchMetric) else MetricFn(key, metric)
+            for key, metric in (metrics.items())
         }
         metrics_results = {metric_name: metric(self, *others) for metric_name, metric in metrics.items()}
         return metrics_results
@@ -127,16 +131,26 @@ class LatentSpace(TorchDataset):
     ):
         return translator(x=self)
 
-    # @lru_cache
-    # def to_faiss(self, normalize: bool, keys: Sequence[str]) -> FaissIndex:
-    #     index: FaissIndex = FaissIndex(d=self.vectors.size(1))
+    def to_index(
+        self,
+        metric_fn: SearchMetric,
+        keys: Optional[Sequence[str]] = None,
+        transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+    ) -> SearchIndex:
+        index: SearchIndex = SearchIndex.create(
+            metric_fn=metric_fn,
+            num_dimensions=self.vectors.size(dim=1),
+            name=self.name,
+            transform=transform,
+        )
 
-    #     index.add_vectors(
-    #         embeddings=list(zip(keys, self.vectors.cpu().numpy())),
-    #         normalize=normalize,
-    #     )
+        index.add_items(
+            vectors=self.vectors.cpu(),
+            keys=keys,
+        )
 
-    #     return index
+        return index
+
     def to_relative(
         self,
         projector: RelativeProjector,
