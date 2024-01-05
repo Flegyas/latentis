@@ -7,13 +7,14 @@ from enum import auto
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Union
 
+from latentis.search import SearchIndex, SearchMetric
 from latentis.vector_source import InMemorySource, VectorSource
 
 if TYPE_CHECKING:
     from latentis.sample import Sampler
     from latentis.types import Space
     from latentis.translate import LatentTranslator
-    from latentis.measure import Metric, MetricFn
+    from latentis.measure import MetricFn
 
 import torch
 
