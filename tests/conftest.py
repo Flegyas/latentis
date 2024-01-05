@@ -13,11 +13,8 @@ class Space1Params(object):
     seed_everything(42)
     instances = [
         LatentSpace(
-            vectors=torch.randn(1000, 128, dtype=torch.double),
+            vector_source=torch.randn(1000, 128, dtype=torch.double),
             name="space1",
-            features={
-                "label": torch.rand(1000) > 0.5,
-            },
         ),
         torch.randn(1000, 128, dtype=torch.double),
     ]
@@ -32,11 +29,8 @@ class Space2Params(object):
     seed_everything(42)
     instances = [
         LatentSpace(
-            vectors=torch.randn(53, 250, dtype=torch.double),
+            vector_source=torch.randn(53, 250, dtype=torch.double),
             name="space2",
-            features={
-                "label": torch.rand(53) > 0.5,
-            },
         ),
         torch.randn(53, 250, dtype=torch.double),
     ]
@@ -51,11 +45,11 @@ class ParallelSpaces(object):
     instances = [
         (
             LatentSpace(
-                vectors=torch.randn(space1_n, space_1_dim, dtype=torch.double),
+                vector_source=torch.randn(space1_n, space_1_dim, dtype=torch.double),
                 name="space1",
             ),
             LatentSpace(
-                vectors=torch.randn(space2_n, space2_dim, dtype=torch.double),
+                vector_source=torch.randn(space2_n, space2_dim, dtype=torch.double),
                 name="space2",
             ),
         )

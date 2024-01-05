@@ -34,11 +34,8 @@ def test_index(
     seed_everything(seed=0)
 
     space = LatentSpace(
-        vectors=torch.randn(num_vectors, num_dimensions, dtype=torch.double),
+        vector_source=torch.randn(num_vectors, num_dimensions, dtype=torch.double),
         name="space1",
-        features={
-            "label": torch.rand(num_vectors) > 0.5,
-        },
     )
     index = space.to_index(metric_fn=metric_fn, keys=[str(i) for i in range(num_vectors)])
 
@@ -138,7 +135,7 @@ def test_transform(num_vectors: int, num_dimensions: int):
     seed_everything(seed=0)
 
     space = LatentSpace(
-        vectors=torch.randn(num_vectors, num_dimensions, dtype=torch.double),
+        vector_source=torch.randn(num_vectors, num_dimensions, dtype=torch.double),
         name="space1",
     )
     index1 = space.to_index(metric_fn=SearchMetric.COSINE)
@@ -154,7 +151,7 @@ def test_transform(num_vectors: int, num_dimensions: int):
     vectors = torch.randn(num_vectors, num_dimensions, dtype=torch.float32)
 
     space = LatentSpace(
-        vectors=vectors,
+        vector_source=vectors,
         name="space1",
     )
     index = space.to_index(metric_fn=SearchMetric.COSINE)
@@ -191,7 +188,7 @@ def test_range_search(num_vectors: int, num_dimensions: int, search_metric2radiu
 
     vectors = torch.randn(num_vectors, num_dimensions, dtype=torch.double) * 10
     space = LatentSpace(
-        vectors=vectors,
+        vector_source=vectors,
         name="space1",
     )
 
@@ -212,7 +209,7 @@ def test_keys(
     seed_everything(seed=0)
 
     space = LatentSpace(
-        vectors=torch.randn(num_vectors, 100, dtype=torch.float32),
+        vector_source=torch.randn(num_vectors, 100, dtype=torch.float32),
         name="space1",
     )
 
@@ -255,7 +252,7 @@ def test_get_vectors(num_vectors: int, num_dimensions: int):
 
     vectors = torch.randn(num_vectors, num_dimensions, dtype=torch.float32)
     space = LatentSpace(
-        vectors=vectors,
+        vector_source=vectors,
         name="space1",
     )
 

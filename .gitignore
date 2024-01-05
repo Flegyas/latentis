@@ -1,6 +1,7 @@
 wandb
 multirun.yaml
 storage
+benchmark
 
 # ignore the _version.py file
 _version.py

@@ -77,11 +77,51 @@ def pointwise_wrapper(func, unsqueeze: bool = False) -> Callable[..., torch.Tens
     return wrapper
 
 
-class RelativeProjector(nn.Module):
+def relative_projection(
+    x: Space,
+    anchors: Space,
+    projection_fn: ProjectionFunc,
+    abs_transforms: Optional[Sequence[Transform]] = None,
+    rel_transforms: Optional[Sequence[Transform]] = None,
+):
+    abs_transforms = nn.ModuleList(
+        abs_transforms if isinstance(abs_transforms, Sequence) else [] if abs_transforms is None else [abs_transforms]
+    )
+    rel_transforms = nn.ModuleList(
+        rel_transforms if isinstance(rel_transforms, Sequence) else [] if rel_transforms is None else [rel_transforms]
+    )
+
+    x_vectors = x.vectors if isinstance(x, LatentSpace) else x
+    anchor_vectors = anchors.vectors if isinstance(anchors, LatentSpace) else anchors
+
+    # absolute normalization/transformation
+    transformed_x = x_vectors
+    transformed_anchors = anchor_vectors
+    for abs_transform in abs_transforms:
+        transformed_x = abs_transform(x=transformed_x, reference=transformed_anchors)
+        transformed_anchors = abs_transform(x=transformed_anchors, reference=transformed_anchors)
+
+    # relative projection of x with respect to the anchors
+    rel_x = projection_fn(x=transformed_x, anchors=transformed_anchors)
+
+    if len(rel_transforms) != 0:
+        rel_anchors = projection_fn(x=transformed_anchors, anchors=transformed_anchors)
+        # relative normalization/transformation
+        for rel_transform in rel_transforms:
+            rel_x = rel_transform(x=rel_x, reference=rel_anchors)
+
+    if isinstance(x, LatentSpace):
+        return LatentSpace.like(space=x, vector_source=rel_x)
+    else:
+        return rel_x
+
+
+class RelativeProjection(nn.Module):
     def __init__(
         self,
         projection_fn: ProjectionFunc,
         name: Optional[str] = None,
+        anchors: Optional[Space] = None,
         abs_transforms: Optional[Sequence[Transform]] = None,
         rel_transforms: Optional[Sequence[Transform]] = None,
     ) -> None:
@@ -94,6 +134,7 @@ class RelativeProjector(nn.Module):
             if hasattr(projection_fn, "__name__")
             else "relative_projection"
         )
+        self.register_buffer("anchors", anchors.vectors if anchors is not None else None)
 
         self.abs_transforms = nn.ModuleList(
             abs_transforms
@@ -114,27 +155,11 @@ class RelativeProjector(nn.Module):
     def name(self) -> str:
         return self._name
 
-    def forward(self, x: Space, anchors: Space) -> Space:
-        x_vectors = x.vectors if isinstance(x, LatentSpace) else x
-        anchor_vectors = anchors.vectors if isinstance(anchors, LatentSpace) else anchors
-
-        # absolute normalization/transformation
-        transformed_x = x_vectors
-        transformed_anchors = anchor_vectors
-        for abs_transform in self.abs_transforms:
-            transformed_x = abs_transform(x=transformed_x, reference=transformed_anchors)
-            transformed_anchors = abs_transform(x=transformed_anchors, reference=transformed_anchors)
-
-        # relative projection of x with respect to the anchors
-        rel_x = self.projection(x=transformed_x, anchors=transformed_anchors)
-
-        if len(self.rel_transforms) != 0:
-            rel_anchors = self.projection(x=transformed_anchors, anchors=transformed_anchors)
-            # relative normalization/transformation
-            for rel_transform in self.rel_transforms:
-                rel_x = rel_transform(x=rel_x, reference=rel_anchors)
-
-        if isinstance(x, LatentSpace):
-            return LatentSpace.like(space=x, vectors=rel_x)
-        else:
-            return rel_x
+    def forward(self, x: Space) -> Space:
+        return relative_projection(
+            x=x,
+            anchors=self.anchors,
+            projection_fn=self.projection,
+            abs_transforms=self.abs_transforms,
+            rel_transforms=self.rel_transforms,
+        )

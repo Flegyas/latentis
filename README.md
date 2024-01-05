@@ -15,7 +15,7 @@ A Python package for analyzing and transforming neural latent spaces.
 ## Installation
 
 ```bash
-pip install git+ssh://git@github.com/flegyas/latentis.git
+pip install latentis
 ```
 
 
