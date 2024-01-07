@@ -84,10 +84,10 @@ class TensorSpaceWithRef(object):
     seed_everything(42)
     instances = [
         (
-            torch.randn(space1_n, space_1_dim, dtype=torch.double),
+            torch.randn(space1_n, space1_dim, dtype=torch.double),
             torch.randn(space2_n, space2_dim, dtype=torch.double),
         )
-        for (space1_n, space_1_dim), (space2_n, space2_dim) in [
+        for (space1_n, space1_dim), (space2_n, space2_dim) in [
             ((10, 250), (100, 250)),
             ((300, 300), (20, 300)),
             ((100, 700), (42, 700)),

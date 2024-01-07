@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Mapping, Union
+from typing import Union
 
 import torch
 
@@ -13,7 +13,5 @@ except ImportError:
     from backports.strenum import StrEnum as PythonStrEnum
 
 StrEnum = PythonStrEnum
-
-ProjectionFunc = Callable[[torch.Tensor, torch.Tensor], Mapping[str, torch.Tensor]]
 
 Space = Union[LatentSpace, torch.Tensor]

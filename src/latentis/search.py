@@ -14,7 +14,7 @@ import pandas as pd
 import torch
 import torch.nn.functional as F
 
-from latentis.transform.abstract import Transform
+from latentis.transform._abstract import Transform
 
 
 # https://github.com/facebookresearch/faiss/wiki/MetricType-and-distances

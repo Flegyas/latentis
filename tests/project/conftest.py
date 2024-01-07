@@ -23,7 +23,7 @@ class Anchor1Params(object):
 
 
 @pytest.fixture(params=Anchor1Params().instances, scope="session")
-def anchor_latents(request) -> Space:
+def x_anchors(request) -> Space:
     return request.param
 
 
@@ -49,5 +49,5 @@ class X1Params(object):
 
 
 @pytest.fixture(params=X1Params().instances, scope="session")
-def x_latents() -> torch.Tensor:
+def x() -> torch.Tensor:
     return torch.randn(BATCH_DIM, LATENT_DIM, dtype=torch.double)
