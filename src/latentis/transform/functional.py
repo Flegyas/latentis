@@ -59,6 +59,7 @@ TransformFn = Callable[..., TransformResult]
 ReverseFn = Callable[..., torch.Tensor]
 
 
+# TODO: add LatentSpace support? (Space)
 def transform_fn(
     name: Optional[str] = None, reverse_fn: Optional[ReverseFn] = None, state: Optional[Sequence[str]] = None
 ):

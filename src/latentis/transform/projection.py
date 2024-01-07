@@ -4,6 +4,7 @@ import torch
 import torch.nn.functional as F
 
 from latentis.space import LatentSpace
+from latentis.transform import Transform
 from latentis.transform.functional import ReverseFn, TransformFn, TransformResult, transform_fn
 from latentis.types import Space
 
@@ -143,5 +144,8 @@ def relative_projection(
     return _PROJECTIONS[projection_fn.name](x, anchors=anchors).x
 
 
-if __name__ == "__main__":
-    print()
+class RelativeProjection(Transform):
+    def fit(self, x: torch.Tensor, y=None) -> None:
+        self.register_buffer(f"{Transform._PREFIX}anchors", x)
+        self._fitted: bool = True
+        return self
