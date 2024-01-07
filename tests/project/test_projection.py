@@ -7,7 +7,7 @@ from scipy.stats import ortho_group
 from tests.project.conftest import LATENT_DIM
 
 from latentis import LatentSpace
-from latentis.project import (
+from latentis.transform.projection import (
     angular_proj,
     change_of_basis_proj,
     cosine_proj,
@@ -15,8 +15,8 @@ from latentis.project import (
     l1_proj,
     lp_proj,
     pointwise_wrapper,
+    relative_projection,
 )
-from latentis.project.relative import relative_projection
 from latentis.types import Space
 from latentis.utils import seed_everything
 
@@ -48,7 +48,7 @@ def random_isotropic_scaling(random_seed: int) -> torch.Tensor:
 def test_pointwise_wrapper(projection_fn, unsqueeze: bool, tensor_space_with_ref):
     x, anchors = tensor_space_with_ref
 
-    vectorized = projection_fn(x, anchors)
+    vectorized = projection_fn(x, anchors=anchors).x
     pointwise = pointwise_wrapper(projection_fn, unsqueeze=unsqueeze)(x, anchors)
 
     assert torch.allclose(vectorized, pointwise)
@@ -181,7 +181,11 @@ def test_invariances(projection, x_latents: Space, anchor_latents, invariance, i
     x_projected = projection(x=x_latents, anchors=anchor_latents)
     y_projected = projection(x=y, anchors=y_anchors)
 
-    assert not invariant or torch.allclose(x_projected, y_projected)
+    assert not invariant or torch.allclose(x_projected, y_projected), (
+        (x_projected - y_projected).abs().sum(),
+        x_projected.isnan().any(),
+        y_projected.isnan().any(),
+    )
 
     if isinstance(x_latents, LatentSpace):
         space_relative = x_latents.to_relative(projection=projection, anchors=anchor_latents)

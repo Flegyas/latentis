@@ -1,6 +1,6 @@
 import inspect
 from dataclasses import dataclass, field
-from typing import Callable, Mapping, Optional, Sequence, Union
+from typing import Callable, Mapping, Optional, Sequence
 
 import torch
 import torch.nn.functional as F
@@ -41,12 +41,6 @@ def _handle_zeros(scale: torch.Tensor, copy=True, constant_mask=None):
         return scale
 
 
-TransformResult = Union[torch.Tensor, Mapping[str, torch.Tensor]]
-
-TransformFn = Callable[..., TransformResult]
-ReverseFn = Callable[..., torch.Tensor]
-
-
 @dataclass
 class TransformResult:
     x: torch.Tensor
@@ -59,6 +53,10 @@ class TransformResult:
 
     def as_dict(self) -> Mapping[str, torch.Tensor]:
         return {self._x_key: self.x, **self.state}
+
+
+TransformFn = Callable[..., TransformResult]
+ReverseFn = Callable[..., torch.Tensor]
 
 
 def transform_fn(
@@ -74,26 +72,38 @@ def transform_fn(
             "x"
         ], f"transform_fn should only have 'x' as a positional argument. transform_fn: {transform_fn_args}"
 
+        if state is not None:
+            assert isinstance(state, Sequence), f"state must be a sequence. state: {state}"
+            assert all(isinstance(s, str) for s in state), f"state must be a sequence of strings. state: {state}"
+
+            set_state = set(state)
+        else:
+            set_state = set()
+
+        transform_fn_kwonlyargs = inspect.getfullargspec(transform_fn).kwonlyargs
+        assert (
+            set.intersection(set_state, set(transform_fn_kwonlyargs)) == set_state
+        ), f"state mismatch while registering {transform_name}. transform_fn: {transform_fn_kwonlyargs}, state: {set_state}"
+
         # check that the reverse_fn has a compatible signature with the transform_fn
         if reverse_fn is not None:
-            assert state is not None, "state must be specified when reverse_fn is specified."
+            # TODO: are we sure about this check?
+            assert len(set_state) > 0, "state must be specified when reverse_fn is specified."
 
             reverse_fn_args = inspect.getfullargspec(reverse_fn).args
             assert reverse_fn_args == [
                 "x"
             ], f"Error registering {transform_name}: reverse_fn should only have 'x' as a positional argument. reverse_fn: {reverse_fn_args}"
 
-            transform_fn_kwonlyargs = inspect.getfullargspec(transform_fn).kwonlyargs
             reverse_fn_kwonlyargs = inspect.getfullargspec(reverse_fn).kwonlyargs
 
-            assert set(state) == set(transform_fn_kwonlyargs).intersection(set(reverse_fn_kwonlyargs)), (
+            assert set_state == set(transform_fn_kwonlyargs).intersection(set(reverse_fn_kwonlyargs)), (
                 f"state mismatch while registering {transform_name} with its reverse {reverse_fn.__name__}. "
                 f"transform_fn: {transform_fn_kwonlyargs}, reverse_fn: {reverse_fn_kwonlyargs}. "
-                f"state: {state}"
+                f"state: {set_state}"
             )
 
         transform_fn._reverse_fn = reverse_fn
-        # TODO: implement __repr__
 
         return transform_fn
 

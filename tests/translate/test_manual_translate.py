@@ -11,7 +11,7 @@ from latentis.estimate.dim_matcher import ZeroPadding
 from latentis.estimate.linear import LSTSQEstimator
 from latentis.estimate.orthogonal import LSTSQOrthoEstimator, SVDEstimator
 from latentis.space import LatentSpace
-from latentis.transform.abstract import Transform
+from latentis.transform._abstract import Transform
 from latentis.translate.translator import LatentTranslator
 from latentis.types import Space
 
