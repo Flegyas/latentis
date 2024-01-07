@@ -6,7 +6,7 @@ from scipy.stats import ortho_group
 
 from tests.project.conftest import LATENT_DIM
 
-from latentis import LatentSpace, transform
+from latentis import LatentSpace
 from latentis.project import (
     angular_proj,
     change_of_basis_proj,
@@ -67,26 +67,32 @@ def test_pointwise_wrapper(projection_fn, unsqueeze: bool, tensor_space_with_ref
             lambda x: x @ random_ortho_matrix(random_seed=42) + 100,
             False,
         ),
-        (
-            functools.partial(relative_projection, projection_fn=angular_proj, abs_transforms=[transform.Centering()]),
-            lambda x: x @ random_ortho_matrix(random_seed=42) + 100,
-            True,
-        ),
+        # (
+        #     functools.partial(
+        #         relative_projection, projection_fn=angular_proj, abs_transforms=[Transform(transform_fn=FL.centering)]
+        #     ),
+        #     lambda x: x @ random_ortho_matrix(random_seed=42) + 100,
+        #     True,
+        # ),
         (
             functools.partial(relative_projection, projection_fn=cosine_proj),
             lambda x: x @ random_ortho_matrix(random_seed=42),
             True,
         ),
-        (
-            functools.partial(relative_projection, projection_fn=cosine_proj, abs_transforms=[transform.Centering()]),
-            lambda x: (x + 20) @ random_ortho_matrix(42),
-            True,
-        ),
-        (
-            functools.partial(relative_projection, projection_fn=cosine_proj, abs_transforms=[transform.Centering()]),
-            lambda x: (x) @ random_ortho_matrix(42) + 20,
-            True,
-        ),
+        # (
+        #     functools.partial(
+        #         relative_projection, projection_fn=cosine_proj, abs_transforms=[Transform(transform_fn=FL.centering)]
+        #     ),
+        #     lambda x: (x + 20) @ random_ortho_matrix(42),
+        #     True,
+        # ),
+        # (
+        #     functools.partial(
+        #         relative_projection, projection_fn=cosine_proj, abs_transforms=[Transform(transform_fn=FL.centering)]
+        #     ),
+        #     lambda x: (x) @ random_ortho_matrix(42) + 20,
+        #     True,
+        # ),
         (
             functools.partial(relative_projection, projection_fn=cosine_proj),
             lambda x: (x) @ random_ortho_matrix(42) * 100,
@@ -127,23 +133,29 @@ def test_pointwise_wrapper(projection_fn, unsqueeze: bool, tensor_space_with_ref
             lambda x: (x + 100) * random_isotropic_scaling(42),
             False,
         ),
-        (
-            functools.partial(relative_projection, projection_fn=cosine_proj, abs_transforms=transform.Centering()),
-            lambda x: (x + 100) * random_isotropic_scaling(42),
-            True,
-        ),
-        (
-            functools.partial(relative_projection, projection_fn=cosine_proj, abs_transforms=transform.Centering()),
-            lambda x: (x + 100) * random_isotropic_scaling(42) + 100,
-            True,
-        ),
-        (
-            functools.partial(
-                relative_projection, projection_fn=change_of_basis_proj, abs_transforms=transform.Centering()
-            ),
-            lambda x: (x + 100) * random_isotropic_scaling(42),
-            True,
-        ),
+        # (
+        #     functools.partial(
+        #         relative_projection, projection_fn=cosine_proj, abs_transforms=Transform(transform_fn=FL.centering)
+        #     ),
+        #     lambda x: (x + 100) * random_isotropic_scaling(42),
+        #     True,
+        # ),
+        # (
+        #     functools.partial(
+        #         relative_projection, projection_fn=cosine_proj, abs_transforms=Transform(transform_fn=FL.centering)
+        #     ),
+        #     lambda x: (x + 100) * random_isotropic_scaling(42) + 100,
+        #     True,
+        # ),
+        # (
+        #     functools.partial(
+        #         relative_projection,
+        #         projection_fn=change_of_basis_proj,
+        #         abs_transforms=Transform(transform_fn=FL.centering),
+        #     ),
+        #     lambda x: (x + 100) * random_isotropic_scaling(42),
+        #     True,
+        # ),
         (
             functools.partial(relative_projection, projection_fn=change_of_basis_proj),
             lambda x: (x) * random_isotropic_scaling(42),

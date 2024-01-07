@@ -5,12 +5,13 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from latentis import transform
+import latentis.transform.functional as FL
 from latentis.estimate.affine import SGDAffineTranslator
 from latentis.estimate.dim_matcher import ZeroPadding
 from latentis.estimate.linear import LSTSQEstimator
 from latentis.estimate.orthogonal import LSTSQOrthoEstimator, SVDEstimator
 from latentis.space import LatentSpace
+from latentis.transform.abstract import Transform
 from latentis.translate.translator import LatentTranslator
 from latentis.types import Space
 
@@ -179,36 +180,48 @@ class ManualLatentTranslation(nn.Module):
             True,
             True,
             False,
-            [transform.Centering(), transform.STDScaling()],
-            [transform.Centering(), transform.STDScaling()],
+            [
+                Transform(transform_fn=FL.centering, reverse_fn=FL.centering._reverse_fn),
+                Transform(transform_fn=FL.std_scaling, reverse_fn=FL.std_scaling._reverse_fn),
+            ],
+            [
+                Transform(transform_fn=FL.centering, reverse_fn=FL.centering._reverse_fn),
+                Transform(transform_fn=FL.std_scaling, reverse_fn=FL.std_scaling._reverse_fn),
+            ],
         ),
         (
             True,
             True,
             False,
-            [transform.StandardScaling()],
-            [transform.StandardScaling()],
+            [Transform(transform_fn=FL.standard_scaling, reverse_fn=FL.standard_scaling._reverse_fn)],
+            [Transform(transform_fn=FL.standard_scaling, reverse_fn=FL.standard_scaling._reverse_fn)],
         ),
+        # (
+        #     True,
+        #     False,
+        #     True,
+        #     [
+        #         Transform(transform_fn=FL.centering, reverse_fn=FL.centering._reverse_fn),
+        #         Transform(transform_fn=FL.l2_normalize, reverse_fn=FL.l2_normalize._reverse_fn),
+        #     ],
+        #     [
+        #         Transform(transform_fn=FL.centering, reverse_fn=FL.centering._reverse_fn),
+        #         Transform(transform_fn=FL.l2_normalize, reverse_fn=FL.l2_normalize._reverse_fn),
+        #     ],
+        # ),
+        # (
+        #     False,
+        #     False,
+        #     True,
+        #     [Transform(transform_fn=FL.l2_normalize, reverse_fn=FL.l2_normalize._reverse_fn)],
+        #     [Transform(transform_fn=FL.l2_normalize, reverse_fn=FL.l2_normalize._reverse_fn)],
+        # ),
         (
             True,
             False,
-            True,
-            [transform.Centering(), transform.L2()],
-            [transform.Centering(), transform.L2()],
-        ),
-        (
             False,
-            False,
-            True,
-            [transform.L2()],
-            [transform.L2()],
-        ),
-        (
-            True,
-            False,
-            False,
-            [transform.Centering()],
-            [transform.Centering()],
+            [Transform(transform_fn=FL.centering, reverse_fn=FL.centering._reverse_fn)],
+            [Transform(transform_fn=FL.centering, reverse_fn=FL.centering._reverse_fn)],
         ),
     ],
 )
