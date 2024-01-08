@@ -1,10 +1,15 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 import torch
 
 from latentis import LatentSpace
-from latentis.types import Space
 from latentis.utils import seed_everything
 
+if TYPE_CHECKING:
+    from latentis.types import Space
 BATCH_DIM = 4
 LATENT_DIM = 8
 N_CLASSES = 10

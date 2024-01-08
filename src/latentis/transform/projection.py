@@ -1,20 +1,22 @@
-from typing import Callable, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Callable, Optional
 
 import torch
 import torch.nn.functional as F
 
 from latentis.space import LatentSpace
-from latentis.transform import Transform
-from latentis.transform.functional import ReverseFn, TransformFn, TransformResult, transform_fn
-from latentis.types import Space
+from latentis.transform._abstract import Identity, Transform, TransformSequence
+from latentis.transform.functional import TransformFn
+
+if TYPE_CHECKING:
+    from latentis.types import Space
 
 _PROJECTIONS = {}
 
 
 def projection_fn(
     name: str,
-    reverse_fn: Optional[ReverseFn] = None,
-    state: Optional[Sequence[str]] = ["anchors"],
 ):
     """Decorator to register a projection function.
 
@@ -31,20 +33,19 @@ def projection_fn(
     def decorator(fn: TransformFn):
         assert callable(fn), f"projection_fn must be callable. projection_fn: {fn}"
 
-        result = transform_fn(name=name, reverse_fn=reverse_fn, state=state)(fn)
-        result.name = name
+        # result = transform_fn(name=name, reverse_fn=reverse_fn, state=state)(fn)
+        fn.name = name
 
-        _PROJECTIONS[name] = result
+        _PROJECTIONS[name] = fn
 
-        return result
+        return fn
 
     return decorator
 
 
 @projection_fn(name="CoB")
 def change_of_basis_proj(x: torch.Tensor, *, anchors: torch.Tensor) -> torch.Tensor:
-    x = torch.linalg.lstsq(anchors.T, x.T)[0].T
-    return TransformResult(x=x, state=dict(anchors=anchors))
+    return torch.linalg.lstsq(anchors.T, x.T)[0].T
 
 
 @projection_fn(name="cosine")
@@ -58,7 +59,7 @@ def cosine_proj(
 
     x = x @ anchors.mT
 
-    return TransformResult(x=x, state=dict(anchors=anchors))
+    return x
 
 
 @projection_fn(name="angular")
@@ -73,7 +74,7 @@ def angular_proj(
     x = (x @ anchors.mT).clamp(-1.0, 1.0)
     x = 1 - torch.arccos(x)
 
-    return TransformResult(x=x, state=dict(anchors=anchors))
+    return x
 
 
 @projection_fn(name="lp")
@@ -85,7 +86,7 @@ def lp_proj(
 ) -> torch.Tensor:
     x = torch.cdist(x, anchors, p=p)
 
-    return TransformResult(x=x, state=dict(anchors=anchors))
+    return x
 
 
 @projection_fn(name="euclidean")
@@ -123,7 +124,7 @@ def pointwise_wrapper(func, unsqueeze: bool = False) -> Callable[..., torch.Tens
     def wrapper(x, anchors):
         rel_x = []
         for point in x:
-            partial_rel_data = [func(point[unsqueeze], anchors=anchor[unsqueeze]).x for anchor in anchors]
+            partial_rel_data = [func(point[unsqueeze], anchors=anchor[unsqueeze]) for anchor in anchors]
             rel_x.append(partial_rel_data)
         rel_x = torch.as_tensor(rel_x, dtype=anchors.dtype, device=anchors.device)
         return rel_x
@@ -136,16 +137,46 @@ def relative_projection(
     anchors: Space,
     projection_fn: TransformFn,
 ):
-    if isinstance(x, LatentSpace):
-        x = x.vectors
-    if isinstance(anchors, LatentSpace):
-        anchors = anchors.vectors
+    x_vectors = x.vectors if isinstance(x, LatentSpace) else x
+    anchor_vectors = anchors.vectors if isinstance(anchors, LatentSpace) else anchors
 
-    return _PROJECTIONS[projection_fn.name](x, anchors=anchors).x
+    # absolute normalization/transformation
+    transformed_x = x_vectors
+    transformed_anchors = anchor_vectors
+
+    # relative projection of x with respect to the anchors
+    rel_x = projection_fn(x=transformed_x, anchors=transformed_anchors)
+
+    if isinstance(x, LatentSpace):
+        return LatentSpace.like(space=x, vector_source=rel_x)
+    else:
+        return rel_x
 
 
 class RelativeProjection(Transform):
-    def fit(self, x: torch.Tensor, y=None) -> None:
-        self.register_buffer(f"{Transform._PREFIX}anchors", x)
-        self._fitted: bool = True
+    def __init__(
+        self,
+        projection_fn: TransformFn,
+        abs_transform: Optional[TransformSequence] = None,
+        rel_transform: Optional[TransformSequence] = None,
+    ):
+        super().__init__()
+        self.projection_fn = projection_fn
+        self.abs_transform = abs_transform or Identity()
+        self.rel_transform = rel_transform or Identity()
+
+    def fit(self, x: Space, **kwargs) -> "RelativeProjection":
+        self.abs_transform.fit(x)
+        x = self.abs_transform.transform(x)
+        self._register_state(dict(anchors=x))
+        rel_x = relative_projection(x, anchors=x, projection_fn=self.projection_fn)
+        self.rel_transform.fit(rel_x)
+
         return self
+
+    def transform(self, x: Space) -> torch.Tensor:
+        x = self.abs_transform.transform(x)
+        rel_x = relative_projection(x, **self.get_state(), projection_fn=self.projection_fn)
+        rel_x = self.rel_transform.transform(rel_x)
+
+        return rel_x

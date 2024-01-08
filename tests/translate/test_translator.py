@@ -1,8 +1,11 @@
-from typing import Tuple
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Tuple
 
 import pytest
 
-from latentis.types import Space
+if TYPE_CHECKING:
+    from latentis.types import Space
 
 
 def test_double_fitting(parallel_spaces: Tuple[Space, Space]):

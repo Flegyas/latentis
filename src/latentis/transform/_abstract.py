@@ -1,9 +1,14 @@
-from typing import Any, Mapping, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
 
 import torch
 from torch import nn
 
 from latentis.transform.functional import InverseFn, State, StateFn, TransformFn
+
+if TYPE_CHECKING:
+    from latentis.types import Space
 
 
 class Transform(nn.Module):
@@ -113,3 +118,37 @@ class SimpleTransform(Transform):
         if not self._fitted and self._state_fn is not None:
             raise RuntimeError("Transform not fitted.")
         return self._inverse_fn(x=x, **self._inverse_params, **self.get_state())
+
+
+class Identity(SimpleTransform):
+    def __init__(self):
+        super().__init__(
+            transform_fn=lambda x: x,
+            inverse_fn=lambda x: x,
+            name="identity",
+        )
+
+
+class TransformSequence(Transform):
+    def __init__(self, transforms: Sequence[Transform]):
+        super().__init__()
+        self.transforms = transforms
+
+    def fit(self, x: Space) -> "TransformSequence":
+        for transform in self.transforms:
+            transform.fit(x)
+            x = transform.transform(x)
+
+        return self
+
+    def transform(self, x: Space) -> torch.Tensor:
+        for transform in self.transforms:
+            x = transform.transform(x)
+
+        return x
+
+    def inverse(self, x: Space) -> torch.Tensor:
+        for transform in reversed(self.transforms):
+            x = transform.inverse(x)
+
+        return x

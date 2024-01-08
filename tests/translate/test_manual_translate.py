@@ -1,17 +1,20 @@
-from typing import Optional, Tuple
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional, Tuple
 
 import pytest
 import torch
 import torch.nn.functional as F
 from torch import nn
 
-import latentis.transform.functional as FL
 from latentis.estimate.affine import SGDAffineTranslator
 from latentis.estimate.dim_matcher import ZeroPadding
 from latentis.estimate.linear import LSTSQEstimator
 from latentis.estimate.orthogonal import LSTSQOrthoEstimator, SVDEstimator
-from latentis.transform._abstract import Transform
-from latentis.types import Space
+from latentis.transform import Centering, StandardScaling, STDScaling
+
+if TYPE_CHECKING:
+    from latentis.types import Space
 
 
 def manual_svd_translation(A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
@@ -178,32 +181,26 @@ class ManualLatentTranslation(nn.Module):
             True,
             True,
             False,
-            [
-                Transform(transform_fn=FL.centering, reverse_fn=FL.centering._reverse_fn),
-                Transform(transform_fn=FL.std_scaling, reverse_fn=FL.std_scaling._reverse_fn),
-            ],
-            [
-                Transform(transform_fn=FL.centering, reverse_fn=FL.centering._reverse_fn),
-                Transform(transform_fn=FL.std_scaling, reverse_fn=FL.std_scaling._reverse_fn),
-            ],
+            [Centering(), STDScaling()],
+            [Centering(), STDScaling()],
         ),
         (
             True,
             True,
             False,
-            [Transform(transform_fn=FL.standard_scaling, reverse_fn=FL.standard_scaling._reverse_fn)],
-            [Transform(transform_fn=FL.standard_scaling, reverse_fn=FL.standard_scaling._reverse_fn)],
+            StandardScaling(),
+            StandardScaling(),
         ),
         # (
         #     True,
         #     False,
         #     True,
         #     [
-        #         Transform(transform_fn=FL.centering, reverse_fn=FL.centering._reverse_fn),
+        #         Transform(transform_fn=FL.centering_transform, reverse_fn=FL.centering_transform._reverse_fn),
         #         Transform(transform_fn=FL.l2_normalize, reverse_fn=FL.l2_normalize._reverse_fn),
         #     ],
         #     [
-        #         Transform(transform_fn=FL.centering, reverse_fn=FL.centering._reverse_fn),
+        #         Transform(transform_fn=FL.centering_transform, reverse_fn=FL.centering_transform._reverse_fn),
         #         Transform(transform_fn=FL.l2_normalize, reverse_fn=FL.l2_normalize._reverse_fn),
         #     ],
         # ),
@@ -218,8 +215,8 @@ class ManualLatentTranslation(nn.Module):
             True,
             False,
             False,
-            [Transform(transform_fn=FL.centering, reverse_fn=FL.centering._reverse_fn)],
-            [Transform(transform_fn=FL.centering, reverse_fn=FL.centering._reverse_fn)],
+            [Centering()],
+            [Centering()],
         ),
     ],
 )

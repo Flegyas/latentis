@@ -1,10 +1,14 @@
-from typing import Tuple
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Tuple
 
 import pytest
 import torch
 
 from latentis import LatentSpace
-from latentis.types import Space
+
+if TYPE_CHECKING:
+    from latentis.types import Space
 
 
 class SameShapeSpaces(object):
