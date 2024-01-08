@@ -58,7 +58,7 @@ class IsotropicScaling(Transform):
     def transform(self, x: torch.Tensor) -> torch.Tensor:
         return FL.isotropic_scaling_transform(x=x, **self.get_state())
 
-    def inverse(self, x: torch.Tensor) -> torch.Tensor:
+    def inverse_transform(self, x: torch.Tensor) -> torch.Tensor:
         return FL.isotropic_scaling_inverse(x=x, **self.get_state())
 
 
@@ -74,7 +74,7 @@ class RandomIsometry(Transform):
     def transform(self, x: torch.Tensor, y=None) -> torch.Tensor:
         return FL.isometry_transform(x=x, **self.get_state())
 
-    def inverse(self, x: torch.Tensor, y=None) -> torch.Tensor:
+    def inverse_transform(self, x: torch.Tensor, y=None) -> torch.Tensor:
         return FL.isometry_inverse(x=x, **self.get_state())
 
 
@@ -91,5 +91,5 @@ class RandomDimensionPermutation(Transform):
     def transform(self, x: torch.Tensor, y=None) -> torch.Tensor:
         return FL.dimension_permutation_transform(x=x, **self.get_state())
 
-    def inverse(self, x: torch.Tensor, y=None) -> torch.Tensor:
+    def inverse_transform(self, x: torch.Tensor, y=None) -> torch.Tensor:
         return FL.dimension_permutation_inverse(x=x, **self.get_state())

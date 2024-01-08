@@ -7,11 +7,11 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from latentis.estimate.affine import SGDAffineTranslator
-from latentis.estimate.dim_matcher import ZeroPadding
-from latentis.estimate.linear import LSTSQEstimator
-from latentis.estimate.orthogonal import LSTSQOrthoEstimator, SVDEstimator
-from latentis.transform import Centering, StandardScaling, STDScaling
+from latentis.space import LatentSpace
+from latentis.transform import Centering, StandardScaling, STDScaling, TransformSequence
+from latentis.transform.dim_matcher import ZeroPadding
+from latentis.transform.translate import LSTSQAligner, LSTSQOrthoAligner, SGDAffineAligner, SVDAligner, Translator
+from latentis.utils import seed_everything
 
 if TYPE_CHECKING:
     from latentis.types import Space
@@ -83,22 +83,24 @@ class ManualLatentTranslation(nn.Module):
             decoding_anchors = F.normalize(decoding_anchors, p=2, dim=-1)
 
         if self.method == "linear":
-            with torch.enable_grad():
-                translation = nn.Linear(
-                    encoding_anchors.size(1),
-                    decoding_anchors.size(1),
-                    device=encoding_anchors.device,
-                    dtype=encoding_anchors.dtype,
-                    bias=True,
-                )
-                optimizer = torch.optim.Adam(translation.parameters(), lr=1e-3)
+            with torch.random.fork_rng():
+                seed_everything(seed=self.seed)
+                with torch.enable_grad():
+                    translation = nn.Linear(
+                        encoding_anchors.size(1),
+                        decoding_anchors.size(1),
+                        device=encoding_anchors.device,
+                        dtype=encoding_anchors.dtype,
+                        bias=True,
+                    )
+                    optimizer = torch.optim.Adam(translation.parameters(), lr=1e-3)
 
-                for _ in range(20):
-                    optimizer.zero_grad()
-                    loss = F.mse_loss(translation(encoding_anchors), decoding_anchors)
-                    loss.backward()
-                    optimizer.step()
-                self.translation = translation.cpu()
+                    for _ in range(20):
+                        optimizer.zero_grad()
+                        loss = F.mse_loss(translation(encoding_anchors), decoding_anchors)
+                        loss.backward()
+                        optimizer.step()
+                    self.translation = translation.cpu()
             return
 
         if self.method == "svd":
@@ -165,24 +167,27 @@ class ManualLatentTranslation(nn.Module):
         return {"source": encoding_x, "target": decoding_x, "info": info}
 
 
+_RANDOM_SEED = 0
+
+
 @pytest.mark.parametrize(
-    "manual_method, estimator_factory",
+    "manual_method, aligner_factory",
     [
-        ("svd", lambda: SVDEstimator(dim_matcher=ZeroPadding())),
-        ("lstsq", lambda: LSTSQEstimator()),
-        ("lstsq+ortho", lambda: LSTSQOrthoEstimator()),
-        ("linear", lambda: SGDAffineTranslator(num_steps=20)),
+        ("svd", lambda: SVDAligner(dim_matcher=ZeroPadding())),
+        ("lstsq", lambda: LSTSQAligner()),
+        ("lstsq+ortho", lambda: LSTSQOrthoAligner()),
+        ("linear", lambda: SGDAffineAligner(num_steps=20, random_seed=_RANDOM_SEED)),
     ],
 )
 @pytest.mark.parametrize(
-    "manual_centering, manual_std_correction, manual_l2_norm, source_transforms, target_transforms",
+    "manual_centering, manual_std_correction, manual_l2_norm, x_transform, y_transform",
     [
         (
             True,
             True,
             False,
-            [Centering(), STDScaling()],
-            [Centering(), STDScaling()],
+            TransformSequence([Centering(), STDScaling()]),
+            TransformSequence([Centering(), STDScaling()]),
         ),
         (
             True,
@@ -215,53 +220,50 @@ class ManualLatentTranslation(nn.Module):
             True,
             False,
             False,
-            [Centering()],
-            [Centering()],
+            Centering(),
+            Centering(),
         ),
     ],
 )
 def test_manual_translation(
     parallel_spaces: Tuple[Space, Space],
     manual_method,
-    estimator_factory,
+    aligner_factory,
     manual_centering,
     manual_std_correction,
     manual_l2_norm,
-    source_transforms,
-    target_transforms,
+    x_transform,
+    y_transform,
 ):
-    pytest.skip("This test is not yet refactored.")
-    # manual_translator = ManualLatentTranslation(
-    #     seed=0,
-    #     centering=manual_centering,
-    #     std_correction=manual_std_correction,
-    #     l2_norm=manual_l2_norm,
-    #     method=manual_method,
-    # )
-    # translator = LatentTranslator(
-    #     random_seed=0,
-    #     estimator=estimator_factory(),
-    #     source_transforms=source_transforms,
-    #     target_transforms=target_transforms,
-    # )
+    manual_translator = ManualLatentTranslation(
+        seed=_RANDOM_SEED,
+        centering=manual_centering,
+        std_correction=manual_std_correction,
+        l2_norm=manual_l2_norm,
+        method=manual_method,
+    )
+    translator = Translator(
+        # random_seed=0,
+        aligner=aligner_factory(),
+        x_transform=x_transform,
+        y_transform=y_transform,
+    )
 
-    # A, B = parallel_spaces
+    A, B = parallel_spaces
+    A = A.vectors if isinstance(A, LatentSpace) else A
+    B = B.vectors if isinstance(B, LatentSpace) else B
+    manual_translator.fit(A, B)
+    translator.fit(x=A, y=B)
 
-    # manual_translator.fit(
-    #     A.vectors if isinstance(A, LatentSpace) else A,
-    #     B.vectors if isinstance(B, LatentSpace) else B,
-    # )
-    # translator.fit(source_data=A, target_data=B)
+    manual_output = manual_translator.transform(A.vectors if isinstance(A, LatentSpace) else A)["target"]
+    latentis_output = translator.transform(A)
 
-    # manual_output = manual_translator.transform(A.vectors if isinstance(A, LatentSpace) else A)["target"]
-    # latentis_output = translator(A)
+    assert torch.allclose(
+        manual_output, latentis_output.vectors if isinstance(latentis_output, LatentSpace) else latentis_output
+    )
 
-    # assert torch.allclose(
-    #     manual_output, latentis_output.vectors if isinstance(latentis_output, LatentSpace) else latentis_output
-    # )
-
-    # if isinstance(A, LatentSpace):
-    #     assert torch.allclose(
-    #         manual_output,
-    #         A.translate(translator=translator).vectors,
-    #     )
+    if isinstance(A, LatentSpace):
+        assert torch.allclose(
+            manual_output,
+            A.translate(translator=translator).vectors,
+        )

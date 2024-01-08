@@ -25,14 +25,6 @@ class Transform(nn.Module):
     def name(self) -> str:
         return self._name
 
-    @property
-    def invertible(self) -> bool:
-        return self.inverse_fn is not None
-
-    @property
-    def inverse_fn(self) -> Optional[InverseFn]:
-        raise NotImplementedError
-
     def _register_state(self, state: State) -> None:
         for key, value in state.items():
             self.register_buffer(f"{Transform._STATE_PREFIX}{key}", value)
@@ -51,10 +43,10 @@ class Transform(nn.Module):
         raise NotImplementedError
 
     def forward(self, x: torch.Tensor, y=None, inverse: bool = False) -> torch.Tensor:
-        return self.transform(x=x, y=y) if not inverse else self.inverse(x=x, y=y)
+        return self.transform(x=x, y=y) if not inverse else self.inverse_transform(x=x, y=y)
 
-    def inverse(self, x: torch.Tensor, y=None) -> torch.Tensor:
-        pass
+    def inverse_transform(self, x: torch.Tensor, y=None) -> torch.Tensor:
+        raise RuntimeError(f"Inverse transform not implemented for {type(self).__name__}.")
 
 
 class SimpleTransform(Transform):
@@ -114,7 +106,7 @@ class SimpleTransform(Transform):
             raise RuntimeError("Transform not fitted.")
         return self._transform_fn(x=x, **self._transform_params, **self.get_state())
 
-    def inverse(self, x: torch.Tensor, y=None) -> torch.Tensor:
+    def inverse_transform(self, x: torch.Tensor, y=None) -> torch.Tensor:
         if not self._fitted and self._state_fn is not None:
             raise RuntimeError("Transform not fitted.")
         return self._inverse_fn(x=x, **self._inverse_params, **self.get_state())
@@ -147,8 +139,16 @@ class TransformSequence(Transform):
 
         return x
 
-    def inverse(self, x: Space) -> torch.Tensor:
+    def invertible(self) -> bool:
+        return all(transform.invertible for transform in self.transforms)
+
+    def inverse_transform(self, x: Space) -> torch.Tensor:
+        assert self.invertible(), "Not all transforms in the sequence are invertible."
         for transform in reversed(self.transforms):
-            x = transform.inverse(x)
+            x = transform.inverse_transform(x)
 
         return x
+
+
+class Estimator(Transform):
+    pass

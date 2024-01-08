@@ -98,9 +98,9 @@ def test_functional_transforms(
     assert torch.allclose(space_out1, space_out3)
 
     if simple_transform.invertible:
-        rev_out1 = simple_transform.inverse(x=space_out1)
+        rev_out1 = simple_transform.inverse_transform(x=space_out1)
         rev_out2 = inverse_fn(x=space_out1, **inverse_params, **state)
-        rev_out3 = transform.inverse(x=space_out1)
+        rev_out3 = transform.inverse_transform(x=space_out1)
 
         assert torch.allclose(space, rev_out1)
         assert torch.allclose(rev_out1, rev_out2)

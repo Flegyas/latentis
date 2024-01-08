@@ -3,28 +3,34 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Tuple
 
 import pytest
+import torch
+
+from latentis import LatentSpace
+from latentis.transform.dim_matcher import ZeroPadding
+from latentis.transform.translate import SVDAligner, Translator
 
 if TYPE_CHECKING:
     from latentis.types import Space
 
 
 def test_double_fitting(parallel_spaces: Tuple[Space, Space]):
-    pytest.skip("This test is not yet refactored.")
-    # A, B = parallel_spaces
+    A, B = parallel_spaces
 
-    # translator = LatentTranslator(
-    #     random_seed=0,
-    #     estimator=SVDEstimator(dim_matcher=ZeroPadding()),
-    # )
-    # translator.fit(source_data=A, target_data=B)
-    # out1 = translator(A)
+    A = A.vectors if isinstance(A, LatentSpace) else A
+    B = B.vectors if isinstance(B, LatentSpace) else B
 
-    # with pytest.raises(AssertionError):
-    #     translator.fit(source_data=A, target_data=B)
+    translator = Translator(
+        aligner=SVDAligner(dim_matcher=ZeroPadding()),
+    )
+    translator.fit(x=A, y=B)
+    out1 = translator.transform(A)
 
-    # out2 = translator(A)
+    with pytest.raises(AssertionError):
+        translator.fit(x=A, y=B)
 
-    # if isinstance(out1, LatentSpace) and isinstance(out2, LatentSpace):
-    #     assert out1 == out2
-    # else:
-    #     assert torch.allclose(out1, out2)
+    out2 = translator(A)
+
+    if isinstance(out1, LatentSpace) and isinstance(out2, LatentSpace):
+        assert out1 == out2
+    else:
+        assert torch.allclose(out1, out2)
