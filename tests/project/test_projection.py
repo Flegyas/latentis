@@ -9,7 +9,7 @@ from tests.project.conftest import LATENT_DIM
 
 import latentis.transform.functional as FL
 from latentis import LatentSpace
-from latentis.transform import Transform
+from latentis.transform._abstract import Transform
 from latentis.transform.projection import (
     RelativeProjection,
     angular_proj,
