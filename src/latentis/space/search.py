@@ -338,7 +338,7 @@ class SearchIndex:
             return self._get_vector_by_offset(offset=query_offset, return_tensors=return_tensors)
 
         elif query_key is not None:
-            return self._get_vectors_by_key(key=query_key, return_tensors=return_tensors)
+            return self._get_vector_by_key(key=query_key, return_tensors=return_tensors)
 
     def _get_vector_by_offset(self, offset: int, return_tensors: bool = False) -> Union[np.ndarray, torch.Tensor]:
         if isinstance(offset, np.int64):
