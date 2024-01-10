@@ -161,7 +161,7 @@ class SearchIndex:
     # def storage_data_type(self) -> DataType:
     #     return _BACKEND2LATENTIS_DATA_TYPE[self.index.storage_data_type]
 
-    def add_item(
+    def add_vector(
         self,
         vector: torch.Tensor,
         key: Optional[str] = None,
@@ -181,7 +181,7 @@ class SearchIndex:
 
         return self.backend_index.add(vector.numpy())
 
-    def add_items(
+    def add_vectors(
         self,
         vectors: torch.Tensor,
         keys: Optional[Sequence[str]] = None,

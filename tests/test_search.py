@@ -87,14 +87,14 @@ def test_index(
         num_dimensions=num_dimensions,
     )
     for x in space.vectors:
-        new_index.add_item(vector=x)
+        new_index.add_vector(vector=x)
     _assert_index_eq(index1=index, index2=new_index)
 
     new_index: SearchIndex = SearchIndex.create(
         metric_fn=metric_fn,
         num_dimensions=num_dimensions,
     )
-    new_index.add_items(vectors=space.vectors)
+    new_index.add_vectors(vectors=space.vectors)
     _assert_index_eq(index1=index, index2=new_index)
 
     # Test distance function
@@ -213,7 +213,7 @@ def test_keys(
     index: SearchIndex = space.to_index(metric_fn=SearchMetric.EUCLIDEAN, keys=keys)
 
     single_vector = torch.randn(100, dtype=torch.float32)
-    index.add_item(vector=single_vector, key="single_additional_one")
+    index.add_vector(vector=single_vector, key="single_additional_one")
 
     assert len(index) == num_vectors + 1
     assert index.num_elements == num_vectors + 1
