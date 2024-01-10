@@ -217,7 +217,7 @@ def test_keys(
 
     assert len(index) == num_vectors + 1
     assert index.num_elements == num_vectors + 1
-    assert torch.allclose(single_vector, index._get_vector_by_key(key="single_additional_one", return_tensors=True))
+    assert torch.allclose(single_vector, index.get_vector(query_key="single_additional_one", return_tensors=True))
 
     for i in range(num_vectors):
         result = index.search_knn(query_keys=[keys[i]], k=1, return_keys=True)
@@ -243,7 +243,7 @@ def test_get_vectors(num_vectors: int, num_dimensions: int):
     )
 
     with pytest.raises(expected_exception=AssertionError):
-        index._get_vector_by_key(key="impossible_key")
+        index.get_vector(query_key="impossible_key")
 
     vectors = torch.randn(num_vectors, num_dimensions, dtype=torch.float32)
     space = LatentSpace(
@@ -254,3 +254,8 @@ def test_get_vectors(num_vectors: int, num_dimensions: int):
     retrieved_vectors = index.get_vectors(query_offsets=list(range(vectors.size(0))), return_tensors=True)
 
     assert torch.allclose(vectors, retrieved_vectors)
+
+    index = space.to_index(metric_fn=SearchMetric.EUCLIDEAN, keys=[str(i) for i in range(num_vectors)])
+    retrieved_vectors_by_keys = index.get_vectors(query_keys=[str(i) for i in range(num_vectors)], return_tensors=True)
+
+    assert torch.allclose(vectors, retrieved_vectors_by_keys)
