@@ -179,13 +179,15 @@ class SearchIndex:
         if key is not None:
             self._add_mapping(key=key, offset=self.num_elements)
 
-        return self.backend_index.add(vector.numpy())
+        self.backend_index.add(vector.numpy())
+
+        return self.num_elements - 1
 
     def add_vectors(
         self,
         vectors: torch.Tensor,
         keys: Optional[Sequence[str]] = None,
-    ):
+    ) -> Sequence[int]:
         assert vectors.ndim == 2, "vectors must be 2-dimensional"
         assert vectors.shape[1] == self.num_dimensions, f"Vectors must have {self.num_dimensions} dimensions"
         assert keys is None or len(keys) == vectors.shape[0], "Must provide a key for each vector"
@@ -202,6 +204,8 @@ class SearchIndex:
         if keys is not None:
             for key, offset in zip(keys, range(start_id, start_id + vectors.shape[0])):
                 self._add_mapping(key=key, offset=offset)
+
+        return list(range(start_id, start_id + vectors.shape[0]))
 
     # def get_distance(
     #     self,
