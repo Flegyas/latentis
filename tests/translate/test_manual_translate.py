@@ -8,9 +8,12 @@ import torch.nn.functional as F
 from torch import nn
 
 from latentis.space import LatentSpace
-from latentis.transform import Centering, StandardScaling, STDScaling, TransformSequence
+from latentis.transform import TransformSequence
+from latentis.transform.base import Centering, MeanLPNorm, StandardScaling, STDScaling
 from latentis.transform.dim_matcher import ZeroPadding
-from latentis.transform.translate import LSTSQAligner, LSTSQOrthoAligner, SGDAffineAligner, SVDAligner, Translator
+from latentis.transform.translate import MatrixAligner
+from latentis.transform.translate.aligner import SGDAffineAligner, Translator
+from latentis.transform.translate.functional import lstsq_align_state, lstsq_ortho_align_state, svd_align_state
 from latentis.utils import seed_everything
 
 if TYPE_CHECKING:
@@ -45,59 +48,59 @@ class ManualLatentTranslation(nn.Module):
         self.decoding_norm: Optional[torch.Tensor]
 
     @torch.no_grad()
-    def fit(self, encoding_anchors: torch.Tensor, decoding_anchors: torch.Tensor) -> None:
+    def fit(self, x: torch.Tensor, y: torch.Tensor) -> None:
         if self.method == "absolute":
             return
         # First normalization: 0 centering
         if self.centering:
-            mean_encoding_anchors: torch.Tensor = encoding_anchors.mean(dim=(0,))
-            mean_decoding_anchors: torch.Tensor = decoding_anchors.mean(dim=(0,))
+            mean_encoding_anchors: torch.Tensor = x.mean(dim=(0,))
+            mean_decoding_anchors: torch.Tensor = y.mean(dim=(0,))
         else:
             mean_encoding_anchors: torch.Tensor = torch.as_tensor(0)
             mean_decoding_anchors: torch.Tensor = torch.as_tensor(0)
 
         if self.std_correction:
-            std_encoding_anchors: torch.Tensor = encoding_anchors.std(dim=(0,))
-            std_decoding_anchors: torch.Tensor = decoding_anchors.std(dim=(0,))
+            std_encoding_anchors: torch.Tensor = x.std(dim=(0,))
+            std_decoding_anchors: torch.Tensor = y.std(dim=(0,))
         else:
             std_encoding_anchors: torch.Tensor = torch.as_tensor(1)
             std_decoding_anchors: torch.Tensor = torch.as_tensor(1)
 
-        self.encoding_dim: int = encoding_anchors.size(1)
-        self.decoding_dim: int = decoding_anchors.size(1)
+        self.encoding_dim: int = x.size(1)
+        self.decoding_dim: int = y.size(1)
 
         self.register_buffer("mean_encoding_anchors", mean_encoding_anchors)
         self.register_buffer("mean_decoding_anchors", mean_decoding_anchors)
         self.register_buffer("std_encoding_anchors", std_encoding_anchors)
         self.register_buffer("std_decoding_anchors", std_decoding_anchors)
 
-        encoding_anchors = (encoding_anchors - mean_encoding_anchors) / std_encoding_anchors
-        decoding_anchors = (decoding_anchors - mean_decoding_anchors) / std_decoding_anchors
+        x = (x - mean_encoding_anchors) / std_encoding_anchors
+        y = (y - mean_decoding_anchors) / std_decoding_anchors
 
-        self.register_buffer("encoding_norm", encoding_anchors.norm(p=2, dim=-1).mean())
-        self.register_buffer("decoding_norm", decoding_anchors.norm(p=2, dim=-1).mean())
+        self.register_buffer("encoding_norm", x.norm(p=2, dim=-1).mean())
+        self.register_buffer("decoding_norm", y.norm(p=2, dim=-1).mean())
 
         # Second normalization: scaling
         if self.l2_norm:
-            encoding_anchors = F.normalize(encoding_anchors, p=2, dim=-1)
-            decoding_anchors = F.normalize(decoding_anchors, p=2, dim=-1)
+            x = F.normalize(x, p=2, dim=-1)
+            y = F.normalize(y, p=2, dim=-1)
 
         if self.method == "linear":
             with torch.random.fork_rng():
                 seed_everything(seed=self.seed)
                 with torch.enable_grad():
                     translation = nn.Linear(
-                        encoding_anchors.size(1),
-                        decoding_anchors.size(1),
-                        device=encoding_anchors.device,
-                        dtype=encoding_anchors.dtype,
+                        x.size(1),
+                        y.size(1),
+                        device=x.device,
+                        dtype=x.dtype,
                         bias=True,
                     )
                     optimizer = torch.optim.Adam(translation.parameters(), lr=1e-3)
 
                     for _ in range(20):
                         optimizer.zero_grad()
-                        loss = F.mse_loss(translation(encoding_anchors), decoding_anchors)
+                        loss = F.mse_loss(translation(x), y)
                         loss.backward()
                         optimizer.step()
                     self.translation = translation.cpu()
@@ -105,32 +108,30 @@ class ManualLatentTranslation(nn.Module):
 
         if self.method == "svd":
             # padding if necessary
-            if encoding_anchors.size(1) < decoding_anchors.size(1):
-                padded = torch.zeros_like(decoding_anchors)
-                padded[:, : encoding_anchors.size(1)] = encoding_anchors
-                encoding_anchors = padded
-            elif encoding_anchors.size(1) > decoding_anchors.size(1):
-                padded = torch.zeros_like(encoding_anchors)
-                padded[:, : decoding_anchors.size(1)] = decoding_anchors
-                decoding_anchors = padded
+            if x.size(1) < y.size(1):
+                padded = torch.zeros_like(y)
+                padded[:, : x.size(1)] = x
+                x = padded
+            elif x.size(1) > y.size(1):
+                padded = torch.zeros_like(x)
+                padded[:, : y.size(1)] = y
+                y = padded
 
-                self.encoding_anchors = encoding_anchors
-                self.decoding_anchors = decoding_anchors
+                self.encoding_anchors = x
+                self.decoding_anchors = y
 
-            translation_matrix, sigma = manual_svd_translation(A=encoding_anchors, B=decoding_anchors)
+            translation_matrix, sigma = manual_svd_translation(A=x, B=y)
             self.sigma_rank = (~sigma.isclose(torch.zeros_like(sigma), atol=1e-1).bool()).sum().item()
         elif self.method == "lstsq":
-            translation_matrix = torch.linalg.lstsq(encoding_anchors, decoding_anchors).solution
+            translation_matrix = torch.linalg.lstsq(x, y).solution
         elif self.method == "lstsq+ortho":
-            translation_matrix = torch.linalg.lstsq(encoding_anchors, decoding_anchors).solution
+            translation_matrix = torch.linalg.lstsq(x, y).solution
             U, _, Vt = torch.svd(translation_matrix)
             translation_matrix = U @ Vt.T
         else:
             raise NotImplementedError
 
-        translation_matrix = torch.as_tensor(
-            translation_matrix, dtype=encoding_anchors.dtype, device=encoding_anchors.device
-        )
+        translation_matrix = torch.as_tensor(translation_matrix, dtype=x.dtype, device=x.device)
         self.register_buffer("translation_matrix", translation_matrix)
 
         self.translation = lambda x: x @ self.translation_matrix
@@ -173,10 +174,10 @@ _RANDOM_SEED = 0
 @pytest.mark.parametrize(
     "manual_method, aligner_factory",
     [
-        ("svd", lambda: SVDAligner(dim_matcher=ZeroPadding())),
-        ("lstsq", lambda: LSTSQAligner()),
-        ("lstsq+ortho", lambda: LSTSQOrthoAligner()),
-        ("linear", lambda: SGDAffineAligner(num_steps=20, random_seed=_RANDOM_SEED)),
+        ("svd", lambda: MatrixAligner("svd", align_fn_state=svd_align_state, dim_matcher=ZeroPadding())),
+        ("lstsq", lambda: MatrixAligner("lstsq", align_fn_state=lstsq_align_state)),
+        ("lstsq+ortho", lambda: MatrixAligner("lstsq+ortho", align_fn_state=lstsq_ortho_align_state)),
+        ("linear", lambda: SGDAffineAligner(num_steps=20, lr=1e-3, random_seed=0)),
     ],
 )
 @pytest.mark.parametrize(
@@ -196,26 +197,6 @@ _RANDOM_SEED = 0
             StandardScaling(),
             StandardScaling(),
         ),
-        # (
-        #     True,
-        #     False,
-        #     True,
-        #     [
-        #         Transform(transform_fn=FL.centering_transform, reverse_fn=FL.centering_transform._reverse_fn),
-        #         Transform(transform_fn=FL.l2_normalize, reverse_fn=FL.l2_normalize._reverse_fn),
-        #     ],
-        #     [
-        #         Transform(transform_fn=FL.centering_transform, reverse_fn=FL.centering_transform._reverse_fn),
-        #         Transform(transform_fn=FL.l2_normalize, reverse_fn=FL.l2_normalize._reverse_fn),
-        #     ],
-        # ),
-        # (
-        #     False,
-        #     False,
-        #     True,
-        #     [Transform(transform_fn=FL.l2_normalize, reverse_fn=FL.l2_normalize._reverse_fn)],
-        #     [Transform(transform_fn=FL.l2_normalize, reverse_fn=FL.l2_normalize._reverse_fn)],
-        # ),
         (
             True,
             False,
@@ -223,6 +204,14 @@ _RANDOM_SEED = 0
             Centering(),
             Centering(),
         ),
+        (
+            True,
+            False,
+            True,
+            TransformSequence([Centering(), MeanLPNorm(p=2)]),
+            TransformSequence([Centering(), MeanLPNorm(p=2)]),
+        ),
+        (False, False, True, MeanLPNorm(p=2), MeanLPNorm(p=2)),
     ],
 )
 def test_manual_translation(
@@ -255,8 +244,8 @@ def test_manual_translation(
     manual_translator.fit(A, B)
     translator.fit(x=A, y=B)
 
-    manual_output = manual_translator.transform(A.vectors if isinstance(A, LatentSpace) else A)["target"]
-    latentis_output = translator.transform(A)
+    manual_output = manual_translator.transform(A)["target"]
+    latentis_output = translator.transform(x=A)
 
     assert torch.allclose(
         manual_output, latentis_output.vectors if isinstance(latentis_output, LatentSpace) else latentis_output

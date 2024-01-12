@@ -1,130 +1,85 @@
-from abc import abstractmethod
 from typing import Dict, Mapping, Optional
 
 import torch
-from torch import nn
+
+from latentis.transform import Estimator
 
 
-class DimMatcher(nn.Module):
-    def __init__(self, name: str) -> None:
-        super().__init__()
-        self._name: str = name
-        self.fitted: bool = False
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}(name={self.name})"
-
-    @abstractmethod
-    def _fit(self, source_data: torch.Tensor, target_data: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
-        raise NotImplementedError
-
-    def fit(self, source_data: torch.Tensor, target_data: torch.Tensor, *args, **kwargs) -> None:
-        assert not self.fitted, "Dimensionality matcher is already fitted."
-        for key, value in self._fit(source_data=source_data, target_data=target_data, *args, **kwargs).items():
-            self.register_buffer(key, value)
-        self.fitted: bool = True
-
-    def forward(
-        self, source_x: Optional[torch.Tensor], target_x: Optional[torch.Tensor], *args, **kwargs
-    ) -> torch.Tensor:
-        raise NotImplementedError
-
-    def reverse(
-        self, source_x: Optional[torch.Tensor], target_x: Optional[torch.Tensor], *args, **kwargs
-    ) -> torch.Tensor:
-        raise NotImplementedError
-
-
-class IdentityMatcher(DimMatcher):
-    def __init__(self) -> None:
-        super().__init__(name="identity")
-
-    def _fit(self, source_data: torch.Tensor, target_data: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
-        return {}
-
-    def forward(
-        self,
-        source_x: Optional[torch.Tensor],
-        target_x: Optional[torch.Tensor],
-        *args,
-        **kwargs,
-    ) -> torch.Tensor:
-        return (source_x, target_x)
-
-    def reverse(
-        self,
-        source_x: Optional[torch.Tensor],
-        target_x: Optional[torch.Tensor],
-        *args,
-        **kwargs,
-    ) -> torch.Tensor:
-        return (source_x, target_x)
+class DimMatcher(Estimator):
+    def __init__(self, name: str, invertible: bool) -> None:
+        super().__init__(name=name, invertible=invertible)
 
 
 class ZeroPadding(DimMatcher):
     def __init__(self) -> None:
-        super().__init__(name="zero_padding")
+        super().__init__(name="zero_padding", invertible=True)
 
-    def _fit(self, source_data: torch.Tensor, target_data: torch.Tensor, *args, **kwargs) -> Mapping[str, torch.Tensor]:
-        source_pad = target_data.size(1) - source_data.size(1)
-        target_pad = source_data.size(1) - target_data.size(1)
-        transform_source = source_pad > 0
-        transform_target = target_pad > 0
-        return {
-            "source_pad": torch.as_tensor(max(0, source_pad)),
-            "target_pad": torch.as_tensor(max(0, target_pad)),
-            "transform_source": torch.as_tensor(transform_source),
-            "transform_target": torch.as_tensor(transform_target),
-        }
+    def fit(self, x: torch.Tensor, y: torch.Tensor) -> Mapping[str, torch.Tensor]:
+        x_pad = y.size(1) - x.size(1)
+        y_pad = x.size(1) - y.size(1)
+        transform_x = x_pad > 0
+        transform_y = y_pad > 0
 
-    def forward(
+        self._register_state(
+            {
+                "x_pad": torch.as_tensor(max(0, x_pad), dtype=torch.long, device=x.device),
+                "y_pad": torch.as_tensor(max(0, y_pad), dtype=torch.long, device=x.device),
+                "transform_x": torch.as_tensor(transform_x, dtype=torch.bool, device=x.device),
+                "transform_y": torch.as_tensor(transform_y, dtype=torch.bool, device=x.device),
+            }
+        )
+
+        return self
+
+    def transform(
         self,
-        source_x: Optional[torch.Tensor],
-        target_x: Optional[torch.Tensor],
-        *args,
-        **kwargs,
+        x: Optional[torch.Tensor] = None,
+        y: Optional[torch.Tensor] = None,
     ) -> Dict[str, torch.Tensor]:
-        if self.transform_source and source_x is not None:
-            assert source_x.ndim == 2, "The source tensor must be 2D."
-            source_x = torch.nn.functional.pad(
-                source_x,
-                (0, self.source_pad),
-                mode="constant",
-                value=0,
-            )
-        if self.transform_target and target_x is not None:
-            assert target_x.ndim == 2, "The target tensor must be 2D."
-            target_x = torch.nn.functional.pad(
-                target_x,
-                (0, self.target_pad),
-                mode="constant",
-                value=0,
-            )
-        return {
-            "source": source_x,
-            "target": target_x,
-        }
+        assert sum((x is not None, y is not None)) == 1, "Either x or y must be provided."
 
-    def reverse(
+        if x is not None:
+            if self.get_state("transform_x"):
+                assert x.ndim == 2, "The source tensor must be 2D."
+                x = torch.nn.functional.pad(
+                    x,
+                    (0, self.get_state("x_pad")),
+                    mode="constant",
+                    value=0,
+                )
+
+            return x
+
+        if y is not None:
+            if self.get_state("transform_y"):
+                assert y.ndim == 2, "The target tensor must be 2D."
+                y = torch.nn.functional.pad(
+                    y,
+                    (0, self.get_state("y_pad")),
+                    mode="constant",
+                    value=0,
+                )
+
+            return y
+
+    def inverse_transform(
         self,
-        source_x: Optional[torch.Tensor],
-        target_x: Optional[torch.Tensor],
-        *args,
-        **kwargs,
+        x: Optional[torch.Tensor] = None,
+        y: Optional[torch.Tensor] = None,
     ) -> Dict[str, torch.Tensor]:
-        assert self.fitted, "The transform must be fit first."
-        if self.transform_source and source_x is not None:
-            source_x = source_x[..., : -self.source_pad]
-        if self.transform_target and target_x is not None:
-            target_x = target_x[..., : -self.target_pad]
-        return {
-            "source": source_x,
-            "target": target_x,
-        }
+        assert sum((x is not None, y is not None)) == 1, "Either x or y must be provided."
+
+        if x is not None:
+            if self.get_state("transform_x"):
+                x = x[..., : -self.get_state("x_pad")]
+
+            return x
+
+        if y is not None:
+            if self.get_state("transform_y"):
+                y = y[..., : -self.get_state("y_pad")]
+
+            return y
 
 
 # class PCATruncation(DimMatcher):

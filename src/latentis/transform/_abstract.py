@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence, Union
 
 import torch
 from torch import nn
@@ -17,9 +17,11 @@ class Transform(nn.Module):
     def __init__(
         self,
         name: Optional[str] = None,
+        invertible: bool = False,
     ) -> None:
         super().__init__()
         self._name: Optional[str] = name
+        self._invertible: bool = invertible
 
     @property
     def name(self) -> str:
@@ -29,7 +31,13 @@ class Transform(nn.Module):
         for key, value in state.items():
             self.register_buffer(f"{Transform._STATE_PREFIX}{key}", value)
 
-    def get_state(self) -> Mapping[str, torch.Tensor]:
+    def get_state(self, *keys: str) -> Union[torch.Tensor, Mapping[str, torch.Tensor]]:
+        if len(keys) == 1:
+            return getattr(self, f"{Transform._STATE_PREFIX}{keys[0]}")
+
+        if len(keys) > 1:
+            return {k: getattr(self, f"{Transform._STATE_PREFIX}{k}") for k in keys}
+
         return {
             k[len(Transform._STATE_PREFIX) :]: v
             for k, v in self.state_dict().items()
@@ -44,6 +52,10 @@ class Transform(nn.Module):
 
     def forward(self, x: torch.Tensor, y=None, inverse: bool = False) -> torch.Tensor:
         return self.transform(x=x, y=y) if not inverse else self.inverse_transform(x=x, y=y)
+
+    @property
+    def invertible(self) -> bool:
+        return self._invertible
 
     def inverse_transform(self, x: torch.Tensor, y=None) -> torch.Tensor:
         raise RuntimeError(f"Inverse transform not implemented for {type(self).__name__}.")
@@ -139,11 +151,12 @@ class TransformSequence(Transform):
 
         return x
 
+    @property
     def invertible(self) -> bool:
         return all(transform.invertible for transform in self.transforms)
 
     def inverse_transform(self, x: Space) -> torch.Tensor:
-        assert self.invertible(), "Not all transforms in the sequence are invertible."
+        assert self.invertible, "Not all transforms in the sequence are invertible."
         for transform in reversed(self.transforms):
             x = transform.inverse_transform(x)
 

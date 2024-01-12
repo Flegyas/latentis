@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 
 import latentis.transform.functional as FL
 from latentis.transform._abstract import SimpleTransform, Transform
@@ -43,6 +44,25 @@ class LPNorm(Transform):
 
     def transform(self, x: torch.Tensor) -> torch.Tensor:
         return FL.lp_normalize_transform(x=x, p=self.p)
+
+
+class MeanLPNorm(Transform):
+    def __init__(self, p: int = 2, dim: int = -1):
+        super().__init__(name=f"mean_l{p}_norm", invertible=True)
+        self.p = p
+        self.dim = dim
+
+    def fit(self, x: torch.Tensor) -> "MeanLPNorm":
+        mean_norm: torch.Tensor = x.norm(p=self.p, dim=-1).mean()
+        self._register_state(dict(mean_norm=mean_norm))
+        return self
+
+    def transform(self, x: torch.Tensor, y=None) -> torch.Tensor:
+        # TODO: decide if we want to use the state or not
+        return F.normalize(x, p=self.p, dim=-1)
+
+    def inverse_transform(self, x: torch.Tensor, y=None) -> torch.Tensor:
+        return x * self.get_state("mean_norm")
 
 
 class IsotropicScaling(Transform):

@@ -4,7 +4,8 @@ import pytest
 import torch
 
 import latentis.transform.functional as FL
-from latentis.transform import (
+from latentis.transform._abstract import SimpleTransform, Transform
+from latentis.transform.base import (
     Centering,
     IsotropicScaling,
     LPNorm,
@@ -13,7 +14,6 @@ from latentis.transform import (
     StandardScaling,
     STDScaling,
 )
-from latentis.transform._abstract import SimpleTransform, Transform
 
 
 @pytest.mark.parametrize(
