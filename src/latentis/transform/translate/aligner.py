@@ -4,7 +4,6 @@ import torch
 from torch import nn
 
 from latentis.transform import Estimator, Identity, Transform, TransformSequence
-from latentis.transform._abstract import Estimator
 from latentis.transform.base import StandardScaling
 from latentis.transform.dim_matcher import DimMatcher, ZeroPadding
 from latentis.transform.translate.functional import sgd_affine_align_state, svd_align_state
