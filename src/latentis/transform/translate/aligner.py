@@ -28,6 +28,8 @@ class Translator(Estimator):
         self.y_transform = y_transform or Identity()
         self.aligner = aligner
 
+        self._fitted = False
+
     def fit(self, x: torch.Tensor, y: torch.Tensor) -> Mapping[str, Any]:
         self.x_transform.fit(x)
         x = self.x_transform.transform(x)
@@ -37,9 +39,14 @@ class Translator(Estimator):
 
         self.aligner.fit(x, y)
 
+        self._fitted = True
+
         return self
 
     def transform(self, x: torch.Tensor, y=None) -> torch.Tensor:
+        assert y is None, "The transform should be applied on the source space (x)"
+        assert self._fitted, "The transform should be fitted before being applied."
+
         x = self.x_transform.transform(x)
         x = self.aligner.transform(x=x)
 
@@ -47,6 +54,7 @@ class Translator(Estimator):
 
     def inverse_transform(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         assert x is None, "The inverse transform should be applied on the target space (y)"
+        assert self._fitted, "The transform should be fitted before being applied."
 
         y = self.y_transform.transform(y)
         y = self.aligner.inverse_transform(y)
