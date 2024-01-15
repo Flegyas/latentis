@@ -14,7 +14,7 @@ from datasets import DatasetDict
 from torch import nn
 
 from latentis.data import BENCHMARK_DIR
-from latentis.types import StrEnum
+from latentis.types import MetadataMixin, SerializableMixin, StrEnum
 
 
 class DataType(StrEnum):
@@ -51,9 +51,7 @@ class FeatureMapping:
     target_col: str
 
 
-class LatentisDataset:
-    _METADATA_FILE_NAME: str = "metadata.json"
-
+class LatentisDataset(SerializableMixin, MetadataMixin):
     @classmethod
     def get_key(cls, dataset_name: str, perc: float, metadata: Mapping[DatasetProperty, Any]) -> str:
         hashcode = sha256()
@@ -74,6 +72,7 @@ class LatentisDataset:
         metadata: Mapping[str, Any] = {},
         parent_dir: Path = BENCHMARK_DIR,
     ):
+        super().__init__()
         assert isinstance(dataset, DatasetDict), f"Expected {DatasetDict}, got {type(dataset)}"
         assert len(set(features)) == len(features), f"Features {features} contain duplicates!"
         assert len(features) > 0, f"Features {features} must not be empty!"
