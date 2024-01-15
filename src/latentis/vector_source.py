@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import logging
 from abc import abstractmethod
+from pathlib import Path
 
 import torch
+
+from latentis.types import SerializableMixin
 
 pylogger = logging.getLogger(__name__)
 
@@ -44,7 +47,7 @@ class VectorSource(metaclass=VectorSourceMeta):
         raise NotImplementedError
 
 
-class InMemorySource(VectorSource):
+class InMemorySource(VectorSource, SerializableMixin):
     def __init__(self, vectors: torch.Tensor):
         self._vectors = vectors
 
@@ -63,3 +66,10 @@ class InMemorySource(VectorSource):
 
     def as_tensor(self) -> torch.Tensor:
         return self._vectors
+
+    def save_to_disk(self, parent_dir: Path):
+        torch.save(self._vectors, parent_dir / "vectors.pt")
+
+    @classmethod
+    def load_from_disk(cls, path: Path) -> InMemorySource:
+        return cls(torch.load(path / "vectors.pt"))
