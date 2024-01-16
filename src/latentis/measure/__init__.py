@@ -1,3 +1,3 @@
-from ._metrics import Metric, MetricFn
+from ._abstract import MetricFn, PairwiseMetric
 
-__all__ = ["Metric", "MetricFn"]
+__all__ = ["PairwiseMetric", "MetricFn"]
