@@ -195,7 +195,7 @@ class LatentSpace:
             transform=transform,
         )
 
-        index.add_items(
+        index.add_vectors(
             vectors=self.vectors.cpu(),
             keys=keys,
         )
