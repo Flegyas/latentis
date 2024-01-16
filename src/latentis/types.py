@@ -1,16 +1,18 @@
-# try:
-#     # be ready for 3.10 when it drops
-#     from enum import StrEnum
-# except ImportError:
-#     from backports.strenum import StrEnum
 from __future__ import annotations
 
-from typing import Callable, Mapping, Union
+from typing import TYPE_CHECKING, Union
 
 import torch
 
-from latentis.space import LatentSpace
+try:
+    # be ready for 3.10 when it drops
+    from enum import StrEnum as PythonStrEnum
+except ImportError:
+    from backports.strenum import StrEnum as PythonStrEnum
 
-ProjectionFunc = Callable[[torch.Tensor, torch.Tensor], Mapping[str, torch.Tensor]]
+if TYPE_CHECKING:
+    from latentis.space import LatentSpace
 
-Space = Union[LatentSpace, torch.Tensor]
+    Space = Union[LatentSpace, torch.Tensor]
+
+StrEnum = PythonStrEnum

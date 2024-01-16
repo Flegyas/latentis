@@ -1,21 +1,25 @@
-from typing import Tuple
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Tuple
 
 import pytest
 import torch
 
 from latentis import LatentSpace
-from latentis.types import Space
+
+if TYPE_CHECKING:
+    from latentis.types import Space
 
 
 class SameShapeSpaces(object):
     instances = [
         (
             LatentSpace(
-                vectors=torch.randn(space1_n, space_1_dim, dtype=torch.double),
+                vector_source=torch.randn(space1_n, space_1_dim, dtype=torch.double),
                 name="space1",
             ),
             LatentSpace(
-                vectors=torch.randn(space2_n, space2_dim, dtype=torch.double),
+                vector_source=torch.randn(space2_n, space2_dim, dtype=torch.double),
                 name="space2",
             ),
         )
