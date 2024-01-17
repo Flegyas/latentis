@@ -7,77 +7,108 @@ from enum import auto
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Union
 
+from latentis.modules import Decoder
 from latentis.search import SearchIndex, SearchMetric
-from latentis.vector_source import InMemorySource, VectorSource
+from latentis.transform import Transform
+from latentis.types import SerializableMixin, StrEnum
+from latentis.vector_source import TensorSource, VectorSource
 
 if TYPE_CHECKING:
     from latentis.sample import Sampler
     from latentis.types import Space
-    from latentis.translate import LatentTranslator
     from latentis.measure import MetricFn
+    from latentis.transform.translate import Translator
 
 import torch
-
-try:
-    # be ready for 3.10 when it drops
-    from enum import StrEnum
-except ImportError:
-    from backports.strenum import StrEnum
 
 pylogger = logging.getLogger(__name__)
 
 
 class SpaceProperty(StrEnum):
+    NAME = auto()
     VECTOR_SOURCE = auto()
+    DATASET = auto()
 
 
-class LatentSpace:
+class LatentSpace(SerializableMixin):
     def __init__(
         self,
-        vector_source: Union[torch.Tensor, VectorSource],
+        vector_source: Optional[Union[torch.Tensor, VectorSource]],
+        keys: Optional[Sequence[str]] = None,
         metadata: Optional[Dict[str, Any]] = None,
         name: str = "space",
+        decoders: Optional[Dict[str, Decoder]] = None,
     ):
+        super().__init__()
+
+        if vector_source is None:
+            vector_source = torch.empty(0)
+
         assert isinstance(
             vector_source, (torch.Tensor, VectorSource)
         ), f"Expected {torch.Tensor} or {VectorSource}, got {type(vector_source)}"
-        assert name is not None and len(name.strip()) > 0, "Name must be a non-empty string."
 
+        assert name is not None and len(name.strip()) > 0, "Name must be a non-empty string."
         self.name: str = name
+
         if metadata is None:
             metadata = {}
+        assert isinstance(metadata, Mapping), f"Expected {Mapping}, got {type(metadata)}"
+
         self._vector_source: torch.Tensor = (
-            InMemorySource(vector_source) if torch.is_tensor(vector_source) else vector_source
+            TensorSource(vectors=vector_source, keys=keys) if torch.is_tensor(vector_source) else vector_source
         )
         if SpaceProperty.VECTOR_SOURCE not in metadata:
             metadata[SpaceProperty.VECTOR_SOURCE] = type(self._vector_source).__name__
 
-        self.metadata = metadata
+        self._metadata = metadata
+        self.decoders: Dict[str, Decoder] = decoders or {}
 
-    def save_to_disk(self, parent_dir: Path, name: Optional[str] = None):
-        if name is None:
-            name = self.name
+    def get_vector_by_key(self, key: str) -> torch.Tensor:
+        return self._vector_source.get_vector_by_key(key=key)
 
-        path = parent_dir / name
-        path.mkdir(parents=True, exist_ok=False)
+    @property
+    def metadata(self) -> Dict[str, Any]:
+        result = self._metadata
+        result[SpaceProperty.NAME] = self.name
+        return result
+
+    def save_to_disk(self, target_path: Path):
+        target_path.mkdir(parents=True, exist_ok=False)
 
         # save VectorSource
-        self._vector_source.save_to_disk(path / "vectors")
+        vector_path = target_path / "vectors"
+        vector_path.mkdir(parents=True, exist_ok=False)
+        self._vector_source.save_to_disk(vector_path)
 
         # save metadata
-        with open(parent_dir / "metadata.json", "w") as fw:
+        with open(target_path / "metadata.json", "w") as fw:
             json.dump(self.metadata, fw, indent=4, default=lambda o: o.__dict__)
+
+        # save decoders
+        for decoder in self.decoders.values():
+            decoder.save_to_disk(target_path / "decoders" / decoder.name)
 
     @classmethod
     def load_from_disk(cls, path: Path) -> LatentSpace:
         # load VectorSource
-        vector_source = InMemorySource.load_from_disk(path / "vectors")
+        vector_source = TensorSource.load_from_disk(path / "vectors")
 
         # load metadata
         with open(path / "metadata.json", "r") as fr:
             metadata = json.load(fr)
 
-        return LatentSpace(vector_source=vector_source, metadata=metadata)
+        # load decoders
+        decoders = {}
+        for decoder_path in (path / "decoders").glob("*"):
+            decoder = Decoder.load_from_disk(decoder_path)
+            decoders[decoder.name] = decoder
+
+        space = LatentSpace(
+            name=metadata[SpaceProperty.NAME], vector_source=vector_source, metadata=metadata, decoders=decoders
+        )
+
+        return space
 
     @property
     def vectors(self) -> torch.Tensor:
@@ -100,6 +131,7 @@ class LatentSpace:
         name: Optional[str] = None,
         vector_source: Optional[VectorSource] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        decoders: Optional[Dict[str, Decoder]] = None,
         deepcopy: bool = False,
     ):
         """Create a new space with the arguments not provided taken from the given space.
@@ -121,12 +153,15 @@ class LatentSpace:
             vector_source = space.vector_source if not deepcopy else copy.deepcopy(space.vector_source)
         if metadata is None:
             metadata = space.metadata if not deepcopy else copy.deepcopy(space.metadata)
+        if decoders is None:
+            decoders = space.decoders if not deepcopy else copy.deepcopy(space.decoders)
+
         # TODO: test deepcopy
-        return LatentSpace(name=name, vector_source=vector_source, metadata=metadata)
+        return LatentSpace(name=name, vector_source=vector_source, metadata=metadata, decoders=decoders)
 
     @property
     def shape(self) -> torch.Size:
-        return self.vectors.shape
+        return self._vector_source.shape
 
     def __getitem__(self, index: int) -> Mapping[str, torch.Tensor]:
         return self._vector_source[index]
@@ -143,6 +178,18 @@ class LatentSpace:
             and self.metadata == __value.metadata
             and self._vector_source == __value._vector_source
         )
+
+    def add_vectors(self, vectors: torch.Tensor, keys: Optional[Sequence[str]] = None) -> "LatentSpace":
+        """Add vectors to this space.
+
+        Args:
+            vectors (torch.Tensor): The vectors to add.
+            keys (Optional[Sequence[str]], optional): The keys of the vectors. Defaults to None.
+
+        Returns:
+            LatentSpace: The new space.
+        """
+        return self._vector_source.add_vectors(vectors=vectors, keys=keys)
 
     def sample(self, sampler: Sampler, n: int) -> "LatentSpace":
         """Sample n vectors from this space using the given sampler.
@@ -176,18 +223,19 @@ class LatentSpace:
         metrics_results = {metric_name: metric(self, *others) for metric_name, metric in metrics.items()}
         return metrics_results
 
-    def translate(
-        self,
-        translator: LatentTranslator,
-    ):
-        return translator(x=self)
-
     def to_index(
         self,
         metric_fn: SearchMetric,
         keys: Optional[Sequence[str]] = None,
         transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
     ) -> SearchIndex:
+        """Create a SearchIndex from this space.
+
+        Args:
+            metric_fn (SearchMetric): The metric to use.
+            keys (Optional[Sequence[str]], optional): The keys of the vectors. Defaults to None.
+            transform (Optional[Callable[[torch.Tensor], torch.Tensor]], optional): A transform to apply to the vectors. Defaults to None.
+        """
         index: SearchIndex = SearchIndex.create(
             metric_fn=metric_fn,
             num_dimensions=self.vectors.size(dim=1),
@@ -201,3 +249,16 @@ class LatentSpace:
         )
 
         return index
+
+    def transform(self, transform: Union[Transform, Translator]) -> "LatentSpace":
+        return LatentSpace.like(
+            space=self,
+            vector_source=transform(x=self.vectors),
+        )
+
+    def to_hf_dataset(self, name: str) -> Any:
+        raise NotImplementedError
+
+    def add_decoder(self, decoder: Decoder):
+        assert decoder.name not in self.decoders, f"Decoder with name {decoder.name} already exists."
+        self.decoders[decoder.name] = decoder
