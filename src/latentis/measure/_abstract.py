@@ -1,18 +1,18 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Mapping, Tuple
 
 import torch
 from torch import nn
 
-import latentis
+from latentis.space import LatentSpace
 
 if TYPE_CHECKING:
     from latentis.types import Space
 
 
-class PairwiseMetric(nn.Module):
+class Metric(nn.Module):
     def __init__(self, name: str) -> None:
         super().__init__()
         self._name: str = name
@@ -25,7 +25,16 @@ class PairwiseMetric(nn.Module):
         return self._name
 
     @abstractmethod
-    def forward(self, x: Space, y: Space) -> Sequence[Mapping[str, Any]]:
+    def forward(self, *spaces: Space) -> Mapping[Tuple[str], Mapping[str, Any]]:
+        raise NotImplementedError
+
+
+class PairwiseMetric(Metric):
+    def __init__(self, name: str) -> None:
+        super().__init__(name=name)
+
+    @abstractmethod
+    def forward(self, x: Space, y: Space) -> Mapping[str, Any]:
         raise NotImplementedError
 
 
@@ -36,10 +45,10 @@ class MetricFn(PairwiseMetric):
         self.fn = fn
 
     def forward(self, x: Space, y: Space) -> Mapping[str, Any]:
-        if isinstance(x, latentis.LatentSpace):
+        if isinstance(x, LatentSpace):
             x = x.vectors
 
-        if isinstance(y, latentis.LatentSpace):
+        if isinstance(y, LatentSpace):
             y = y.vectors
 
         return {self.key: self.fn(x, y)}

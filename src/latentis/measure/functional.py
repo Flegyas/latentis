@@ -3,7 +3,7 @@ import math
 
 import torch
 
-import latentis
+from latentis.space import LatentSpace
 
 
 def linear_cka(x: torch.Tensor, y: torch.Tensor):
@@ -15,10 +15,10 @@ def rbf_cka(x: torch.Tensor, y: torch.Tensor, *, sigma: float = None):
 
 
 def cka(x: torch.Tensor, y: torch.Tensor, *, hsic: callable, tolerance=1e-6):
-    if isinstance(x, latentis.LatentSpace):
+    if isinstance(x, LatentSpace):
         x = x.vectors
 
-    if isinstance(y, latentis.LatentSpace):
+    if isinstance(y, LatentSpace):
         y = y.vectors
 
     assert x.shape[0] == y.shape[0], "X and Y must have the same number of samples."

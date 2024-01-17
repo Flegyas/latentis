@@ -6,8 +6,8 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from latentis import LatentSpace
-from latentis.search import SearchIndex, SearchMetric
+from latentis.space import LatentSpace
+from latentis.space.search import SearchIndex, SearchMetric
 from latentis.utils import seed_everything
 
 

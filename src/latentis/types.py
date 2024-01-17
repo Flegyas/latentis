@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Union
-
 import torch
 
 try:
@@ -10,6 +7,9 @@ try:
     from enum import StrEnum as PythonStrEnum
 except ImportError:
     from backports.strenum import StrEnum as PythonStrEnum
+
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Dict, Union
 
 if TYPE_CHECKING:
     from latentis.space import LatentSpace

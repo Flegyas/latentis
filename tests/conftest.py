@@ -6,7 +6,7 @@ import pytest
 import torch
 from torch import Tensor
 
-from latentis import LatentSpace
+from latentis.space import LatentSpace
 from latentis.utils import seed_everything
 
 if TYPE_CHECKING:
