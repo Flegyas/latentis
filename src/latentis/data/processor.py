@@ -32,6 +32,7 @@ def map_features(dataset: Dataset, *feature_mappings: FeatureMapping):
 
 
 _RANDOM_SEED: int = 42
+_ID_COLUMN: str = "sample_id"
 
 
 class DataProcessor:
@@ -41,7 +42,7 @@ class DataProcessor:
         load_dataset_params: Mapping[str, Any],
         features: Sequence[Feature],
         metadata={},
-        id_column: str = "sample_id",
+        id_column: str = _ID_COLUMN,
     ):
         self.dataset_name: str = dataset_name
         self.load_dataset_params = load_dataset_params

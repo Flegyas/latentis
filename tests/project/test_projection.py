@@ -9,7 +9,7 @@ from scipy.stats import ortho_group
 
 from tests.project.conftest import LATENT_DIM
 
-from latentis import LatentSpace
+from latentis.space import LatentSpace
 from latentis.transform import Identity, TransformSequence
 from latentis.transform.base import Centering
 from latentis.transform.projection import (

@@ -3,15 +3,17 @@ from __future__ import annotations
 import copy
 import json
 import logging
+import shutil
 from enum import auto
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Union
 
+from latentis.data.utils import ModelSpec
 from latentis.modules import Decoder
-from latentis.search import SearchIndex, SearchMetric
+from latentis.space.search import SearchIndex, SearchMetric
+from latentis.space.vector_source import TensorSource, VectorSource
 from latentis.transform import Transform
 from latentis.types import SerializableMixin, StrEnum
-from latentis.vector_source import TensorSource, VectorSource
 
 if TYPE_CHECKING:
     from latentis.sample import Sampler
@@ -28,6 +30,7 @@ class SpaceProperty(StrEnum):
     NAME = auto()
     VECTOR_SOURCE = auto()
     DATASET = auto()
+    MODEL_SPEC = auto()
 
 
 class LatentSpace(SerializableMixin):
@@ -36,6 +39,7 @@ class LatentSpace(SerializableMixin):
         vector_source: Optional[Union[torch.Tensor, VectorSource]],
         keys: Optional[Sequence[str]] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        model_spec: Optional[ModelSpec] = None,
         name: str = "space",
         decoders: Optional[Dict[str, Decoder]] = None,
     ):
@@ -62,7 +66,16 @@ class LatentSpace(SerializableMixin):
             metadata[SpaceProperty.VECTOR_SOURCE] = type(self._vector_source).__name__
 
         self._metadata = metadata
+        self._model_spec = model_spec
         self.decoders: Dict[str, Decoder] = decoders or {}
+
+    @property
+    def model_spec(self) -> Optional[ModelSpec]:
+        return self._model_spec
+
+    def add_property(self, key: str, value: Any):
+        assert key not in self._metadata, f"Property with key {key} already exists."
+        self._metadata[key] = value
 
     def get_vector_by_key(self, key: str) -> torch.Tensor:
         return self._vector_source.get_vector_by_key(key=key)
@@ -73,7 +86,13 @@ class LatentSpace(SerializableMixin):
         result[SpaceProperty.NAME] = self.name
         return result
 
-    def save_to_disk(self, target_path: Path):
+    def save_to_disk(self, target_path: Path, overwrite: bool = False):
+        if overwrite:
+            if target_path.exists():
+                pylogger.warning(f"Overwriting existing space at {target_path}")
+
+                shutil.rmtree(target_path)
+
         target_path.mkdir(parents=True, exist_ok=False)
 
         # save VectorSource
@@ -84,6 +103,9 @@ class LatentSpace(SerializableMixin):
         # save metadata
         with open(target_path / "metadata.json", "w") as fw:
             json.dump(self.metadata, fw, indent=4, default=lambda o: o.__dict__)
+
+        if self.model_spec is not None:
+            self.model_spec.save_to_disk(target_path / "model_spec")
 
         # save decoders
         for decoder in self.decoders.values():

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import pytest
 import torch
 
-from latentis import LatentSpace
+from latentis.space import LatentSpace
 from latentis.utils import seed_everything
 
 if TYPE_CHECKING:

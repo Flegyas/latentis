@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING, Tuple
 import pytest
 import torch
 
-from latentis import LatentSpace
 from latentis.measure.base import CKAMode
+from latentis.space import LatentSpace
 
 if TYPE_CHECKING:
     from latentis.types import Space
