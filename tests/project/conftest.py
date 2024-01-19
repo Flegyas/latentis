@@ -21,7 +21,6 @@ class Anchor1Params(object):
     instances = [
         LatentSpace(
             vector_source=torch.randn(NUM_ANCHORS, LATENT_DIM, dtype=torch.double),
-            name="space1",
         ),
         torch.randn(NUM_ANCHORS, LATENT_DIM, dtype=torch.double),
     ]
@@ -47,7 +46,6 @@ class X1Params(object):
     instances = [
         LatentSpace(
             vector_source=torch.randn(BATCH_DIM, LATENT_DIM, dtype=torch.double),
-            name="space1",
         ),
         torch.randn(BATCH_DIM, LATENT_DIM, dtype=torch.double),
     ]

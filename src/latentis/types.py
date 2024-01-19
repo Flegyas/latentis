@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from abc import abstractmethod
+
 import torch
 
 try:
@@ -20,11 +22,18 @@ StrEnum = PythonStrEnum
 
 
 class SerializableMixin:
+    @abstractmethod
     def save_to_disk(self, parent_dir: Path, *args, **kwargs):
         raise NotImplementedError
 
     @classmethod
+    @abstractmethod
     def load_from_disk(cls, path: Path, *args, **kwargs) -> SerializableMixin:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def version(self) -> int:
         raise NotImplementedError
 
 
@@ -32,5 +41,6 @@ class MetadataMixin:
     _METADATA_FILE_NAME: str = "metadata.json"
 
     @property
+    @abstractmethod
     def metadata(self) -> Dict[str, Any]:
         raise NotImplementedError

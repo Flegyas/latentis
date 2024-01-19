@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 
 from latentis.space import LatentSpace
-from latentis.transform._abstract import Identity, Transform, TransformSequence
+from latentis.transform._abstract import Identity, Transform
 from latentis.transform.functional import TransformFn
 
 if TYPE_CHECKING:
@@ -72,7 +72,7 @@ def angular_proj(
     anchors = F.normalize(anchors, p=2, dim=-1)
 
     x = (x @ anchors.mT).clamp(-1.0, 1.0)
-    x = 1 - torch.arccos(x)
+    x = torch.arccos(x) / torch.pi
 
     return x
 
@@ -157,8 +157,8 @@ class RelativeProjection(Transform):
     def __init__(
         self,
         projection_fn: TransformFn,
-        abs_transform: Optional[TransformSequence] = None,
-        rel_transform: Optional[TransformSequence] = None,
+        abs_transform: Optional[Transform] = None,
+        rel_transform: Optional[Transform] = None,
     ):
         super().__init__()
         self.projection_fn = projection_fn

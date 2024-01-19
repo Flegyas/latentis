@@ -1,12 +1,10 @@
-import json
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Sequence
 
 import pandas as pd
 from transformers import BatchEncoding
 
-from latentis.modules import Model
+from latentis.modules import LatentisModule
 from latentis.types import SerializableMixin
 
 
@@ -53,6 +51,14 @@ class BiMap(SerializableMixin):
         mapping = pd.read_csv(path, sep="\t")
         return cls(x=mapping["x"].tolist(), y=mapping["y"].tolist())
 
+    @property
+    def x(self):
+        return self._x2y.keys()
+
+    @property
+    def y(self):
+        return self._y2x.keys()
+
     def __repr__(self) -> str:
         return repr(self._x2y)
 
@@ -60,7 +66,7 @@ class BiMap(SerializableMixin):
 def default_collate(
     samples: Sequence,
     feature: str,
-    model: Model,
+    model: LatentisModule,
     id_column: str = None,
 ) -> BatchEncoding:
     from latentis.data.processor import _ID_COLUMN
@@ -68,18 +74,5 @@ def default_collate(
     id_column = id_column or _ID_COLUMN
     batch = model.pre_encode(samples, feature=feature)
     batch[id_column] = [sample[id_column] for sample in samples]
+
     return batch
-
-
-@dataclass(frozen=True)
-class ModelSpec(SerializableMixin):
-    model: Model
-    collate_fn: callable = default_collate
-    save: bool = False
-
-    def save_to_disk(self, target_path: Path):
-        if self.save:
-            self.model.save_to_disk(target_path / "model")
-
-        with open(target_path / "model_spec.json", "w") as fw:
-            json.dump(self, fw, indent=4, default=lambda o: o.__dict__)
