@@ -53,7 +53,7 @@ class Uniform(Sampler):
             out = tuple(
                 LatentSpace(
                     vector_source=space.vectors[ids],
-                    name=f"{space.name}{self.suffix}",
+                    name=f"{space._name}{self.suffix}",
                     # features={
                     #     SpaceProperty.SAMPLING_IDS: ids,
                     #     **{key: values[ids] for key, values in space.features.items()},

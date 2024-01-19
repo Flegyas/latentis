@@ -1,17 +1,20 @@
 import functools
 import logging
-from collections import defaultdict
-from typing import Mapping, Sequence, Tuple
+import shutil
+from dataclasses import dataclass, field
+from typing import Mapping, Sequence
 
 import torch
+from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from transformers import AutoFeatureExtractor, AutoModel, AutoTokenizer, PreTrainedModel, PreTrainedTokenizer
-from transformers.feature_extraction_utils import PreTrainedFeatureExtractor
 
-from latentis.data.dataset import DataType, Feature
+from latentis.data import DATA_DIR
+from latentis.data.dataset import Feature
 from latentis.data.processor import LatentisDataset
-from latentis.data.text_encoding import EncodeMode, batch_encode
+from latentis.data.text_encoding import HFPooling, cls_pool, mean_pool, sum_pool
+from latentis.data.utils import default_collate
+from latentis.modules import LatentisModule, PooledModel, TextHFEncoder
 
 pylogger = logging.getLogger(__name__)
 
@@ -40,233 +43,157 @@ DEFAULT_ENCODERS = {
 }
 
 
-def load_text_encoder(model_name: str) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
-    encoder = AutoModel.from_pretrained(model_name, output_hidden_states=True, return_dict=True)
-    encoder.requires_grad_(False).eval()
-    return encoder, AutoTokenizer.from_pretrained(model_name)
+# encoding_module = encoder.vision_model if encoder_name.startswith("openai/clip") else encoder
+# for batch in tqdm(loader, desc=f"Embedding samples"):
+#     embeddings.extend(encoding_module(batch["image"].to(DEVICE)).cpu().tolist())
+
+# return embeddings
 
 
-def load_image_encoder(model_name: str) -> Tuple[PreTrainedModel, PreTrainedFeatureExtractor]:
-    encoder = AutoModel.from_pretrained(model_name, output_hidden_states=True, return_dict=True)
-    encoder.requires_grad_(False).eval()
-    return encoder, AutoFeatureExtractor.from_pretrained(model_name)
-
-
-@torch.no_grad()
-def collate_fn_text(batch, tokenizer, max_length: int, data_key: str, encoder_name: str, id_column: str):
-    is_clip: bool = encoder_name.startswith("openai/clip")
-    tokenizer_result = tokenizer(
-        [sample[data_key] for sample in batch],
-        return_special_tokens_mask=True,
-        return_token_type_ids=not is_clip,
-        return_tensors="pt",
-        truncation=True,
-        max_length=max_length,
-        padding=True,
-    )
-
-    sample_ids = [sample[id_column] for sample in batch]
-
-    return {
-        "tokenizer_result": tokenizer_result,
-        id_column: sample_ids,
-    }
-
-
-@torch.no_grad()
-def collate_fn_image(batch, processor, data_key: str, encoder_name: str, id_column: str):
-    pass
-
-
-@torch.no_grad()
-def encode_image(dataset, transform, encoder, encoder_name: str, batch_size=64):
-    raise NotImplementedError
-    # embeddings = []
-    # loader = DataLoader(
-    #     dataset,
-    #     batch_size=batch_size,
-    #     pin_memory=True,
-    #     shuffle=False,
-    #     num_workers=4,
-    #     collate_fn=functools.partial(
-    #         clip_image_encode if encoder_name.startswith("openai/clip") else image_encode,
-    #         transform=transform,
-    #     ),
-    # )
-
-    # encoding_module = encoder.vision_model if encoder_name.startswith("openai/clip") else encoder
-    # for batch in tqdm(loader, desc=f"Embedding samples"):
-    #     embeddings.extend(encoding_module(batch["image"].to(DEVICE)).cpu().tolist())
-
-    # return embeddings
+@dataclass
+class EncodingSpec:
+    model: LatentisModule
+    collate_fn: callable
+    encoding_batch_size: int
+    store_every: int
+    num_workers: int
+    save_source_model: bool = False
+    poolers: Sequence[nn.Module] = field(default_factory=list)
 
 
 def encode_feature(
     dataset: LatentisDataset,
     feature: Feature,
-    collate_fn: callable,
-    encode_fn: callable,
-    encoder_name: str,
-    encoder: PreTrainedModel,
-    encoding_batch_size: int,
-    store_every: int,
-    num_workers: int,
+    encoding_spec: EncodingSpec,
     device: torch.device,
 ):
-    for split, split_data in dataset.dataset.items():
+    for split, split_data in dataset._hf_dataset.items():
+        model: LatentisModule = encoding_spec.model
+
         loader = DataLoader(
             split_data,
-            batch_size=encoding_batch_size,
+            batch_size=encoding_spec.encoding_batch_size,
             pin_memory=device != torch.device("cpu"),
             shuffle=False,
-            num_workers=num_workers,
-            collate_fn=collate_fn,
+            num_workers=encoding_spec.num_workers,
+            collate_fn=functools.partial(encoding_spec.collate_fn, model=model, feature=feature.col_name),
         )
 
-        result = defaultdict(list)
-        for batch_index, batch in tqdm(
-            enumerate(loader), desc=f"Encoding samples for feature {feature} using {encoder_name}"
-        ):
-            batch_encoding = encode_fn(batch=batch, encoder=encoder, encoder_name=encoder_name)
+        for batch in tqdm(loader, desc=f"Encoding `{split}` samples for feature {feature} using {model.key}"):
+            raw_encoding = model.encode(batch)
 
-            for k, v in batch_encoding.items():
-                result[k].append(v)
+            if len(encoding_spec.poolers) == 0:
+                assert isinstance(raw_encoding, torch.Tensor)
+                dataset.add_encoding(
+                    feature=feature,
+                    encoder_key=model.key,
+                    encoding_key="no_pooling",
+                    split=split,
+                    vectors=raw_encoding,
+                    keys=batch[dataset._id_column],
+                    model=model,
+                    save=encoding_spec.save_source_model,
+                )
+            else:
+                for pooler in encoding_spec.poolers:
+                    encodings = pooler(**raw_encoding)
 
-            result[dataset.id_column].extend(batch[dataset.id_column])
-
-            if (batch_index + 1) % store_every == 0 or batch_index == len(loader) - 1:
-                for encoder_name, encoding in result.items():
-                    if encoder_name == dataset.id_column:
-                        continue
-                    encoding = torch.cat(encoding, dim=0).cpu()
-
-                    dataset.add_encoding(
-                        feature=feature,
-                        encoding_key=encoder_name,
-                        split=split,
-                        id2encoding=dict(zip(result[dataset.id_column], encoding)),
-                    )
-
-                result = defaultdict(list)
-
-        assert len(result) == 0
+                    for encoding_key, vectors in encodings.items():
+                        dataset.add_encoding(
+                            feature=feature,
+                            encoder_key=model.key,
+                            encoding_key=encoding_key,
+                            split=split,
+                            vectors=vectors,
+                            keys=batch[dataset._id_column],
+                            model=PooledModel(model_key=model.key, model=model, pooler=pooler),
+                            save_source_model=encoding_spec.save_source_model,
+                        )
 
 
 def encode_dataset(
     dataset: LatentisDataset,
-    encoding_batch_size: int,
-    store_every: int,
-    num_workers: int,
+    feature2encoding_specs: Mapping[str, Sequence[EncodingSpec]],
     force_recompute: bool,
     device: torch.device,
-    features: Sequence[Feature] = None,
-    data_type2encoders: Mapping[str, Sequence[str]] = DEFAULT_ENCODERS,
-    # modality2collate_fn: Mapping[str, callable] = DEFAULT_COLLATES,
 ):
     """Encode the dataset using the specified encoders.
 
     Args:
         dataset (LatentisDataset): Dataset to encode.
-        encoding_batch_size (int): Batch size for the encoding.
-        store_every (int): Store the encodings every `store_every` batches.
-        num_workers (int): Number of workers for the encoding.
-        force_recompute (bool): Whether to recompute the encodings even if they are already present.
-        device (torch.device): Device to use for the encoding.
-        features (Sequence[Feature], optional): Features to encode. Defaults to None. If None, all the features are encoded.
-        data_type2encoders (Mapping[str, Sequence[str]], optional): Encoders to use for each modality. Defaults to DEFAULT_ENCODERS.
+        feature2encoding_specs (Mapping[str, Sequence[EncodingSpec]]): Mapping from feature name to encoding specs.
+        force_recompute (bool): Whether to recompute the encodings even if they already exist.
+        device (torch.device): The torch device (e.g., CPU or GPU) to perform calculations on.
     """
-    if features is None:
-        features = dataset.features
-    else:
-        assert all(feature in dataset.features for feature in features)
+    assert len(feature2encoding_specs) > 0, "No feature to encode specified"
+    feature2encoding_specs = {
+        dataset.get_feature(feature_name): encoding_specs
+        for feature_name, encoding_specs in feature2encoding_specs.items()
+    }
 
-    pylogger.info(f"Encoding {len(features)} features for dataset {dataset.name}: {features}")
-    print(features)
-    for feature in features:
-        print(feature)
-        feature_type = feature.data_type
-        if feature_type not in data_type2encoders:
-            pylogger.warning(f"Missing encoders for data type `{feature_type}`. Skipping feature `{feature}`.")
-            continue
+    if force_recompute:
+        encodings_dir = dataset.root_dir / "encodings"
+        if encodings_dir.exists():
+            # TODO: delete only the encodings specified and not the whole dataset
+            pylogger.warning(f"Overwriting existing encodings at {encodings_dir}")
 
-        missing_encoders = [
-            encoder
-            for encoder in data_type2encoders[feature_type]
-            if force_recompute or encoder not in dataset.get_available_encodings(features=feature)
-        ]
+            shutil.rmtree(encodings_dir)
 
-        for encoder_name in tqdm(missing_encoders, desc=f"{missing_encoders}"):
-            if feature_type == DataType.TEXT:
-                encoder, tokenizer = load_text_encoder(encoder_name)
-                encoder = encoder.to(device)
-                collate_fn = functools.partial(
-                    collate_fn_text,
-                    tokenizer=tokenizer,
-                    max_length=encoder.config.max_length,
-                    data_key=feature.col_name,
-                    encoder_name=encoder_name,
-                    id_column=dataset.id_column,
-                )
-                encode_fn = functools.partial(
-                    batch_encode,
-                    encoder=encoder,
-                    encoder_name=encoder_name,
-                    modes=[EncodeMode.MEAN],
-                    only_last=True,
-                )
+    pylogger.info(
+        f"Encoding {len(feature2encoding_specs)} features for dataset {dataset._name}: {feature2encoding_specs.keys()}"
+    )
 
-            elif feature_type == DataType.IMAGE:
-                encoder, processor = load_image_encoder(encoder_name)
-                collate_fn = functools.partial(
-                    collate_fn_image,
-                    processor=processor,
-                    data_key=feature.col_name,
-                    encoder_name=encoder_name,
-                    id_column=dataset.id_column,
-                )
-                encode_fn = functools.partial(
-                    encode_image,
-                    transform=processor,
-                    encoder=encoder,
-                    encoder_name=encoder_name,
-                )
-            else:
-                raise ValueError(f"Unknown feature modality {feature_type}")
+    for feature, encoding_specs in feature2encoding_specs.items():
+        feature: Feature
 
-            encoder.to(device)
+        for encoding_spec in tqdm(encoding_specs, desc=f"Encoding feature {feature}"):
+            # model: Union[Encoder, EncoderDecoder] = encoding_spec.resolve_model()
+
+            # model.to(device)
 
             encode_feature(
                 dataset=dataset,
                 feature=feature,
-                collate_fn=collate_fn,
-                encode_fn=encode_fn,
-                encoder_name=encoder_name,
-                encoder=encoder,
-                encoding_batch_size=encoding_batch_size,
-                store_every=store_every,
-                num_workers=num_workers,
+                encoding_spec=encoding_spec,
                 device=device,
             )
 
-            encoder.cpu()
+            # model.cpu()
 
 
 if __name__ == "__main__":
-    dataset = LatentisDataset.load_from_disk("imdb", perc=0.01)
-    print(dataset.dataset)
+    dataset = LatentisDataset.load_from_disk(DATA_DIR / "imdb")
+    print(dataset.hf_dataset)
 
     encode_dataset(
         dataset=dataset,
-        encoding_batch_size=32,
-        store_every=10,
-        num_workers=4,
         force_recompute=True,
         device=torch.device("cpu"),
-        data_type2encoders={DataType.TEXT: ["bert-base-cased"]},
+        feature2encoding_specs={
+            "text": [
+                EncodingSpec(
+                    model=TextHFEncoder("bert-base-cased"),
+                    collate_fn=default_collate,
+                    encoding_batch_size=32,
+                    store_every=10,
+                    num_workers=0,
+                    save_source_model=False,
+                    poolers=[
+                        HFPooling(layers=-1, pooling_fn=cls_pool),
+                        HFPooling(layers=-1, pooling_fn=mean_pool),
+                    ],
+                ),
+                EncodingSpec(
+                    model=TextHFEncoder("bert-base-uncased"),
+                    collate_fn=default_collate,
+                    encoding_batch_size=32,
+                    store_every=7,
+                    num_workers=0,
+                    save_source_model=True,
+                    poolers=[
+                        HFPooling(layers=-1, pooling_fn=sum_pool),
+                    ],
+                ),
+            ]
+        },
     )
-
-# if __name__ == "__main__":
-#     dataset = LatentisDataset.load_from_disk("imdb", 0.01)
-#     print("original dataset", dataset.dataset)
-#     dataset = dataset.with_encodings(["bert-base-cased_mean_encoding"])
-#     print(dataset)

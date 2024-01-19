@@ -56,10 +56,17 @@ class VectorSource(metaclass=VectorSourceMeta):
     def get_vector_by_key(self, key: str) -> torch.Tensor:
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def keys(self) -> Sequence[str]:
+        raise NotImplementedError
+
 
 class TensorSource(VectorSource, SerializableMixin):
     def __init__(self, vectors: torch.Tensor, keys: Optional[Sequence[str]] = None):
-        assert keys is None or len(keys) == vectors.size(0), "Keys must be None or have the same length as vectors"
+        assert (
+            keys is None or len(keys) == 0 or len(keys) == vectors.size(0)
+        ), "Keys must be None, empty, or have the same length as vectors"
         self._vectors = vectors
         keys = keys or []
         self._keys2offset = BiMap(x=keys, y=range(len(keys)))
@@ -108,3 +115,7 @@ class TensorSource(VectorSource, SerializableMixin):
             return self[self._keys2offset.get_y(key)]
         except KeyError:
             raise KeyError(f"Key {key} not found in {self._keys2offset}")
+
+    @property
+    def keys(self) -> Sequence[str]:
+        return self._keys2offset.x

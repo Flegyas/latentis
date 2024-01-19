@@ -1,20 +1,23 @@
 import json
+import logging
 import shutil
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import auto
-from hashlib import sha256
 from pathlib import Path
-from typing import Any, Mapping, Sequence, Union
+from typing import Any, Mapping, Optional, Sequence
 
-import pyarrow as pa
 import pyarrow.parquet as pq
 import torch
 from datasets import DatasetDict
 from torch import nn
 
-from latentis.data import BENCHMARK_DIR
+from latentis.data import DATA_DIR
+from latentis.modules import LatentisModule
+from latentis.space import LatentSpace, SpaceMetadata
 from latentis.types import MetadataMixin, SerializableMixin, StrEnum
+
+pylogger = logging.getLogger(__name__)
 
 
 class DataType(StrEnum):
@@ -33,16 +36,14 @@ class DatasetProperty(StrEnum):
 
 
 # make it json serializable
-@dataclass(
-    frozen=True,
-)
+@dataclass(frozen=True)
 class Feature:
     col_name: str
     data_type: DataType
     properties: Mapping[FeatureProperty, str] = field(default_factory=lambda: {})
 
     def __hash__(self):
-        return hash((self.col_name, self.data_type, tuple(self.properties.items())))
+        return hash(self.col_name)
 
 
 @dataclass(frozen=True)
@@ -52,48 +53,81 @@ class FeatureMapping:
 
 
 class LatentisDataset(SerializableMixin, MetadataMixin):
-    @classmethod
-    def get_key(cls, dataset_name: str, perc: float, metadata: Mapping[DatasetProperty, Any]) -> str:
-        hashcode = sha256()
-
-        hashcode.update(dataset_name.encode())
-        hashcode.update(str(perc).encode())
-        hashcode.update(json.dumps(metadata, sort_keys=True).encode())
-
-        return hashcode.hexdigest()[:8]
-
     def __init__(
         self,
         name: str,
-        dataset: DatasetDict,
+        hf_dataset: DatasetDict,
         id_column: str,
         features: Sequence[Feature],
         perc: float = 1,
-        metadata: Mapping[str, Any] = {},
-        parent_dir: Path = BENCHMARK_DIR,
+        properties: Optional[Mapping[str, Any]] = None,
+        parent_dir: Path = DATA_DIR,
     ):
         super().__init__()
-        assert isinstance(dataset, DatasetDict), f"Expected {DatasetDict}, got {type(dataset)}"
+        assert isinstance(hf_dataset, DatasetDict), f"Expected {DatasetDict}, got {type(hf_dataset)}"
         assert len(set(features)) == len(features), f"Features {features} contain duplicates!"
         assert len(features) > 0, f"Features {features} must not be empty!"
         assert all(
-            id_column in dataset[split].column_names for split in dataset.keys()
-        ), f"ID column {id_column} not in all splits of dataset {dataset}"
+            id_column in hf_dataset[split].column_names for split in hf_dataset.keys()
+        ), f"ID column {id_column} not in all splits of dataset {hf_dataset}"
         assert all(
-            feature.col_name in dataset[split].column_names for feature in features for split in dataset.keys()
-        ), f"Specified features not in all splits of dataset {dataset}"
+            feature.col_name in hf_dataset[split].column_names for feature in features for split in hf_dataset.keys()
+        ), f"Specified features not in all splits of dataset {hf_dataset}"
         assert 0 < perc <= 1, f"Percentage {perc} not in (0, 1]"
 
-        self.name: str = name
-        self.dataset = dataset
-        self.id_column: str = id_column
-        self.features = set(features)
-        self.perc = perc
-        self.metadata = metadata
-        self.parent_dir = parent_dir
+        self._name: str = name
+        self._hf_dataset: DatasetDict = hf_dataset
+        self._id_column: str = id_column
+        self._features: Sequence[Feature] = features
+        self._perc: float = perc
+        self._properties: Mapping[DatasetProperty, Any] = properties or {}
+        self._root_dir: Path = parent_dir / name
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def hf_dataset(self) -> DatasetDict:
+        return self._hf_dataset
+
+    @property
+    def perc(self) -> float:
+        return self._perc
+
+    @property
+    def id_column(self) -> str:
+        return self._id_column
+
+    @property
+    def features(self) -> Sequence[Feature]:
+        return self._features
+
+    @property
+    def root_dir(self) -> Path:
+        return self._root_dir
+
+    def get_feature(self, col_name: str) -> Optional[Feature]:
+        for feature in self._features:
+            if feature.col_name == col_name:
+                return feature
+
+        return None
+
+    @property
+    def metadata(self) -> Mapping[str, Any]:
+        return {
+            "name": self._name,
+            "id_column": self._id_column,
+            "features": tuple(self._features),
+            "perc": self._perc,
+            "timestamp": str(datetime.now()),
+            "timestamp_ms": int(datetime.now().timestamp()),
+            "properties": self._properties,
+        }
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(features={self.features}, perc={self.perc}, metadata={self.metadata})"
+        return f"{self.__class__.__name__}(features={self._features}, perc={self._perc}, metadata={self.metadata})"
 
     #
     # def load_encodings(self, encoding2splits: Mapping[str, Sequence[str]]) -> Mapping[str, Mapping[str, torch.Tensor]]:
@@ -146,15 +180,7 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
         for encoding, splits in encoding2splits.items():
             split2dataset = {}
             for split in splits:
-                encodings_path = (
-                    self.parent_dir
-                    / self.name
-                    / LatentisDataset.get_key(dataset_name=self.name, perc=self.perc, metadata=self.metadata)
-                    / "encodings"
-                    / encoding
-                    / split
-                    / "encodings.parquet"
-                )
+                encodings_path = self._root_dir / "encodings" / encoding / split / "encodings.parquet"
 
                 if not encodings_path.exists():
                     raise FileNotFoundError
@@ -195,41 +221,38 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
     def load_decoders(self, encodings: Sequence[str]) -> Mapping[str, nn.Module]:
         raise NotImplementedError
 
-    def get_available_encodings(
-        self, *features: Feature
-    ) -> Union[Mapping[str, Sequence[str]], Mapping[Feature, Mapping[str, Sequence[str]]]]:
+    def get_available_encodings(self, *features: Feature) -> Mapping[Feature, Mapping[str, Sequence[str]]]:
         """Scans the encodings directory and returns a mapping from feature to available encodings.
 
         Returns:
-            Mapping[str, Sequence[str]]: Mapping from feature to available encodings.
+            Mapping[Feature, Mapping[str, Sequence[str]]]: Mapping from feature to split to available encodings.
 
         """
-        raise NotImplementedError
-        # assert len(features) == 0 or all(
-        #     feature in self.features for feature in features
-        # ), f"Features {features} not available in dataset {self.name}!"
-        # features = features or self.features
+        features = features or self._features
 
-        # encodings_dir = (
-        #     self.parent_dir
-        #     / self.name
-        #     / LatentisDataset.get_key(dataset_name=self.name, perc=self.perc, metadata=self.metadata)
-        #     / "encodings"
-        # )
-        # if not encodings_dir.exists():
-        #     return {}
+        feature2split2encodings = {}
+        for feature in features:
+            assert feature in self._features, f"Feature {feature} not available in dataset {self._name}!"
 
-        # available_features = [
-        #     feature
-        #     for feature in self.features
-        #     if (encodings_dir / feature.col_name).exists() and (encodings_dir / feature.col_name).is_dir()
-        # ]
+            encodings_dir = self._root_dir / "encodings" / feature.col_name
 
-        # return {
-        #     encoding_path.name: list(encoding_path.iterdir())
-        #     for encoding_path in encoded_dir.iterdir()
-        #     if encoding_path.is_dir()
-        # }
+            if not encodings_dir.exists():
+                pylogger.warning(f"Feature {feature} has no encodings!")
+
+            if not encodings_dir.exists():
+                return {}
+
+            split2encodings = {}
+
+            for split_dir in encodings_dir.iterdir():
+                assert split_dir.is_dir(), f"Expected {split_dir} to be a directory!"
+                split = split_dir.name
+                encodings = list(split_dir.iterdir())
+                split2encodings[split] = [encoding.name for encoding in encodings]
+
+            feature2split2encodings[feature] = split2encodings
+
+        return feature2split2encodings
 
     # DATASETS VERSION
     # def add_encoding(self, encoding_key: str, split: str, id2encoding: Mapping[str, torch.Tensor]):
@@ -289,98 +312,105 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
 
     #     db.multi_insert(indices=ids, data_list=data_list, log=True)
 
-    def add_encoding(self, feature: Feature, encoding_key: str, split: str, id2encoding: Mapping[str, torch.Tensor]):
-        ids, encodings = zip(*id2encoding.items())
-        data_list = [
-            {self.id_column: sample_id, "encoding": encoding.numpy()} for sample_id, encoding in zip(ids, encodings)
-        ]
+    def get_encoding(self, feature: Feature, encoding_key: str, split: str) -> LatentSpace:
+        target_path = self._root_dir / "encodings" / feature.col_name / split / encoding_key / "encodings.parquet"
 
-        table = pa.Table.from_pylist(data_list)
+        if not target_path.exists():
+            raise FileNotFoundError(
+                f"Encoding {encoding_key} for feature {feature} and split {split} not found! Path: {target_path}"
+            )
 
+        table = pq.read_table(target_path)
+
+        return table
+
+    def add_encoding(
+        self,
+        feature: Feature,
+        model: LatentisModule,
+        encoder_key: str,
+        encoding_key: str,
+        split: str,
+        vectors: torch.Tensor,
+        keys: Sequence[str],
+        save_source_model: bool,
+    ) -> LatentSpace:
         target_path = (
-            self.parent_dir
-            / self.name
-            / LatentisDataset.get_key(dataset_name=self.name, perc=self.perc, metadata=self.metadata)
+            self._root_dir
             / "encodings"
             / feature.col_name
             / split
-            / encoding_key
-            / "encodings.parquet"
+            / encoder_key  # bert-base-cased
+            / encoding_key  # mean_12
         )
 
-        target_path.parent.mkdir(parents=True, exist_ok=True)
-
         if target_path.exists():
-            current_table = pa.parquet.read_table(target_path)
-            table = pa.concat_tables([current_table, table])
+            space = LatentSpace.load_from_disk(path=target_path, load_source_model=False)
 
-        pa.parquet.write_table(table, target_path)
+            assert (
+                space.metadata[SpaceMetadata._MODEL_KEY] is None
+                or space.metadata[SpaceMetadata._MODEL_KEY] == model.key
+            ), f"Model key of previously stored model {space.metadata[SpaceMetadata._MODEL_KEY]} does not match {model.key} in {space._name}!"
 
-    def save_to_disk(self, overwrite: bool = False):
-        dataset_path = self.parent_dir / self.name
-        instance_path = dataset_path / LatentisDataset.get_key(dataset_name=self.name, perc=self.perc, metadata={})
-        processed_path = instance_path / "processed"
+            space.add_vectors(vectors=vectors, keys=keys)
+            space.save_to_disk(
+                target_path,
+                save_vector_source=True,
+                save_metadata=False,
+                save_source_model=False,
+                save_decoders=False,
+            )
+        else:
+            space = LatentSpace(vector_source=vectors, keys=keys, source_model=model)
+            space.save_to_disk(
+                target_path,
+                save_vector_source=True,
+                save_metadata=True,
+                save_source_model=True,
+                save_decoders=True,
+            )
 
-        # path = parent_dir / (
-        #     dir_name or ProcessedDataset.get_key(hf_name=hf_name, perc=self.perc, properties=self.properties)
-        # )
+        return space
 
-        if not overwrite and (processed_path / self._METADATA_FILE_NAME).exists():
-            raise FileExistsError
+    def save_to_disk(self):
+        target_path = self._root_dir
+        if target_path.exists():
+            raise FileExistsError(f"Destination {self._root_dir} is not empty!")
 
-        if processed_path.exists():
-            shutil.rmtree(processed_path)
+        self._hf_dataset.save_to_disk(target_path / "hf_dataset")
 
-        self.dataset.save_to_disk(processed_path)
+        # Copy the encodings directory, if needed
+        if (target_path / "encodings").exists():
+            shutil.copy(self._root_dir / "encodings", target_path / "encodings")
 
-        data = {
-            "name": self.name,
-            "id_column": self.id_column,
-            "features": tuple(self.features),
-            "perc": self.perc,
-            "metadata": self.metadata,
-            "timestamp": str(datetime.now()),
-            "timestamp_ms": int(datetime.now().timestamp()),
-        }
-
-        with open(processed_path / self._METADATA_FILE_NAME, "w") as f:
-            json.dump(data, f, indent=4, sort_keys=True, default=lambda x: x.__dict__)
+        with open(target_path / self._METADATA_FILE_NAME, "w") as f:
+            json.dump(self.metadata, f, indent=4, sort_keys=True, default=lambda x: x.__dict__)
 
     @classmethod
     def load_from_disk(
         cls,
-        dataset_name: str,
-        perc: float,
-        metadata: Mapping[DatasetProperty, Any] = {},
-        parent_dir: Path = BENCHMARK_DIR,
+        path: Path,
     ) -> "LatentisDataset":
-        path: Path = (
-            parent_dir
-            / dataset_name
-            / LatentisDataset.get_key(dataset_name=dataset_name, perc=perc, metadata=metadata)
-            / "processed"
-        )
-
         assert (
             path / cls._METADATA_FILE_NAME
         ).exists(), f"Metadata file {path / cls._METADATA_FILE_NAME} does not exist! Are you sure about the parameters?"
 
-        dataset = DatasetDict.load_from_disk(path)
         with open(path / cls._METADATA_FILE_NAME, "r") as f:
-            data = json.load(f)
+            metadata = json.load(f)
 
-        features = [Feature(**feature) for feature in data["features"]]
-        perc = data["perc"]
-        metadata = data["metadata"]
-        id_column = data["id_column"]
+        hf_dataset = DatasetDict.load_from_disk(path / "hf_dataset")
 
-        processed_dataset = LatentisDataset(
-            name=dataset_name,
-            dataset=dataset,
-            id_column=id_column,
-            features=features,
-            perc=perc,
-            metadata=metadata,
-        )
+        properties = metadata["properties"]
+        features = [Feature(**feature) for feature in metadata["features"]]
 
-        return processed_dataset
+        dataset = LatentisDataset.__new__(cls)
+
+        dataset._name: str = metadata["name"]
+        dataset._hf_dataset: DatasetDict = hf_dataset
+        dataset._id_column: str = metadata["id_column"]
+        dataset._features: Sequence[Feature] = features
+        dataset._perc: float = metadata["perc"]
+        dataset._root_dir: Path = path
+        dataset._properties = properties
+
+        return dataset

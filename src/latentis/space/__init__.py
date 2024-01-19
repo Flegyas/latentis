@@ -1,6 +1,6 @@
-from ._base import LatentSpace, SpaceProperty
+from ._base import LatentSpace, SpaceMetadata
 
 __all__ = [
     "LatentSpace",
-    "SpaceProperty",
+    "SpaceMetadata",
 ]

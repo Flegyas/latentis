@@ -27,9 +27,9 @@ def test_uniform_sampler(space1: Space, space2: Space):
     uniform = Uniform(random_seed=0, suffix="_custom")
     subspace1 = uniform(space1, n=10)
     if isinstance(space1, LatentSpace):
-        assert subspace1.name.startswith(space1.name)
+        assert subspace1.name.startswith(space1._name)
         assert subspace1.name.endswith("_custom")
-        assert subspace1.name == space1.name + "_custom"
+        assert subspace1.name == space1._name + "_custom"
 
     # TODO: restore id comparisons
 
