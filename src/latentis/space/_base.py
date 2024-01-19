@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import logging
 from enum import auto
@@ -19,7 +20,6 @@ if TYPE_CHECKING:
     from latentis.types import Space
     from latentis.measure import MetricFn
     from latentis.transform.translate import Translator
-    from latentis.data.dataset import LatentisDataset
 
 import torch
 
@@ -28,11 +28,44 @@ pylogger = logging.getLogger(__name__)
 
 class SpaceMetadata(StrEnum):
     _VERSION = auto()
-    _NAME = auto()
     _VECTOR_SOURCE = auto()
-    _DATASET = auto()
-    _MODEL_KEY = auto()
     _DECODER_KEYS = auto()
+    _TYPE = auto()
+    _ENCODING_KEY = auto()
+
+
+class EncodingKey(dict):
+    dataset: str
+    feature: str
+    model_name: str
+    split: str
+
+    def __init__(self, dataset: str, feature: str, model_name: str, split: str, **kwargs):
+        super().__init__(
+            dataset=dataset,
+            feature=feature,
+            model_name=model_name,
+            split=split,
+            **kwargs,
+        )
+
+    def hash(self) -> str:
+        hashcode = hashlib.sha256()
+
+        hashcode.update(json.dumps(self, sort_keys=True).encode("utf-8"))
+
+        return hashcode.hexdigest()[:8]
+
+    def __getattr__(self, __name: str) -> Any:
+        return super().__getitem__(__name)
+
+    def get_path(self, root_dir: Path) -> Path:
+        return root_dir / self.feature / self.split / self.hash()
+
+    def to_space(self, root_dir: Path, load_source_model: bool = False, load_decoders: bool = False) -> LatentSpace:
+        return LatentSpace.load_from_disk(
+            self.get_path(root_dir), load_source_model=load_source_model, load_decoders=load_decoders
+        )
 
 
 class LatentSpace(SerializableMixin):
@@ -40,10 +73,9 @@ class LatentSpace(SerializableMixin):
         self,
         vector_source: Optional[Union[torch.Tensor, VectorSource]],
         keys: Optional[Sequence[str]] = None,
-        source_model: Optional[LatentisModule] = None,
         decoders: Optional[Dict[str, Decoder]] = None,
-        name: str = "space",
-        dataset: Optional[LatentisDataset] = None,
+        source_model: Optional[LatentisModule] = None,
+        encoding_key: Optional[EncodingKey] = None,
     ):
         super().__init__()
 
@@ -54,33 +86,28 @@ class LatentSpace(SerializableMixin):
             vector_source, (torch.Tensor, VectorSource)
         ), f"Expected {torch.Tensor} or {VectorSource}, got {type(vector_source)}"
 
-        assert name is not None and len(name.strip()) > 0, "Name must be a non-empty string."
-        self._name: str = name
-
         self._vector_source: torch.Tensor = (
             TensorSource(vectors=vector_source, keys=keys) if torch.is_tensor(vector_source) else vector_source
         )
-
         self._source_model = source_model
         self._decoders: Dict[str, Decoder] = decoders or {}
-        self._dataset = dataset
 
         metadata = {}
-        metadata[SpaceMetadata._NAME] = self._name
+        # metadata[SpaceMetadata._NAME] = self._name
         metadata[SpaceMetadata._VERSION] = self.version
-        metadata[SpaceMetadata._DATASET] = dataset._name if dataset is not None else None
-        metadata[SpaceMetadata._MODEL_KEY] = self.source_model.key if self.source_model is not None else None
+        metadata[SpaceMetadata._TYPE] = LatentSpace.__name__
         metadata[SpaceMetadata._VECTOR_SOURCE] = type(self._vector_source).__name__
+        metadata[SpaceMetadata._ENCODING_KEY] = encoding_key
 
         self._metadata = metadata
 
     @property
-    def dataset(self) -> Optional[LatentisDataset]:
-        return self._dataset
+    def encoding_key(self) -> Optional[EncodingKey]:
+        return self.metadata[SpaceMetadata._ENCODING_KEY]
 
     @property
     def name(self) -> str:
-        return self._name
+        return self.encoding_key.name if self.encoding_key is not None else "space"
 
     @property
     def decoders(self) -> Dict[str, Decoder]:
@@ -136,14 +163,24 @@ class LatentSpace(SerializableMixin):
             for decoder in self._decoders.values():
                 save_model(model=decoder, target_path=target_path / "decoders" / decoder.name, version=self.version)
 
+    @staticmethod
+    def load_metadata(space_path: Path) -> Dict[str, Any]:
+        with open(space_path / "metadata.json", "r") as fr:
+            metadata = json.load(fr)
+
+        metadata[SpaceMetadata._ENCODING_KEY] = (
+            EncodingKey(**metadata[SpaceMetadata._ENCODING_KEY]) if metadata[SpaceMetadata._ENCODING_KEY] else None
+        )
+
+        return metadata
+
     @classmethod
     def load_from_disk(cls, path: Path, load_source_model: bool = False, load_decoders: bool = False) -> LatentSpace:
         # load VectorSource
         vector_source = TensorSource.load_from_disk(path / "vectors")
 
         # load metadata
-        with open(path / "metadata.json", "r") as fr:
-            metadata = json.load(fr)
+        metadata = cls.load_metadata(path)
 
         # load decoders
         decoders = {}
@@ -160,11 +197,10 @@ class LatentSpace(SerializableMixin):
         )
 
         space = LatentSpace.__new__(cls)
-        space._name = metadata[SpaceMetadata._NAME]
         space._metadata = metadata
         space._vector_source = vector_source
-        space._source_model = model
         space._decoders = decoders
+        space._source_model = model
 
         return space
 
@@ -191,11 +227,10 @@ class LatentSpace(SerializableMixin):
         cls,
         #
         space: LatentSpace,
-        name: Optional[str] = None,
+        # name: Optional[str] = None,
         vector_source: Optional[VectorSource] = None,
         decoders: Optional[Dict[str, Decoder]] = None,
-        dataset: Optional[LatentisDataset] = None,
-        source_model: Optional[LatentisModule] = None,
+        space_spec: Optional[EncodingKey] = None,
         keys: Optional[Sequence[str]] = None,
         #
         deepcopy: bool = False,
@@ -213,42 +248,43 @@ class LatentSpace(SerializableMixin):
         Returns:
             LatentSpace: The new space, with the arguments not provided taken from the given space.
         """
-        if name is None:
-            name = space.name
         if vector_source is None:
             vector_source = space.vector_source if not deepcopy else copy.deepcopy(space.vector_source)
         if decoders is None:
             decoders = space.decoders if not deepcopy else copy.deepcopy(space.decoders)
-        if source_model is None:
-            source_model = space.source_model if not deepcopy else copy.deepcopy(space.source_model)
+        # if source_model is None:
+        #     source_model = space.source_model if not deepcopy else copy.deepcopy(space.source_model)
         if keys is None:
             keys = space.keys if not deepcopy else copy.deepcopy(space.keys)
             assert keys is not None, "Keys must not be None."
-        if dataset is None:
-            dataset = space.dataset if not deepcopy else copy.deepcopy(space.dataset)
+        if space_spec is None:
+            space_spec = space.encoding_key if not deepcopy else copy.deepcopy(space.encoding_key)
 
         # TODO: test deepcopy
         return LatentSpace(
-            name=name,
             vector_source=vector_source,
-            source_model=source_model,
             decoders=decoders,
             keys=keys,
-            dataset=dataset,
+            encoding_key=space_spec,
         )
 
     @property
     def shape(self) -> torch.Size:
         return self._vector_source.shape
 
-    def __getitem__(self, index: int) -> Mapping[str, torch.Tensor]:
+    def __getitem__(self, index: Union[int, Sequence[int], slice]) -> Mapping[str, torch.Tensor]:
         return self._vector_source[index]
 
     def __len__(self) -> int:
         return len(self._vector_source)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(name={self._name}, vectors={self.vectors.shape}, metadata={self.metadata})"
+        return (
+            f"{self.__class__.__name__}(vectors={self.vectors.shape}, metadata={self.metadata}"
+            + ("space_spec=")
+            + (str(self.encoding_key) if self.encoding_key is not None else "")
+            + ")"
+        )
 
     def __eq__(self, __value: object) -> bool:
         return (
@@ -257,7 +293,7 @@ class LatentSpace(SerializableMixin):
             and self._vector_source == __value._vector_source
         )
 
-    def add_vectors(self, vectors: torch.Tensor, keys: Optional[Sequence[str]] = None) -> "LatentSpace":
+    def add_vectors(self, vectors: torch.Tensor, keys: Optional[Sequence[str]] = None) -> None:
         """Add vectors to this space.
 
         Args:
@@ -267,7 +303,7 @@ class LatentSpace(SerializableMixin):
         Returns:
             LatentSpace: The new space.
         """
-        return self._vector_source.add_vectors(vectors=vectors, keys=keys)
+        self._vector_source.add_vectors_(vectors=vectors, keys=keys)
 
     def sample(self, sampler: Sampler, n: int) -> "LatentSpace":
         """Sample n vectors from this space using the given sampler.
@@ -317,7 +353,7 @@ class LatentSpace(SerializableMixin):
         index: SearchIndex = SearchIndex.create(
             metric_fn=metric_fn,
             num_dimensions=self.vectors.size(dim=1),
-            name=self._name,
+            name=self.name,
             transform=transform,
         )
 

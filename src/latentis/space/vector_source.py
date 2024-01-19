@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from abc import abstractmethod
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Union
 
 import torch
 
@@ -33,7 +33,7 @@ class VectorSource(metaclass=VectorSourceMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def __getitem__(self, index: int) -> torch.Tensor:
+    def __getitem__(self, index: Union[int, Sequence[int], slice]) -> torch.Tensor:
         raise NotImplementedError
 
     @abstractmethod
@@ -49,7 +49,7 @@ class VectorSource(metaclass=VectorSourceMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def add_vectors(self, vectors: torch.Tensor, keys: Optional[Sequence[str]] = None) -> VectorSource:
+    def add_vectors_(self, vectors: torch.Tensor, keys: Optional[Sequence[str]] = None) -> VectorSource:
         raise NotImplementedError
 
     @abstractmethod
@@ -74,7 +74,7 @@ class TensorSource(VectorSource, SerializableMixin):
     def shape(self) -> torch.Size:
         return self._vectors.shape
 
-    def __getitem__(self, index: int) -> torch.Tensor:
+    def __getitem__(self, index: Union[int, Sequence[int], slice]) -> torch.Tensor:
         return self._vectors[index]
 
     def __len__(self) -> int:
@@ -99,7 +99,7 @@ class TensorSource(VectorSource, SerializableMixin):
         result._keys2offset = keys  # TODO: ugly
         return result
 
-    def add_vectors(self, vectors: torch.Tensor, keys: Optional[Sequence[str]] = None) -> TensorSource:
+    def add_vectors_(self, vectors: torch.Tensor, keys: Optional[Sequence[str]] = None) -> TensorSource:
         assert (keys is None) == (
             len(self._keys2offset) == 0
         ), "Keys must be provided only if the source already has keys"
@@ -107,7 +107,8 @@ class TensorSource(VectorSource, SerializableMixin):
             assert len(keys) == vectors.size(0), "Keys must have the same length as vectors"
             self._keys2offset.add_all(x=keys, y=range(len(self._keys2offset), len(self._keys2offset) + len(keys)))
 
-        return TensorSource(torch.cat([self._vectors, vectors], dim=0))
+        self._vectors = torch.cat([self._vectors, vectors], dim=0)
+        return self
 
     def get_vector_by_key(self, key: str) -> torch.Tensor:
         assert len(self._keys2offset) > 0, "This source does not have keys enabled"

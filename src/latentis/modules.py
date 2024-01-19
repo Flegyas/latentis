@@ -73,7 +73,7 @@ class PooledModel(LatentisModule):
 
     @property
     def key(self) -> str:
-        return f"{super().key}_{self.pooler.__class__.__name__}"
+        return f"{super().key}_{self.pooler.name if hasattr(self.pooler, 'name') else self.pooler.__class__.__name__}"
 
 
 class StitchedModel(nn.Module):
