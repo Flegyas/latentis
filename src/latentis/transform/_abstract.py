@@ -59,10 +59,10 @@ class Transform(nn.Module):
         return self.fit(x=x, y=y).transform(x=x, y=y)
 
     def forward(self, x: torch.Tensor, y=None, inverse: bool = False) -> torch.Tensor:
-        x, *y = self.transform(x=x, y=y) if not inverse else self.inverse_transform(x=x, y=y)
+        x, *y_transformed = self.transform(x=x, y=y) if not inverse else self.inverse_transform(x=x, y=y)
         return {
             "x": x,
-            "y": y[0] if len(y) == 1 else y,
+            "y": y_transformed[0] if len(y_transformed) == 1 else y,
         }
 
     @property

@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import copy
-import hashlib
-import json
 import logging
 from enum import auto
 from pathlib import Path
@@ -26,46 +24,14 @@ import torch
 pylogger = logging.getLogger(__name__)
 
 
-class SpaceMetadata(StrEnum):
+class _SpaceMetadata(StrEnum):
     _VERSION = auto()
     _VECTOR_SOURCE = auto()
     _DECODER_KEYS = auto()
     _TYPE = auto()
-    _ENCODING_KEY = auto()
 
 
-class EncodingKey(dict):
-    dataset: str
-    feature: str
-    model_name: str
-    split: str
-
-    def __init__(self, dataset: str, feature: str, model_name: str, split: str, **kwargs):
-        super().__init__(
-            dataset=dataset,
-            feature=feature,
-            model_name=model_name,
-            split=split,
-            **kwargs,
-        )
-
-    def hash(self) -> str:
-        hashcode = hashlib.sha256()
-
-        hashcode.update(json.dumps(self, sort_keys=True).encode("utf-8"))
-
-        return hashcode.hexdigest()[:8]
-
-    def __getattr__(self, __name: str) -> Any:
-        return super().__getitem__(__name)
-
-    def get_path(self, data_root: Path) -> Path:
-        return data_root / self.dataset / "encodings" / self.feature / self.split / self.hash()
-
-    def to_space(self, data_root: Path, load_source_model: bool = False, load_decoders: bool = False) -> LatentSpace:
-        return LatentSpace.load_from_disk(
-            self.get_path(data_root), load_source_model=load_source_model, load_decoders=load_decoders
-        )
+SpaceInfo = Mapping[str, Any]
 
 
 class LatentSpace(SerializableMixin):
@@ -75,7 +41,7 @@ class LatentSpace(SerializableMixin):
         keys: Optional[Sequence[str]] = None,
         decoders: Optional[Dict[str, Decoder]] = None,
         source_model: Optional[LatentisModule] = None,
-        encoding_key: Optional[EncodingKey] = None,
+        info: Optional[Mapping[str, Any]] = None,
     ):
         super().__init__()
 
@@ -92,22 +58,24 @@ class LatentSpace(SerializableMixin):
         self._source_model = source_model
         self._decoders: Dict[str, Decoder] = decoders or {}
 
-        metadata = {}
+        info = info or {}
         # metadata[SpaceMetadata._NAME] = self._name
-        metadata[SpaceMetadata._VERSION] = self.version
-        metadata[SpaceMetadata._TYPE] = LatentSpace.__name__
-        metadata[SpaceMetadata._VECTOR_SOURCE] = type(self._vector_source).__name__
-        metadata[SpaceMetadata._ENCODING_KEY] = encoding_key
+        info[_SpaceMetadata._VERSION] = self.version
+        info[_SpaceMetadata._TYPE] = LatentSpace.__name__
+        info[_SpaceMetadata._VECTOR_SOURCE] = type(self._vector_source).__name__
 
-        self._metadata = metadata
+        self._info = info.copy()
+
+    def split(self):
+        raise NotImplementedError
 
     @property
-    def encoding_key(self) -> Optional[EncodingKey]:
-        return self.metadata[SpaceMetadata._ENCODING_KEY]
+    def info(self) -> Dict[str, Any]:
+        return self._info.copy()
 
     @property
     def name(self) -> str:
-        return self.encoding_key.name if self.encoding_key is not None else "space"
+        return self.info.get("name", "space")
 
     @property
     def decoders(self) -> Dict[str, Decoder]:
@@ -121,16 +89,12 @@ class LatentSpace(SerializableMixin):
     def source_model(self) -> Optional[LatentisModule]:
         return self._source_model
 
-    def add_property(self, key: str, value: Any):
-        assert key not in self._metadata, f"Property with key {key} already exists."
-        self._metadata[key] = value
-
     def get_vector_by_key(self, key: str) -> torch.Tensor:
         return self._vector_source.get_vector_by_key(key=key)
 
     @property
     def metadata(self) -> Dict[str, Any]:
-        return self._metadata.copy()
+        return self._info.copy()
 
     def save_to_disk(
         self,
@@ -166,10 +130,6 @@ class LatentSpace(SerializableMixin):
     def load_metadata(space_path: Path) -> Dict[str, Any]:
         metadata = load_json(space_path / "metadata.json")
 
-        metadata[SpaceMetadata._ENCODING_KEY] = (
-            EncodingKey(**metadata[SpaceMetadata._ENCODING_KEY]) if metadata[SpaceMetadata._ENCODING_KEY] else None
-        )
-
         return metadata
 
     @classmethod
@@ -178,24 +138,24 @@ class LatentSpace(SerializableMixin):
         vector_source = TensorSource.load_from_disk(path / "vectors")
 
         # load metadata
-        metadata = cls.load_metadata(path)
+        info = cls.load_metadata(path)
 
         # load decoders
         decoders = {}
         for decoder_path in (path / "decoders").glob("*"):
-            decoder = load_model(decoder_path, version=metadata[SpaceMetadata._VERSION]) if load_decoders else None
+            decoder = load_model(decoder_path, version=info[_SpaceMetadata._VERSION]) if load_decoders else None
             decoders[decoder.name] = decoder
 
         # load model
         model_path = path / "model.pt"
         model = (
-            load_model(model_path, version=metadata[SpaceMetadata._VERSION])
+            load_model(model_path, version=info[_SpaceMetadata._VERSION])
             if (model_path.exists() and load_source_model)
             else None
         )
 
         space = LatentSpace.__new__(cls)
-        space._metadata = metadata
+        space._info = info
         space._vector_source = vector_source
         space._decoders = decoders
         space._source_model = model
@@ -228,7 +188,7 @@ class LatentSpace(SerializableMixin):
         # name: Optional[str] = None,
         vector_source: Optional[VectorSource] = None,
         decoders: Optional[Dict[str, Decoder]] = None,
-        space_spec: Optional[EncodingKey] = None,
+        info: Optional[Mapping[str, Any]] = None,
         keys: Optional[Sequence[str]] = None,
         #
         deepcopy: bool = False,
@@ -255,15 +215,15 @@ class LatentSpace(SerializableMixin):
         if keys is None:
             keys = space.keys if not deepcopy else copy.deepcopy(space.keys)
             assert keys is not None, "Keys must not be None."
-        if space_spec is None:
-            space_spec = space.encoding_key if not deepcopy else copy.deepcopy(space.encoding_key)
+        if info is None:
+            info = space.info if not deepcopy else copy.deepcopy(space.info)
 
         # TODO: test deepcopy
         return LatentSpace(
             vector_source=vector_source,
             decoders=decoders,
             keys=keys,
-            encoding_key=space_spec,
+            info=info,
         )
 
     @property
@@ -277,12 +237,7 @@ class LatentSpace(SerializableMixin):
         return len(self._vector_source)
 
     def __repr__(self) -> str:
-        return (
-            f"{self.__class__.__name__}(vectors={self.vectors.shape}, metadata={self.metadata}"
-            + ("space_spec=")
-            + (str(self.encoding_key) if self.encoding_key is not None else "")
-            + ")"
-        )
+        return f"{self.__class__.__name__}(vectors={self.vectors.shape}, metadata={self.metadata})"
 
     def __eq__(self, __value: object) -> bool:
         return (
