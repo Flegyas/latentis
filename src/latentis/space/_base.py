@@ -4,7 +4,7 @@ import copy
 import logging
 from enum import auto
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Union
 
 from latentis.io_utils import load_json, load_model, save_json, save_model
 from latentis.modules import Decoder, LatentisModule
@@ -27,18 +27,20 @@ pylogger = logging.getLogger(__name__)
 class _SpaceMetadata(StrEnum):
     _VERSION = auto()
     _VECTOR_SOURCE = auto()
-    _DECODER_KEYS = auto()
     _TYPE = auto()
+    _SPACE_ID = auto()
 
 
 SpaceInfo = Mapping[str, Any]
+
+_INFO_FILE_NAME = "info.json"
 
 
 class LatentSpace(SerializableMixin):
     def __init__(
         self,
-        vector_source: Optional[Union[torch.Tensor, VectorSource]],
-        keys: Optional[Sequence[str]] = None,
+        vector_source: Optional[Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]],
+        space_id: Optional[str] = None,
         decoders: Optional[Dict[str, Decoder]] = None,
         source_model: Optional[LatentisModule] = None,
         info: Optional[Mapping[str, Any]] = None,
@@ -52,8 +54,14 @@ class LatentSpace(SerializableMixin):
             vector_source, (torch.Tensor, VectorSource)
         ), f"Expected {torch.Tensor} or {VectorSource}, got {type(vector_source)}"
 
+        # add "keys" as second element of tuple if not present
+        if isinstance(vector_source, torch.Tensor):
+            vector_source = (vector_source, None)
+
         self._vector_source: torch.Tensor = (
-            TensorSource(vectors=vector_source, keys=keys) if torch.is_tensor(vector_source) else vector_source
+            TensorSource(vectors=vector_source[0], keys=vector_source[1])
+            if isinstance(vector_source, tuple)
+            else vector_source
         )
         self._source_model = source_model
         self._decoders: Dict[str, Decoder] = decoders or {}
@@ -63,6 +71,9 @@ class LatentSpace(SerializableMixin):
         info[_SpaceMetadata._VERSION] = self.version
         info[_SpaceMetadata._TYPE] = LatentSpace.__name__
         info[_SpaceMetadata._VECTOR_SOURCE] = type(self._vector_source).__name__
+        info[_SpaceMetadata._SPACE_ID] = space_id
+
+        self._space_id = space_id
 
         self._info = info.copy()
 
@@ -93,14 +104,14 @@ class LatentSpace(SerializableMixin):
         return self._vector_source.get_vector_by_key(key=key)
 
     @property
-    def metadata(self) -> Dict[str, Any]:
-        return self._info.copy()
+    def space_id(self) -> str:
+        return self._space_id
 
     def save_to_disk(
         self,
         target_path: Path,
         save_vector_source=True,
-        save_metadata=True,
+        save_info=True,
         save_source_model=True,
         save_decoders=True,
     ):
@@ -113,8 +124,8 @@ class LatentSpace(SerializableMixin):
             self._vector_source.save_to_disk(vector_path)
 
         # save metadata
-        if save_metadata:
-            save_json(self.metadata, target_path / "metadata.json")
+        if save_info:
+            save_json(self.info, target_path / _INFO_FILE_NAME)
 
         # save model
         if save_source_model:
@@ -127,8 +138,8 @@ class LatentSpace(SerializableMixin):
                 save_model(model=decoder, target_path=target_path / "decoders" / decoder.name, version=self.version)
 
     @staticmethod
-    def load_metadata(space_path: Path) -> Dict[str, Any]:
-        metadata = load_json(space_path / "metadata.json")
+    def load_info(space_path: Path) -> Dict[str, Any]:
+        metadata = load_json(space_path / _INFO_FILE_NAME)
 
         return metadata
 
@@ -138,7 +149,7 @@ class LatentSpace(SerializableMixin):
         vector_source = TensorSource.load_from_disk(path / "vectors")
 
         # load metadata
-        info = cls.load_metadata(path)
+        info = cls.load_info(path)
 
         # load decoders
         decoders = {}
@@ -185,11 +196,10 @@ class LatentSpace(SerializableMixin):
         cls,
         #
         space: LatentSpace,
-        # name: Optional[str] = None,
-        vector_source: Optional[VectorSource] = None,
+        space_id: Optional[str] = None,
+        vector_source: Optional[Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]] = None,
         decoders: Optional[Dict[str, Decoder]] = None,
         info: Optional[Mapping[str, Any]] = None,
-        keys: Optional[Sequence[str]] = None,
         #
         deepcopy: bool = False,
     ):
@@ -206,23 +216,25 @@ class LatentSpace(SerializableMixin):
         Returns:
             LatentSpace: The new space, with the arguments not provided taken from the given space.
         """
+        if space_id is None:
+            space_id = space.space_id if not deepcopy else copy.deepcopy(space.space_id)
+
         if vector_source is None:
             vector_source = space.vector_source if not deepcopy else copy.deepcopy(space.vector_source)
+
         if decoders is None:
             decoders = space.decoders if not deepcopy else copy.deepcopy(space.decoders)
         # if source_model is None:
         #     source_model = space.source_model if not deepcopy else copy.deepcopy(space.source_model)
-        if keys is None:
-            keys = space.keys if not deepcopy else copy.deepcopy(space.keys)
-            assert keys is not None, "Keys must not be None."
+
         if info is None:
             info = space.info if not deepcopy else copy.deepcopy(space.info)
 
         # TODO: test deepcopy
         return LatentSpace(
+            space_id=space_id,
             vector_source=vector_source,
             decoders=decoders,
-            keys=keys,
             info=info,
         )
 
@@ -237,13 +249,13 @@ class LatentSpace(SerializableMixin):
         return len(self._vector_source)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(vectors={self.vectors.shape}, metadata={self.metadata})"
+        return f"{self.__class__.__name__}(vectors={self.vectors.shape}, metadata={self.info})"
 
     def __eq__(self, __value: object) -> bool:
         return (
-            self._name == __value.name
-            and self.metadata == __value.metadata
-            and self._vector_source == __value._vector_source
+            self._space_id == __value._space_id
+            and self.info == __value.info
+            and self.vector_source == __value.vector_source
         )
 
     def add_vectors(self, vectors: torch.Tensor, keys: Optional[Sequence[str]] = None) -> None:
