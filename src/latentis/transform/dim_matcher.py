@@ -36,50 +36,38 @@ class ZeroPadding(DimMatcher):
         x: Optional[torch.Tensor] = None,
         y: Optional[torch.Tensor] = None,
     ) -> Dict[str, torch.Tensor]:
-        assert sum((x is not None, y is not None)) == 1, "Either x or y must be provided."
+        if x is not None and self.get_state("transform_x"):
+            assert x.ndim == 2, "The source tensor must be 2D."
+            x = torch.nn.functional.pad(
+                x,
+                (0, self.get_state("x_pad")),
+                mode="constant",
+                value=0,
+            )
 
-        if x is not None:
-            if self.get_state("transform_x"):
-                assert x.ndim == 2, "The source tensor must be 2D."
-                x = torch.nn.functional.pad(
-                    x,
-                    (0, self.get_state("x_pad")),
-                    mode="constant",
-                    value=0,
-                )
+        if y is not None and self.get_state("transform_y"):
+            assert y.ndim == 2, "The target tensor must be 2D."
+            y = torch.nn.functional.pad(
+                y,
+                (0, self.get_state("y_pad")),
+                mode="constant",
+                value=0,
+            )
 
-            return x
-
-        if y is not None:
-            if self.get_state("transform_y"):
-                assert y.ndim == 2, "The target tensor must be 2D."
-                y = torch.nn.functional.pad(
-                    y,
-                    (0, self.get_state("y_pad")),
-                    mode="constant",
-                    value=0,
-                )
-
-            return y
+        return x, y
 
     def inverse_transform(
         self,
         x: Optional[torch.Tensor] = None,
         y: Optional[torch.Tensor] = None,
     ) -> Dict[str, torch.Tensor]:
-        assert sum((x is not None, y is not None)) == 1, "Either x or y must be provided."
+        if x is not None and self.get_state("transform_x"):
+            x = x[..., : -self.get_state("x_pad")]
 
-        if x is not None:
-            if self.get_state("transform_x"):
-                x = x[..., : -self.get_state("x_pad")]
+        if y is not None and self.get_state("transform_y"):
+            y = y[..., : -self.get_state("y_pad")]
 
-            return x
-
-        if y is not None:
-            if self.get_state("transform_y"):
-                y = y[..., : -self.get_state("y_pad")]
-
-            return y
+        return x, y
 
 
 # class PCATruncation(DimMatcher):

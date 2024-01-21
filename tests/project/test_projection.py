@@ -221,10 +221,10 @@ def test_invariances(
         rel_transform=rel_transforms,
     )
     pipeline.fit(x_anchors.vectors if isinstance(x_anchors, LatentSpace) else x_anchors)
-    x_projected = pipeline.transform(x if isinstance(x, torch.Tensor) else x.vectors)
+    x_projected, _ = pipeline.transform(x if isinstance(x, torch.Tensor) else x.vectors)
 
     pipeline.fit(y_anchors.vectors if isinstance(y_anchors, LatentSpace) else y_anchors)
-    y_projected = pipeline.transform(y if isinstance(y, torch.Tensor) else y.vectors)
+    y_projected, _ = pipeline.transform(y if isinstance(y, torch.Tensor) else y.vectors)
 
     assert not invariant or torch.allclose(x_projected, y_projected)
 

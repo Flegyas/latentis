@@ -23,14 +23,14 @@ def svd_align_state(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
 
 def svd_align(x: torch.Tensor, y: torch.Tensor, dim_matcher: Optional[DimMatcher] = None) -> torch.Tensor:
     if dim_matcher is not None:
-        dim_matcher.fit(x, y)
-        x = dim_matcher.transform(x=x, y=None)
-        y = dim_matcher.transform(x=None, y=y)
+        x, y = dim_matcher.fit_transform(x=x, y=y)
 
     state = svd_align_state(x, y)
 
     x = x @ state["matrix"]
-    x = dim_matcher.inverse_transform(x=None, y=x)
+
+    if dim_matcher is not None:
+        _, x = dim_matcher.inverse_transform(x=None, y=x)
 
     return x
 

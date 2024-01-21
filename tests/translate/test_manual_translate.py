@@ -11,8 +11,9 @@ from latentis.space import LatentSpace
 from latentis.transform import TransformSequence
 from latentis.transform.base import Centering, MeanLPNorm, StandardScaling, STDScaling
 from latentis.transform.dim_matcher import ZeroPadding
+from latentis.transform.functional import std_scaling_state, std_scaling_transform
 from latentis.transform.translate import MatrixAligner
-from latentis.transform.translate.aligner import SGDAffineAligner, Translator
+from latentis.transform.translate.aligner import Procrustes, SGDAffineAligner, Translator
 from latentis.transform.translate.functional import lstsq_align_state, lstsq_ortho_align_state, svd_align_state
 from latentis.utils import seed_everything
 
@@ -136,6 +137,8 @@ class ManualLatentTranslation(nn.Module):
 
         self.translation = lambda x: x @ self.translation_matrix
 
+        return self
+
     def transform(self, X: torch.Tensor, compute_info: bool = True) -> torch.Tensor:
         if self.method == "absolute":
             return {"source": X, "target": X, "info": {}}
@@ -174,7 +177,13 @@ _RANDOM_SEED = 0
 @pytest.mark.parametrize(
     "manual_method, aligner_factory",
     [
-        ("svd", lambda: MatrixAligner("svd", align_fn_state=svd_align_state, dim_matcher=ZeroPadding())),
+        (
+            "svd",
+            lambda: Translator(
+                aligner=MatrixAligner("svd", align_fn_state=svd_align_state),
+                dim_matcher=ZeroPadding(),
+            ),
+        ),
         ("lstsq", lambda: MatrixAligner("lstsq", align_fn_state=lstsq_align_state)),
         ("lstsq+ortho", lambda: MatrixAligner("lstsq+ortho", align_fn_state=lstsq_ortho_align_state)),
         ("linear", lambda: SGDAffineAligner(num_steps=20, lr=1e-3, random_seed=0)),
@@ -245,7 +254,7 @@ def test_manual_translation(
     translator.fit(x=A, y=B)
 
     manual_output = manual_translator.transform(A)["target"]
-    latentis_output = translator.transform(x=A)
+    latentis_output, _ = translator.transform(x=A, y=B)
 
     assert torch.allclose(
         manual_output, latentis_output.vectors if isinstance(latentis_output, LatentSpace) else latentis_output
@@ -256,3 +265,24 @@ def test_manual_translation(
             manual_output,
             A.translate(translator=translator).vectors,
         )
+
+
+def test_procrustes(
+    parallel_spaces: Tuple[Space, Space],
+):
+    x, y = parallel_spaces
+    x = x.vectors if isinstance(x, LatentSpace) else x
+    y = y.vectors if isinstance(y, LatentSpace) else y
+
+    x = std_scaling_transform(x, **std_scaling_state(x))
+    y = std_scaling_transform(y, **std_scaling_state(y))
+
+    x1, _ = Procrustes().fit_transform(x, y)
+    manual_result = (
+        ManualLatentTranslation(seed=42, centering=True, std_correction=True, l2_norm=False, method="svd")
+        .fit(x=x, y=y)
+        .transform(x)
+    )
+    _, y2 = manual_result["source"], manual_result["target"]
+
+    assert torch.allclose(x1, y2)
