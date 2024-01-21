@@ -337,7 +337,7 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
         encoding_key: EncodingKey,
         save_source_model: bool,
     ) -> LatentSpace:
-        target_path = encoding_key.get_path(self.root_dir / "encodings")
+        target_path = encoding_key.get_path(self.root_dir.parent)
 
         if target_path.exists():
             space = LatentSpace.load_from_disk(path=target_path, load_source_model=False)

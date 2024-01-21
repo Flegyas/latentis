@@ -59,12 +59,12 @@ class EncodingKey(dict):
     def __getattr__(self, __name: str) -> Any:
         return super().__getitem__(__name)
 
-    def get_path(self, root_dir: Path) -> Path:
-        return root_dir / self.feature / self.split / self.hash()
+    def get_path(self, data_root: Path) -> Path:
+        return data_root / self.dataset / "encodings" / self.feature / self.split / self.hash()
 
-    def to_space(self, root_dir: Path, load_source_model: bool = False, load_decoders: bool = False) -> LatentSpace:
+    def to_space(self, data_root: Path, load_source_model: bool = False, load_decoders: bool = False) -> LatentSpace:
         return LatentSpace.load_from_disk(
-            self.get_path(root_dir), load_source_model=load_source_model, load_decoders=load_decoders
+            self.get_path(data_root), load_source_model=load_source_model, load_decoders=load_decoders
         )
 
 
