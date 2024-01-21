@@ -1,4 +1,3 @@
-import json
 import logging
 import shutil
 from collections import defaultdict
@@ -14,6 +13,7 @@ from datasets import DatasetDict
 from torch import nn
 
 from latentis.data import DATA_DIR
+from latentis.io_utils import load_json, save_json
 from latentis.space import EncodingKey, LatentSpace
 from latentis.types import MetadataMixin, SerializableMixin, StrEnum
 
@@ -377,8 +377,7 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
         if (target_path / "encodings").exists():
             shutil.copy(self._root_dir / "encodings", target_path / "encodings")
 
-        with open(target_path / self._METADATA_FILE_NAME, "w") as f:
-            json.dump(self.metadata, f, indent=4, sort_keys=True, default=lambda x: x.__dict__)
+        save_json(self.metadata, target_path / self._METADATA_FILE_NAME, indent=4)
 
     @classmethod
     def load_from_disk(
@@ -389,8 +388,7 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
             path / cls._METADATA_FILE_NAME
         ).exists(), f"Metadata file {path / cls._METADATA_FILE_NAME} does not exist! Are you sure about the parameters?"
 
-        with open(path / cls._METADATA_FILE_NAME, "r") as f:
-            metadata = json.load(f)
+        metadata = load_json(path / cls._METADATA_FILE_NAME)
 
         hf_dataset = DatasetDict.load_from_disk(path / "hf_dataset")
 

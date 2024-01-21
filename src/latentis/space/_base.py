@@ -8,7 +8,7 @@ from enum import auto
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Union
 
-from latentis.io_utils import load_model, save_model
+from latentis.io_utils import load_json, load_model, save_json, save_model
 from latentis.modules import Decoder, LatentisModule
 from latentis.space.search import SearchIndex, SearchMetric
 from latentis.space.vector_source import TensorSource, VectorSource
@@ -150,8 +150,7 @@ class LatentSpace(SerializableMixin):
 
         # save metadata
         if save_metadata:
-            with open(target_path / "metadata.json", "w") as fw:
-                json.dump(self.metadata, fw, indent=4, default=lambda o: o.__dict__)
+            save_json(self.metadata, target_path / "metadata.json")
 
         # save model
         if save_source_model:
@@ -165,8 +164,7 @@ class LatentSpace(SerializableMixin):
 
     @staticmethod
     def load_metadata(space_path: Path) -> Dict[str, Any]:
-        with open(space_path / "metadata.json", "r") as fr:
-            metadata = json.load(fr)
+        metadata = load_json(space_path / "metadata.json")
 
         metadata[SpaceMetadata._ENCODING_KEY] = (
             EncodingKey(**metadata[SpaceMetadata._ENCODING_KEY]) if metadata[SpaceMetadata._ENCODING_KEY] else None
