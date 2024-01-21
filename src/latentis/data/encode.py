@@ -10,7 +10,7 @@ from tqdm import tqdm
 from latentis.data import DATA_DIR
 from latentis.data.dataset import Feature
 from latentis.data.processor import LatentisDataset
-from latentis.data.text_encoding import HFPooler, cls_pool, sum_pool
+from latentis.data.text_encoding import HFPooler, cls_pool
 from latentis.data.utils import default_collate
 from latentis.modules import LatentisModule, TextHFEncoder
 from latentis.space import EncodingKey
@@ -89,7 +89,7 @@ def encode_feature(
             collate_fn=functools.partial(collate_fn, model=model, feature=feature.col_name),
         )
 
-        for batch in tqdm(loader, desc=f"Encoding `{split}` samples for feature {feature} using {model.key}"):
+        for batch in tqdm(loader, desc=f"Encoding `{split}` samples for feature {feature.col_name} using {model.key}"):
             raw_encoding = model.encode(batch)
 
             if len(poolers) == 0:
@@ -137,12 +137,12 @@ if __name__ == "__main__":
         feature="text",
         model=TextHFEncoder("bert-base-cased"),
         collate_fn=default_collate,
-        encoding_batch_size=128,
+        encoding_batch_size=256,
         store_every=10,
-        num_workers=0,
+        num_workers=4,
         save_source_model=False,
         poolers=[
-            HFPooler(layers=[1], pooling_fn=cls_pool),
+            HFPooler(layers=[12], pooling_fn=cls_pool),
         ],
         device=torch.device("cpu"),
     )
@@ -157,7 +157,7 @@ if __name__ == "__main__":
         num_workers=0,
         save_source_model=True,
         poolers=[
-            HFPooler(layers=[10, 7, 2], pooling_fn=sum_pool),
+            HFPooler(layers=[12], pooling_fn=cls_pool),
         ],
         device=torch.device("cpu"),
     )
