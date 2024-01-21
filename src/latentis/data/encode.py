@@ -79,7 +79,7 @@ def encode_feature(
 
     pylogger.info(f"Encoding {feature} for dataset {dataset._name}")
 
-    for split, split_data in dataset._hf_dataset.items():
+    for split, split_data in dataset.hf_dataset.items():
         loader = DataLoader(
             split_data,
             batch_size=encoding_batch_size,
