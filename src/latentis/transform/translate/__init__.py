@@ -1,7 +1,6 @@
-from .aligner import Aligner, MatrixAligner, Procrustes, Translator
+from .aligner import MatrixAligner, Procrustes, Translator
 
 __all__ = [
-    "Aligner",
     "Translator",
     "MatrixAligner",
     "Procrustes",
