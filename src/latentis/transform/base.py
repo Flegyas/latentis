@@ -42,7 +42,7 @@ class LPNorm(Transform):
         )
         self.p = p
 
-    def transform(self, x: torch.Tensor) -> torch.Tensor:
+    def transform(self, x: torch.Tensor, y=None) -> torch.Tensor:
         return FL.lp_normalize_transform(x=x, p=self.p)
 
 
@@ -52,7 +52,7 @@ class MeanLPNorm(Transform):
         self.p = p
         self.dim = dim
 
-    def fit(self, x: torch.Tensor) -> "MeanLPNorm":
+    def fit(self, x: torch.Tensor, y=None) -> "MeanLPNorm":
         mean_norm: torch.Tensor = x.norm(p=self.p, dim=-1).mean()
         self._register_state(dict(mean_norm=mean_norm))
         return self
@@ -71,11 +71,11 @@ class IsotropicScaling(Transform):
 
         self.scale: float = scale
 
-    def fit(self, x: torch.Tensor) -> "IsotropicScaling":
+    def fit(self, x: torch.Tensor, y=None) -> "IsotropicScaling":
         self._register_state({"scale": torch.tensor(self.scale, dtype=x.dtype, device=x.device)})
         return self
 
-    def transform(self, x: torch.Tensor) -> torch.Tensor:
+    def transform(self, x: torch.Tensor, y=None) -> torch.Tensor:
         return FL.isotropic_scaling_transform(x=x, **self.get_state())
 
     def inverse_transform(self, x: torch.Tensor) -> torch.Tensor:
