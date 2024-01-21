@@ -17,6 +17,7 @@ class Transform(nn.Module):
 
     def __init__(
         self,
+        *,
         name: Optional[str] = None,
         invertible: bool = False,
     ) -> None:
@@ -59,10 +60,11 @@ class Transform(nn.Module):
         return self.fit(x=x, y=y).transform(x=x, y=y)
 
     def forward(self, x: torch.Tensor, y=None, inverse: bool = False) -> torch.Tensor:
-        x, *y_transformed = self.transform(x=x, y=y) if not inverse else self.inverse_transform(x=x, y=y)
+        x, y = self.transform(x=x, y=y) if not inverse else self.inverse_transform(x=x, y=y)
+
         return {
             "x": x,
-            "y": y_transformed[0] if len(y_transformed) == 1 else y,
+            "y": y,
         }
 
     @property
@@ -128,12 +130,15 @@ class SimpleTransform(Transform):
     def transform(self, x: torch.Tensor, y=None) -> torch.Tensor:
         if not self._fitted and self._state_fn is not None:
             raise RuntimeError("Transform not fitted.")
-        return self._transform_fn(x=x, **self._transform_params, **self.get_state())
+
+        return self._transform_fn(x=x, **self._transform_params, **self.get_state()), y
 
     def inverse_transform(self, x: torch.Tensor, y=None) -> torch.Tensor:
         if not self._fitted and self._state_fn is not None:
             raise RuntimeError("Transform not fitted.")
-        return self._inverse_fn(x=x, **self._inverse_params, **self.get_state())
+
+        # return x, self._inverse_fn(x=y, **self._inverse_params, **self.get_state())
+        return self._inverse_fn(x=x, **self._inverse_params, **self.get_state()), y
 
 
 class Identity(SimpleTransform):
@@ -152,15 +157,15 @@ class TransformSequence(Transform):
 
     def fit(self, x: Space, y=None) -> "TransformSequence":
         for transform in self.transforms:
-            x = transform.fit_transform(x)
+            x, y = transform.fit_transform(x=x, y=y)
 
         return self
 
     def transform(self, x: Space, y=None) -> torch.Tensor:
         for transform in self.transforms:
-            x = transform.transform(x)
+            x, y = transform.transform(x=x, y=y)
 
-        return x
+        return x, y
 
     @property
     def invertible(self) -> bool:
@@ -169,10 +174,21 @@ class TransformSequence(Transform):
     def inverse_transform(self, x: Space, y=None) -> torch.Tensor:
         assert self.invertible, "Not all transforms in the sequence are invertible."
         for transform in reversed(self.transforms):
-            x = transform.inverse_transform(x)
+            x, y = transform.inverse_transform(x=x, y=y)
 
-        return x
+        return x, y
 
 
 class Estimator(Transform):
-    pass
+    def __init__(
+        self,
+        *,
+        name: Optional[str] = None,
+        invertible: bool = False,
+        x_space: Optional[torch.Tensor] = None,
+        y_space: Optional[torch.Tensor] = None,
+    ) -> None:
+        super().__init__(name=name, invertible=invertible)
+
+        self.x_space = x_space
+        self.y_space = y_space
