@@ -150,13 +150,13 @@ class TransformSequence(Transform):
         super().__init__()
         self.transforms = transforms
 
-    def fit(self, x: Space) -> "TransformSequence":
+    def fit(self, x: Space, y=None) -> "TransformSequence":
         for transform in self.transforms:
             x = transform.fit_transform(x)
 
         return self
 
-    def transform(self, x: Space) -> torch.Tensor:
+    def transform(self, x: Space, y=None) -> torch.Tensor:
         for transform in self.transforms:
             x = transform.transform(x)
 
@@ -166,7 +166,7 @@ class TransformSequence(Transform):
     def invertible(self) -> bool:
         return all(transform.invertible for transform in self.transforms)
 
-    def inverse_transform(self, x: Space) -> torch.Tensor:
+    def inverse_transform(self, x: Space, y=None) -> torch.Tensor:
         assert self.invertible, "Not all transforms in the sequence are invertible."
         for transform in reversed(self.transforms):
             x = transform.inverse_transform(x)
