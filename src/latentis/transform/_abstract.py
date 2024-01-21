@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence, Union
 
 import torch
@@ -23,6 +24,10 @@ class Transform(nn.Module):
         self._name: Optional[str] = name
         self._invertible: bool = invertible
 
+    @abstractmethod
+    def fit_stats():
+        raise NotImplementedError
+
     @property
     def name(self) -> str:
         return self._name
@@ -44,14 +49,21 @@ class Transform(nn.Module):
             if k.startswith(Transform._STATE_PREFIX)
         }
 
-    def fit(self, x: torch.Tensor, y=None) -> "Transform":
+    def fit(self, x: torch.Tensor, y: torch.Tensor = None) -> "Transform":
         return self
 
-    def transform(self, x: torch.Tensor, y=None) -> torch.Tensor:
+    def transform(self, x: torch.Tensor, y: torch.Tensor = None) -> torch.Tensor:
         raise NotImplementedError
 
+    def fit_transform(self, x: torch.Tensor, y: torch.Tensor = None) -> torch.Tensor:
+        return self.fit(x=x, y=y).transform(x=x, y=y)
+
     def forward(self, x: torch.Tensor, y=None, inverse: bool = False) -> torch.Tensor:
-        return self.transform(x=x, y=y) if not inverse else self.inverse_transform(x=x, y=y)
+        x, *y = self.transform(x=x, y=y) if not inverse else self.inverse_transform(x=x, y=y)
+        return {
+            "x": x,
+            "y": y[0] if len(y) == 1 else y,
+        }
 
     @property
     def invertible(self) -> bool:
@@ -140,8 +152,7 @@ class TransformSequence(Transform):
 
     def fit(self, x: Space) -> "TransformSequence":
         for transform in self.transforms:
-            transform.fit(x)
-            x = transform.transform(x)
+            x = transform.fit_transform(x)
 
         return self
 
