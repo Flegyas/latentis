@@ -95,8 +95,8 @@ def encode_feature(
             if len(poolers) == 0:
                 assert isinstance(raw_encoding, torch.Tensor)
 
-                dataset.add_encoding(
-                    space=LatentSpace(
+                dataset.add_item(
+                    item=LatentSpace(
                         vector_source=(raw_encoding, batch[dataset._id_column]),
                         info={
                             "model": model.key,
@@ -112,8 +112,8 @@ def encode_feature(
                     encodings = pooler(**raw_encoding)
 
                     for out_name, pooler_out in encodings.items():
-                        dataset.add_encoding(
-                            space=LatentSpace(
+                        dataset.add_item(
+                            item=LatentSpace(
                                 vector_source=(pooler_out, batch[dataset._id_column]),
                                 info={
                                     "model": model.key,
@@ -130,7 +130,7 @@ def encode_feature(
 
 
 if __name__ == "__main__":
-    for dataset in ["trec", "imdb"]:
+    for dataset in ["trec"]:
         dataset = LatentisDataset.load_from_disk(DATA_DIR / dataset)
 
         encode_feature(

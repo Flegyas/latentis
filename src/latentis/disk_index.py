@@ -5,15 +5,13 @@ import shutil
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence, Type
 
+import pandas as pd
+
 from latentis.io_utils import load_json, save_json
-from latentis.types import IndexSerializableMixin, SerializableMixin
-
-_INDEX_FILE: str = "index.json"
-
-Properties = Mapping[str, Any]
+from latentis.types import IndexMixin, IndexSerializableMixin, Properties, SerializableMixin
 
 
-class DiskIndex(SerializableMixin):
+class DiskIndex(IndexMixin, SerializableMixin):
     def __init__(self, root_path: Path, item_class: Type[IndexSerializableMixin]):
         self.root_path = root_path
         self._item_class = item_class
@@ -25,15 +23,25 @@ class DiskIndex(SerializableMixin):
 
     def save_to_disk(self):
         self.root_path.mkdir(exist_ok=True)
-        index_path = self.root_path / _INDEX_FILE
-        save_json(self._index, index_path)
 
         info = {
             "item_class": self._item_class.__name__,
             "item_class_module": self._item_class.__module__,
             "version": self.version,
         }
+
         save_json(info, self.root_path / "info.json")
+
+    @classmethod
+    def _read_index(cls, path: Path, item_class: Type[IndexSerializableMixin]) -> Mapping[str, Mapping[str, Any]]:
+        item_dirs = [item_dir for item_dir in path.iterdir() if item_dir.is_dir()]
+        index = {}
+        for item_dir in item_dirs:
+            item_key = item_dir.name
+            index[item_key] = item_class.load_properties(item_dir)
+            assert item_key == cls._compute_item_key(index[item_key])
+
+        return index
 
     @classmethod
     def load_from_disk(cls, path: Path, *args, **kwargs) -> IndexSerializableMixin:
@@ -41,19 +49,15 @@ class DiskIndex(SerializableMixin):
         module = importlib.import_module(info["item_class_module"])
         item_class = getattr(module, info["item_class"])
 
-        index_path = path / _INDEX_FILE
-        index = load_json(index_path)
-
         instance = cls.__new__(cls)
-        instance._index = index
+        instance._index = cls._read_index(path, item_class=item_class)
         instance.root_path = path
         instance._item_class = item_class
 
         return instance
 
     @staticmethod
-    def _compute_item_key(item: IndexSerializableMixin) -> str:
-        item_properties = item.properties()
+    def _compute_item_key(item_properties: Properties) -> str:
         if len(item_properties) == 0:
             raise ValueError("Item does not have any properties")
         hash_object = hashlib.sha256(json.dumps(item_properties, sort_keys=True).encode(encoding="utf-8"))
@@ -92,7 +96,7 @@ class DiskIndex(SerializableMixin):
         item: IndexSerializableMixin,
         save_args: Mapping[str, Any] = None,
     ) -> str:
-        item_key = self._compute_item_key(item)
+        item_key = self._compute_item_key(item.properties())
 
         if item_key in self._index:
             raise KeyError(f"Key {item_key} already exists in index")
@@ -108,7 +112,7 @@ class DiskIndex(SerializableMixin):
         return item_key
 
     def add_items(self, items: Sequence[IndexSerializableMixin], save_args: Mapping[str, Any] = None) -> Sequence[str]:
-        item_keys = [self._compute_item_key(item) for item in items]
+        item_keys = [self._compute_item_key(item.properties()) for item in items]
 
         # Avoid adding any of the items if any of the keys already exist
         if any(item_key in self._index for item_key in item_keys):
@@ -158,6 +162,10 @@ class DiskIndex(SerializableMixin):
     def get_items(self, item_key: Optional[str] = None, **properties: Any) -> Mapping[str, Properties]:
         items_to_get = self._resolve_items(item_key=item_key, **properties)
         return {item: self._index[item] for item in items_to_get}
+
+    def get_items_df(self, item_key: Optional[str] = None, **properties: Any) -> pd.DataFrame:
+        items = self.get_items(item_key=item_key, **properties)
+        return pd.DataFrame.from_dict(items, orient="index").reset_index(names="item_key")
 
     def get_item_key(self, **properties: Any) -> str:
         item_to_load = self._resolve_item(item_key=None, **properties)
