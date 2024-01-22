@@ -11,7 +11,7 @@ from latentis.modules import Decoder, LatentisModule
 from latentis.space.search import SearchIndex, SearchMetric
 from latentis.space.vector_source import TensorSource, VectorSource
 from latentis.transform import Transform
-from latentis.types import SerializableMixin, StrEnum
+from latentis.types import IndexSerializableMixin, StrEnum
 
 if TYPE_CHECKING:
     from latentis.sample import Sampler
@@ -28,7 +28,6 @@ class _SpaceMetadata(StrEnum):
     _VERSION = auto()
     _VECTOR_SOURCE = auto()
     _TYPE = auto()
-    _SPACE_ID = auto()
 
 
 SpaceInfo = Mapping[str, Any]
@@ -36,11 +35,10 @@ SpaceInfo = Mapping[str, Any]
 _INFO_FILE_NAME = "info.json"
 
 
-class LatentSpace(SerializableMixin):
+class LatentSpace(IndexSerializableMixin):
     def __init__(
         self,
         vector_source: Optional[Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]],
-        space_id: Optional[str] = None,
         decoders: Optional[Dict[str, Decoder]] = None,
         source_model: Optional[LatentisModule] = None,
         info: Optional[Mapping[str, Any]] = None,
@@ -71,11 +69,11 @@ class LatentSpace(SerializableMixin):
         info[_SpaceMetadata._VERSION] = self.version
         info[_SpaceMetadata._TYPE] = LatentSpace.__name__
         info[_SpaceMetadata._VECTOR_SOURCE] = type(self._vector_source).__name__
-        info[_SpaceMetadata._SPACE_ID] = space_id
-
-        self._space_id = space_id
 
         self._info = info.copy()
+
+    def properties(self) -> Dict[str, Any]:
+        return copy.deepcopy(self.info)
 
     def split(self):
         raise NotImplementedError
@@ -102,10 +100,6 @@ class LatentSpace(SerializableMixin):
 
     def get_vector_by_key(self, key: str) -> torch.Tensor:
         return self._vector_source.get_vector_by_key(key=key)
-
-    @property
-    def space_id(self) -> str:
-        return self._space_id
 
     def save_to_disk(
         self,
@@ -170,7 +164,6 @@ class LatentSpace(SerializableMixin):
         space._vector_source = vector_source
         space._decoders = decoders
         space._source_model = model
-        space._space_id = info[_SpaceMetadata._SPACE_ID]
 
         return space
 
@@ -197,7 +190,6 @@ class LatentSpace(SerializableMixin):
         cls,
         #
         space: LatentSpace,
-        space_id: Optional[str] = None,
         vector_source: Optional[Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]] = None,
         decoders: Optional[Dict[str, Decoder]] = None,
         info: Optional[Mapping[str, Any]] = None,
@@ -217,9 +209,6 @@ class LatentSpace(SerializableMixin):
         Returns:
             LatentSpace: The new space, with the arguments not provided taken from the given space.
         """
-        if space_id is None:
-            space_id = space.space_id if not deepcopy else copy.deepcopy(space.space_id)
-
         if vector_source is None:
             vector_source = space.vector_source if not deepcopy else copy.deepcopy(space.vector_source)
 
@@ -233,7 +222,6 @@ class LatentSpace(SerializableMixin):
 
         # TODO: test deepcopy
         return LatentSpace(
-            space_id=space_id,
             vector_source=vector_source,
             decoders=decoders,
             info=info,
@@ -246,6 +234,9 @@ class LatentSpace(SerializableMixin):
     def __getitem__(self, index: Union[int, Sequence[int], slice]) -> Mapping[str, torch.Tensor]:
         return self._vector_source[index]
 
+    def __iter__(self):
+        return iter(self._vector_source)
+
     def __len__(self) -> int:
         return len(self._vector_source)
 
@@ -253,11 +244,7 @@ class LatentSpace(SerializableMixin):
         return f"{self.__class__.__name__}(vectors={self.vectors.shape}, metadata={self.info})"
 
     def __eq__(self, __value: object) -> bool:
-        return (
-            self._space_id == __value._space_id
-            and self.info == __value.info
-            and self.vector_source == __value.vector_source
-        )
+        return self.info == __value.info and self.vector_source == __value.vector_source
 
     def add_vectors(self, vectors: torch.Tensor, keys: Optional[Sequence[str]] = None) -> None:
         """Add vectors to this space.
