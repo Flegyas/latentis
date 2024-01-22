@@ -131,8 +131,8 @@ class LatentSpace(IndexSerializableMixin):
             for decoder in self._decoders.values():
                 save_model(model=decoder, target_path=target_path / "decoders" / decoder.name, version=self.version)
 
-    @staticmethod
-    def load_info(space_path: Path) -> Dict[str, Any]:
+    @classmethod
+    def load_properties(cls, space_path: Path) -> Dict[str, Any]:
         metadata = load_json(space_path / _INFO_FILE_NAME)
 
         return metadata
@@ -143,7 +143,7 @@ class LatentSpace(IndexSerializableMixin):
         vector_source = TensorSource.load_from_disk(path / "vectors")
 
         # load metadata
-        info = cls.load_info(path)
+        info = cls.load_properties(path)
 
         # load decoders
         decoders = {}

@@ -69,6 +69,9 @@ def test_index(tmp_path: Path):
     # also the load
     assert len(index.load_items()) == len(index)
 
+    index_restored = DiskIndex.load_from_disk(tmp_path / "test_index")
+    assert len(index_restored) == len(index)
+
     # also removing them all D:
     index.remove_items()
     assert len(index) == 0
