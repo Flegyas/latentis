@@ -170,6 +170,7 @@ class LatentSpace(SerializableMixin):
         space._vector_source = vector_source
         space._decoders = decoders
         space._source_model = model
+        space._space_id = info[_SpaceMetadata._SPACE_ID]
 
         return space
 
