@@ -39,7 +39,7 @@ class SerializableMixin:
 
 class IndexSerializableMixin(SerializableMixin):
     @abstractmethod
-    def primary_keys(self) -> Dict[str, Any]:
+    def properties(self) -> Dict[str, Any]:
         raise NotImplementedError
 
 

@@ -53,10 +53,10 @@ class DiskIndex(SerializableMixin):
 
     @staticmethod
     def _compute_item_key(item: IndexSerializableMixin) -> str:
-        primary_keys = item.primary_keys()
-        if len(primary_keys) == 0:
-            raise ValueError("Item does not have any primary keys")
-        hash_object = hashlib.sha256(json.dumps(primary_keys, sort_keys=True).encode())
+        item_properties = item.properties()
+        if len(item_properties) == 0:
+            raise ValueError("Item does not have any properties")
+        hash_object = hashlib.sha256(json.dumps(item_properties, sort_keys=True).encode(encoding="utf-8"))
         return hash_object.hexdigest()
 
     def _resolve_items(self, item_key: Optional[str] = None, **properties: Any) -> Sequence[str]:
@@ -97,11 +97,11 @@ class DiskIndex(SerializableMixin):
         if item_key in self._index:
             raise KeyError(f"Key {item_key} already exists in index")
 
-        primary_keys = item.primary_keys()
+        primary_keys = item.properties()
         if len(primary_keys) == 0:
-            raise ValueError("Item does not have any primary keys")
+            raise ValueError("Item does not have any properties")
 
-        self._index[item_key] = item.primary_keys()
+        self._index[item_key] = item.properties()
 
         item.save_to_disk(self.root_path / item_key, **(save_args or {}))
         self.save_to_disk()
@@ -114,11 +114,11 @@ class DiskIndex(SerializableMixin):
         if any(item_key in self._index for item_key in item_keys):
             raise KeyError("One of the keys already exists in index")
 
-        if any(len(item.primary_keys()) == 0 for item in items):
-            raise ValueError("One of the items does not have any primary keys")
+        if any(len(item.properties()) == 0 for item in items):
+            raise ValueError("One of the items does not have any properties")
 
         for item, item_key in zip(items, item_keys):
-            self._index[item_key] = item.primary_keys()
+            self._index[item_key] = item.properties()
             item.save_to_disk(self.root_path / item_key, **(save_args or {}))
 
         self.save_to_disk()

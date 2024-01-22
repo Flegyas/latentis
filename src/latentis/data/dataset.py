@@ -237,10 +237,10 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
         save_source_model: bool,
     ) -> LatentSpace:
         try:
-            existing_space = self._encoding_index.load_item(**space.primary_keys())
+            existing_space = self._encoding_index.load_item(**space.properties())
             existing_space.add_vectors(vectors=space.vectors, keys=space.keys)
 
-            target_path = self._encoding_index.get_item_path(**space.primary_keys())
+            target_path = self._encoding_index.get_item_path(**space.properties())
 
             existing_space.save_to_disk(
                 target_path,

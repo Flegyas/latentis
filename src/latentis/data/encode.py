@@ -12,8 +12,7 @@ from latentis.data.dataset import Feature
 from latentis.data.processor import LatentisDataset
 from latentis.data.text_encoding import HFPooler, cls_pool
 from latentis.data.utils import default_collate
-from latentis.nn._base import LatentisModule
-from latentis.nn.encoders import TextHFEncoder
+from latentis.modules import LatentisModule, TextHFEncoder
 from latentis.space import LatentSpace
 
 pylogger = logging.getLogger(__name__)
