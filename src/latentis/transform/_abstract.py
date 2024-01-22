@@ -190,5 +190,10 @@ class Estimator(Transform):
     ) -> None:
         super().__init__(name=name, invertible=invertible)
 
-        self.x_space = x_space
-        self.y_space = y_space
+        self._x_space = x_space
+        self._y_space = y_space
+
+    def set_spaces(self, x_space: torch.Tensor, y_space: torch.Tensor) -> "Estimator":
+        self._x_space = x_space
+        self._y_space = y_space
+        return self

@@ -6,12 +6,12 @@ from enum import auto
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Union
 
-from latentis.io_utils import load_json, load_model, save_json, save_model
 from latentis.modules import Decoder, LatentisModule
+from latentis.serialize.io_utils import IndexSerializableMixin, load_json, load_model, save_json, save_model
 from latentis.space.search import SearchIndex, SearchMetric
 from latentis.space.vector_source import TensorSource, VectorSource
 from latentis.transform import Transform
-from latentis.types import IndexSerializableMixin, StrEnum
+from latentis.types import StrEnum
 
 if TYPE_CHECKING:
     from latentis.sample import Sampler

@@ -6,15 +6,14 @@ from enum import auto
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
 
-import pandas as pd
 from datasets import DatasetDict
 from torch import nn
 
 from latentis.data import DATA_DIR
-from latentis.disk_index import DiskIndex
-from latentis.io_utils import load_json, save_json
+from latentis.serialize.disk_index import DiskIndex
+from latentis.serialize.io_utils import MetadataMixin, SerializableMixin, load_json, save_json
 from latentis.space import LatentSpace
-from latentis.types import IndexMixin, MetadataMixin, SerializableMixin, StrEnum
+from latentis.types import StrEnum
 
 pylogger = logging.getLogger(__name__)
 
@@ -51,7 +50,7 @@ class FeatureMapping:
     target_col: str
 
 
-class LatentisDataset(IndexMixin, SerializableMixin, MetadataMixin):
+class LatentisDataset(SerializableMixin, MetadataMixin):
     def __init__(
         self,
         name: str,
@@ -81,7 +80,7 @@ class LatentisDataset(IndexMixin, SerializableMixin, MetadataMixin):
         self._perc: float = perc
         self._properties: Mapping[DatasetProperty, Any] = properties or {}
         self._root_dir: Path = parent_dir / name
-        self._encoding_index = DiskIndex(self._root_dir / "encodings", item_class=LatentSpace)
+        self.encodings = DiskIndex(self._root_dir / "encodings", item_class=LatentSpace)
 
     def save_to_disk(self):
         target_path = self._root_dir
@@ -96,7 +95,7 @@ class LatentisDataset(IndexMixin, SerializableMixin, MetadataMixin):
 
         save_json(self.metadata, target_path / self._METADATA_FILE_NAME, indent=4)
 
-        self._encoding_index.save_to_disk()
+        self.encodings.save_to_disk()
 
     @classmethod
     def load_from_disk(
@@ -123,7 +122,7 @@ class LatentisDataset(IndexMixin, SerializableMixin, MetadataMixin):
         dataset._perc: float = metadata["perc"]
         dataset._root_dir: Path = path
         dataset._properties = properties
-        dataset._encoding_index = DiskIndex.load_from_disk(path=path / "encodings")
+        dataset.encodings = DiskIndex.load_from_disk(path=path / "encodings")
 
         return dataset
 
@@ -179,17 +178,18 @@ class LatentisDataset(IndexMixin, SerializableMixin, MetadataMixin):
     def load_decoders(self, encodings: Sequence[str]) -> Mapping[str, nn.Module]:
         raise NotImplementedError
 
-    def add_item(
+    def add_encoding(
         self,
         item: LatentSpace,
         save_source_model: bool,
     ) -> LatentSpace:
+        # TODO: add consistency check to make sure that the item is compatible with the dataset
         try:
-            existing_space = self._encoding_index.load_item(**item.properties())
+            existing_space = self.encodings.load_item(**item.properties())
             existing_space.add_vectors(vectors=item.vectors, keys=item.keys)
 
             # TODO: This is a hack, we are bypassing the index
-            target_path = self._encoding_index.get_item_path(**item.properties())
+            target_path = self.encodings.get_item_path(**item.properties())
             existing_space.save_to_disk(
                 target_path,
                 save_vector_source=True,
@@ -198,7 +198,7 @@ class LatentisDataset(IndexMixin, SerializableMixin, MetadataMixin):
                 save_decoders=False,
             )
         except KeyError:
-            return self._encoding_index.add_item(
+            return self.encodings.add_item(
                 item=item,
                 save_args={
                     "save_vector_source": True,
@@ -208,58 +208,15 @@ class LatentisDataset(IndexMixin, SerializableMixin, MetadataMixin):
                 },
             )
 
-    def add_items(
+    def add_encodings(
         self,
         items: Sequence[LatentSpace],
         save_source_model: bool,
     ) -> Sequence[str]:
         for space in items:
-            self.add_item(item=space, save_source_model=save_source_model)
-
-    def remove_item(self, item_key: Optional[str] = None, **properties) -> str:
-        return self._encoding_index.remove_item(item_key=item_key, **properties)
-
-    def remove_items(self, item_key: Optional[str] = None, **properties) -> Sequence[str]:
-        return self._encoding_index.remove_items(item_key=item_key, **properties)
-
-    def load_item(self, item_key: Optional[str] = None, **properties) -> LatentSpace:
-        return self._encoding_index.load_item(item_key=item_key, **properties)
-
-    def load_items(self, item_key: Optional[str] = None, **properties) -> Mapping[str, LatentSpace]:
-        return self._encoding_index.load_items(item_key=item_key, **properties)
-
-    def get_item_path(self, item_key: Optional[str] = None, **properties) -> Path:
-        return self._encoding_index.get_item_path(item_key=item_key, **properties)
-
-    def get_items_path(self, item_key: Optional[str] = None, **properties) -> Mapping[str, Path]:
-        return self._encoding_index.get_items_path(item_key=item_key, **properties)
-
-    def get_item(self, item_key: Optional[str] = None, **properties) -> Mapping[str, Any]:
-        return self._encoding_index.get_item(item_key=item_key, **properties)
-
-    def get_items(self, item_key: Optional[str] = None, **properties) -> Mapping[str, Mapping[str, Any]]:
-        """Scans the encodings directory and returns a mapping from feature to available encodings.
-
-        Returns:
-            Mapping[str, Mapping[str, Any]]: Mapping from feature to split to available encodings.
-        """
-        return self._encoding_index.get_items(item_key=item_key, **properties)
-
-    def get_items_df(self, item_key: Optional[str] = None, **properties) -> pd.DataFrame:
-        """Scans the encodings directory and returns a DataFrame view of the available encodings.
-
-        Returns:
-            pd.DataFrame: DataFrame view of the available encodings.
-        """
-        return self._encoding_index.get_items_df(item_key=item_key, **properties)
-
-    def get_item_key(self, **properties) -> str:
-        return self._encoding_index.get_item_key(**properties)
-
-    def clear(self):
-        self._encoding_index.clear()
+            self.add_encoding(item=space, save_source_model=save_source_model)
 
 
 if __name__ == "__main__":
-    dataset = LatentisDataset.load_from_disk(DATA_DIR / "trec")
-    print(dataset.get_items_df())
+    dataset = LatentisDataset.load_from_disk(DATA_DIR / "imdb")
+    print(dataset.encodings.get_items_df())
