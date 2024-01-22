@@ -1,20 +1,18 @@
 import logging
 import shutil
-from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import auto
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
 
-import pyarrow.parquet as pq
-import torch
 from datasets import DatasetDict
 from torch import nn
 
 from latentis.data import DATA_DIR
+from latentis.data.disk_index import DiskIndex
 from latentis.io_utils import load_json, save_json
-from latentis.space import EncodingKey, LatentSpace
+from latentis.space import LatentSpace
 from latentis.types import MetadataMixin, SerializableMixin, StrEnum
 
 pylogger = logging.getLogger(__name__)
@@ -82,6 +80,7 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
         self._perc: float = perc
         self._properties: Mapping[DatasetProperty, Any] = properties or {}
         self._root_dir: Path = parent_dir / name
+        self._encoding_index = DiskIndex(self._root_dir / "encodings", item_class=LatentSpace)
 
     @property
     def name(self) -> str:
@@ -129,68 +128,6 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
     def __repr__(self):
         return f"{self.__class__.__name__}(features={self._features}, perc={self._perc}, metadata={self.metadata})"
 
-    #
-    # def load_encodings(self, encoding2splits: Mapping[str, Sequence[str]]) -> Mapping[str, Mapping[str, torch.Tensor]]:
-    #     result = {}
-
-    #     for encoding, splits in encoding2splits.items():
-    #         split2dataset = {}
-    #         for split in splits:
-    #             encodings_path = (
-    #                 self.parent_dir
-    #                 / self.name
-    #                 / LatentisDataset.get_key(dataset_name=self.name, perc=self.perc, properties=self.properties)
-    #                 / "encodings"
-    #                 / encoding
-    #                 / split
-    #             )
-
-    #             if not encodings_path.exists():
-    #                 raise FileNotFoundError
-
-    #             split2dataset[split] = Dataset.load_from_disk(encodings_path)
-
-    #         result[encoding] = DatasetDict(split2dataset)
-
-    #     return result
-
-    # DATASETS VERSION
-    # def with_encodings(self, encodings: Sequence[str]) -> "LatentisDataset":
-    #     result = self.dataset
-    #     for encoding in encodings:
-    #         encoding2split2data = self.load_encodings({encoding: self.dataset.keys()})
-
-    #         for encoding, split2data in encoding2split2data.items():
-    #             for split, split_data in split2data.items():
-    #                 result[split] = datasets.concatenate_datasets([result[split], split_data], axis=1)
-
-    #     return LatentisDataset(
-    #         name=self.name,
-    #         dataset=result,
-    #         id_column=self.id_column,
-    #         features=self.features,
-    #         perc=self.perc,
-    #         properties=self.properties,
-    #         parent_dir=self.parent_dir,
-    #     )
-
-    def load_encodings(self, encoding2splits: Mapping[str, Sequence[str]]) -> Mapping[str, Mapping[str, torch.Tensor]]:
-        result = {}
-
-        for encoding, splits in encoding2splits.items():
-            split2dataset = {}
-            for split in splits:
-                encodings_path = self._root_dir / "encodings" / encoding / split / "encodings.parquet"
-
-                if not encodings_path.exists():
-                    raise FileNotFoundError
-
-                split2dataset[split] = pq.read_table(encodings_path)
-
-            result[encoding] = split2dataset
-
-        return result
-
     # def with_encodings(self, encodings: Sequence[str]) -> "LatentisDataset":
     #     # result = self.dataset
 
@@ -221,42 +158,15 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
     def load_decoders(self, encodings: Sequence[str]) -> Mapping[str, nn.Module]:
         raise NotImplementedError
 
-    def get_available_encodings(self, *features: Feature) -> Mapping[Feature, Mapping[str, Sequence[str]]]:
+    def get_available_encodings(self, **properties) -> Mapping[str, Mapping[str, Any]]:
         """Scans the encodings directory and returns a mapping from feature to available encodings.
 
         Returns:
-            Mapping[Feature, Mapping[str, Sequence[str]]]: Mapping from feature to split to available encodings.
+            Mapping[str, Mapping[str, Any]]: Mapping from feature to split to available encodings.
 
         """
-        features = features or self._features
-
-        feature2split2model2encodings = {}
-
-        for feature in features:
-            assert feature in self._features, f"Feature {feature} not available in dataset {self._name}!"
-
-            encodings_dir = self.root_dir / "encodings" / feature.col_name
-
-            if not encodings_dir.exists():
-                pylogger.warning(f"Feature {feature} has no encodings!")
-
-            if not encodings_dir.exists():
-                return {}
-
-            split2model2encodings = defaultdict(dict)
-
-            for split_dir in encodings_dir.iterdir():
-                assert split_dir.is_dir(), f"Expected {split_dir} to be a directory!"
-                split = split_dir.name
-                for model_dir in split_dir.iterdir():
-                    assert model_dir.is_dir(), f"Expected {model_dir} to be a directory!"
-                    model = model_dir.name
-                    encodings = list(model_dir.iterdir())
-                    split2model2encodings[split][model] = [encoding.name for encoding in encodings]
-
-            feature2split2model2encodings[feature] = split2model2encodings
-
-        return feature2split2model2encodings
+        # TODO:use the index
+        raise NotImplementedError
 
     # DATASETS VERSION
     # def add_encoding(self, encoding_key: str, split: str, id2encoding: Mapping[str, torch.Tensor]):
@@ -319,52 +229,45 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
     def get_encoding(
         self, feature: Feature, encoder_key: str, encoding_key: str, split: str, load_source_model: bool = False
     ) -> LatentSpace:
-        target_path = self._root_dir / "encodings" / feature.col_name / split / encoder_key / encoding_key
-
-        if not target_path.exists():
-            raise FileNotFoundError(
-                f"Encoding {encoding_key} for feature {feature} and split {split} not found! Path: {target_path}"
-            )
-
-        space = LatentSpace.load_from_disk(path=target_path, load_source_model=load_source_model)
-
-        return space
+        raise NotImplementedError
 
     def add_encoding(
         self,
-        vectors: torch.Tensor,
-        keys: Sequence[str],
-        encoding_key: EncodingKey,
+        space: LatentSpace,
         save_source_model: bool,
     ) -> LatentSpace:
-        target_path = encoding_key.get_path(self.root_dir.parent)
+        space_id = space.space_id
+        properties = space.info
+        if space_id is None:
+            item = self._encoding_index.get_item_by_properties(**properties)
+        else:
+            item = self._encoding_index.get_item_by_key(space_id)
 
-        if target_path.exists():
-            space = LatentSpace.load_from_disk(path=target_path, load_source_model=False)
-
-            assert (
-                encoding_key == space.encoding_key
-            ), f"Encoding key of pre-existing space {space.encoding_key} does not match {encoding_key}"
-
-            space.add_vectors(vectors=vectors, keys=keys)
-            space.save_to_disk(
-                target_path,
-                save_vector_source=True,
-                save_metadata=False,
-                save_source_model=False,
-                save_decoders=False,
+        if item is None:
+            return self._encoding_index.add_item(
+                item=space,
+                item_key=space_id,
+                properties=properties,
+                save_args={
+                    "save_vector_source": True,
+                    "save_info": True,
+                    "save_source_model": save_source_model,
+                    "save_decoders": True,
+                },
             )
         else:
-            space = LatentSpace(vector_source=vectors, keys=keys, encoding_key=encoding_key)
-            space.save_to_disk(
+            existing_space = self._encoding_index.load_item(item_key=space_id, **properties)
+            existing_space.add_vectors(vectors=space.vectors, keys=space.keys)
+
+            target_path = self._encoding_index.get_item_path(item_key=list(item.keys())[0])
+
+            existing_space.save_to_disk(
                 target_path,
                 save_vector_source=True,
-                save_metadata=True,
-                save_source_model=True,
-                save_decoders=True,
+                save_info=False,
+                save_source_model=save_source_model,
+                save_decoders=False,
             )
-
-        return space
 
     def save_to_disk(self):
         target_path = self._root_dir
@@ -378,6 +281,8 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
             shutil.copy(self._root_dir / "encodings", target_path / "encodings")
 
         save_json(self.metadata, target_path / self._METADATA_FILE_NAME, indent=4)
+
+        self._encoding_index.save_to_disk()
 
     @classmethod
     def load_from_disk(
@@ -404,5 +309,6 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
         dataset._perc: float = metadata["perc"]
         dataset._root_dir: Path = path
         dataset._properties = properties
+        dataset._encoding_index = DiskIndex.load_from_disk(path=path / "encodings")
 
         return dataset
