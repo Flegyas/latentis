@@ -4,7 +4,7 @@ from typing import Mapping
 import pytest
 import torch
 
-from latentis.disk_index import DiskIndex
+from latentis.serialize.disk_index import DiskIndex
 from latentis.space import LatentSpace
 from latentis.utils import seed_everything
 

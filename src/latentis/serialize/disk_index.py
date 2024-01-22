@@ -7,11 +7,11 @@ from typing import Any, Mapping, Optional, Sequence, Type
 
 import pandas as pd
 
-from latentis.io_utils import load_json, save_json
-from latentis.types import IndexMixin, IndexSerializableMixin, Properties, SerializableMixin
+from latentis.serialize.io_utils import IndexSerializableMixin, SerializableMixin, load_json, save_json
+from latentis.types import Properties
 
 
-class DiskIndex(IndexMixin, SerializableMixin):
+class DiskIndex(SerializableMixin):
     def __init__(self, root_path: Path, item_class: Type[IndexSerializableMixin]):
         self.root_path = root_path
         self._item_class = item_class

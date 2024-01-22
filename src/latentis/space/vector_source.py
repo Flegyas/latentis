@@ -8,7 +8,7 @@ from typing import Optional, Sequence, Union
 import torch
 
 from latentis.data.utils import BiMap
-from latentis.types import SerializableMixin
+from latentis.serialize.io_utils import SerializableMixin
 
 pylogger = logging.getLogger(__name__)
 
