@@ -59,7 +59,7 @@ class DiskIndex(SerializableMixin):
         hash_object = hashlib.sha256(json.dumps(primary_keys, sort_keys=True).encode())
         return hash_object.hexdigest()
 
-    def _resolve_items(self, item_key: Optional[str] = None, **properties: Properties) -> Sequence[str]:
+    def _resolve_items(self, item_key: Optional[str] = None, **properties: Any) -> Sequence[str]:
         if item_key is not None:
             if item_key not in self._index:
                 raise KeyError(f"Key {item_key} does not exist in index")
@@ -71,7 +71,7 @@ class DiskIndex(SerializableMixin):
                     result.append(key)
             return result
 
-    def _resolve_item(self, item_key: Optional[str] = None, **properties: Properties) -> str:
+    def _resolve_item(self, item_key: Optional[str] = None, **properties: Any) -> str:
         items = self._resolve_items(item_key=item_key, **properties)
         if len(items) == 0:
             raise KeyError(f"No items matching {properties} found")
@@ -124,12 +124,12 @@ class DiskIndex(SerializableMixin):
         self.save_to_disk()
         return item_keys
 
-    def remove_item(self, item_key: Optional[str] = None, **properties: Properties) -> str:
+    def remove_item(self, item_key: Optional[str] = None, **properties: Any) -> str:
         item_to_remove = self._resolve_item(item_key=item_key, **properties)
         self._remove_item_by_key(item_to_remove)
         return item_to_remove
 
-    def remove_items(self, item_key: Optional[str] = None, **properties: Properties) -> Sequence[str]:
+    def remove_items(self, item_key: Optional[str] = None, **properties: Any) -> Sequence[str]:
         items_to_remove = self._resolve_items(item_key=item_key, **properties)
         for item in items_to_remove:
             self._remove_item_by_key(item)
@@ -151,11 +151,11 @@ class DiskIndex(SerializableMixin):
         items_to_load = self._resolve_items(item_key=item_key, **properties)
         return {item: self.root_path / item for item in items_to_load}
 
-    def get_item(self, item_key: Optional[str] = None, **properties: Properties) -> Mapping[str, Properties]:
+    def get_item(self, item_key: Optional[str] = None, **properties: Any) -> Mapping[str, Properties]:
         item_to_get = self._resolve_item(item_key=item_key, **properties)
         return {item_to_get: self._index[item_to_get]}
 
-    def get_items(self, item_key: Optional[str] = None, **properties: Properties) -> Mapping[str, Properties]:
+    def get_items(self, item_key: Optional[str] = None, **properties: Any) -> Mapping[str, Properties]:
         items_to_get = self._resolve_items(item_key=item_key, **properties)
         return {item: self._index[item] for item in items_to_get}
 
