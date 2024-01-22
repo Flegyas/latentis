@@ -64,23 +64,23 @@ class DiskIndex(IndexMixin, SerializableMixin):
         return hash_object.hexdigest()
 
     def _resolve_items(self, item_key: Optional[str] = None, **properties: Any) -> Sequence[str]:
+        candidates_items = list(self._index.keys())
+
         if item_key is not None:
-            if item_key not in self._index:
-                raise KeyError(f"Key {item_key} does not exist in index")
-            return [item_key]
-        else:
-            result = []
-            for key, item in self._index.items():
-                if all(item.get(p, None) == v for p, v in properties.items()):
-                    result.append(key)
-            return result
+            candidates_items = [x for x in self._index.keys() if x.startswith(item_key)]
+            if len(candidates_items) == 0:
+                raise KeyError(f"No items with key prefix '{item_key}' found")
+
+        return [
+            key for key in candidates_items if all(self._index[key].get(p, None) == v for p, v in properties.items())
+        ]
 
     def _resolve_item(self, item_key: Optional[str] = None, **properties: Any) -> str:
         items = self._resolve_items(item_key=item_key, **properties)
         if len(items) == 0:
-            raise KeyError(f"No items matching {properties} found")
+            raise KeyError(f"No items with key prefix '{item_key}' matching {properties} found")
         elif len(items) > 1:
-            raise ValueError(f"Multiple items matching {properties} found, colliding on {items}")
+            raise ValueError(f"Multiple items with key prefix '{item_key}' matching {properties} found")
         return items[0]
 
     def _remove_item_by_key(self, item_key: str) -> None:
