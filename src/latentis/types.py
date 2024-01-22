@@ -37,6 +37,12 @@ class SerializableMixin:
         raise NotImplementedError
 
 
+class IndexSerializableMixin(SerializableMixin):
+    @abstractmethod
+    def properties(self) -> Dict[str, Any]:
+        raise NotImplementedError
+
+
 class MetadataMixin:
     _METADATA_FILE_NAME: str = "metadata.json"
 
