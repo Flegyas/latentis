@@ -5,7 +5,7 @@ import pandas as pd
 from transformers import BatchEncoding
 
 from latentis.modules import LatentisModule
-from latentis.types import SerializableMixin
+from latentis.serialize.io_utils import SerializableMixin
 
 
 class BiMap(SerializableMixin):
