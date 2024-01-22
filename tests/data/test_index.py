@@ -63,7 +63,7 @@ def test_index(tmp_path: Path):
     assert item.space_id == random_ids[0]
 
     # get item by properties
-    item = index.get_item_by_properties(p1=random_properties[1]["p1"])
+    item = index.load_item(p1=random_properties[1]["p1"])
     assert isinstance(item, LatentSpace)
 
     # get item by properties with multiple matches
@@ -71,8 +71,7 @@ def test_index(tmp_path: Path):
         index.get_item_by_properties(p2="value2")
 
     # get item by properties with no matches
-    with pytest.raises(KeyError):
-        index.get_item_by_properties(p2="value3")
+    assert index.get_item_by_properties(p2="value3") is None
 
     for x in range(n_items):
         index.remove_item_by_key(f"test_{x}")

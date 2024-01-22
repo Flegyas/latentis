@@ -11,13 +11,19 @@ _INDEX_FILE: str = "index.json"
 
 
 class DiskIndex(SerializableMixin):
-    def save_to_disk(self, *args, **kwargs):
+    @property
+    def version(self) -> str:
+        return -42
+
+    def save_to_disk(self):
+        self.root_path.mkdir(exist_ok=True)
         index_path = self.root_path / _INDEX_FILE
         save_json(self._index, index_path)
 
         info = {
             "item_class": self._item_class.__name__,
             "item_class_module": self._item_class.__module__,
+            "version": self.version,
         }
         save_json(info, self.root_path / "info.json")
 
@@ -42,19 +48,22 @@ class DiskIndex(SerializableMixin):
         self._item_class = item_class
         self._index: Mapping[str, Mapping[str, Any]] = {}
 
-    def add_item(self, item: SerializableMixin, item_key: Optional[str] = None, properties: Mapping[str, Any] = None):
+    def add_item(
+        self,
+        item: SerializableMixin,
+        item_key: Optional[str] = None,
+        properties: Mapping[str, Any] = None,
+        save_args: Mapping[str, Any] = None,
+    ):
         if item_key is None:
             item_key = uuid.uuid4().hex
 
         if item_key in self._index:
             raise KeyError(f"Key {item_key} already exists in index")
 
-        self._index[item_key] = {
-            "properties": properties or {},
-            "version": item.version,
-        }
+        self._index[item_key] = properties or {}
 
-        item.save_to_disk(self.root_path / item_key)
+        item.save_to_disk(self.root_path / item_key, **(save_args or {}))
         self.save_to_disk()
 
     def remove_item_by_key(self, item_key: str):
@@ -69,7 +78,7 @@ class DiskIndex(SerializableMixin):
         removed_items = []
 
         for key, item in self.index.items():
-            if all(item["properties"].get(p, None) == v for p, v in properties.items()):
+            if all(item.get(p, None) == v for p, v in properties.items()):
                 del self._index[key]
                 self.save_to_disk()
                 shutil.rmtree(self.root_path / key)
@@ -81,11 +90,11 @@ class DiskIndex(SerializableMixin):
         return self._item_class.load_from_disk(self.root_path / item_key)
 
     def get_items_by_properties(self, **properties: Mapping[str, Any]) -> SerializableMixin:
-        result = []
+        result = {}
 
         for key, item in self._index.items():
-            if all(item["properties"].get(p, None) == v for p, v in properties.items()):
-                result.append(self._item_class.load_from_disk(self.root_path / key))
+            if all(item.get(p, None) == v for p, v in properties.items()):
+                result[key] = item
 
         return result
 
@@ -93,16 +102,25 @@ class DiskIndex(SerializableMixin):
         result = None
 
         for key, item in self._index.items():
-            if all(item["properties"].get(p, None) == v for p, v in properties.items()):
+            if all(item.get(p, None) == v for p, v in properties.items()):
                 if result is not None:
                     raise KeyError(f"Multiple items matching {properties} found")
 
-                result = self._item_class.load_from_disk(self.root_path / key)
-
-        if result is None:
-            raise KeyError(f"No item matching {properties} found")
+                # result = self._item_class.load_from_disk(self.root_path / key)
+                result = {key: item}
 
         return result
+
+    def load_item(self, item_key: Optional[str] = None, **properties) -> SerializableMixin:
+        if item_key is not None:
+            return self._item_class.load_from_disk(self.root_path / item_key)
+        else:
+            return self._item_class.load_from_disk(
+                self.root_path / list(self.get_item_by_properties(**properties).keys())[0]
+            )
+
+    def get_item_path(self, item_key: str) -> Path:
+        return self.root_path / item_key
 
     def clear(self):
         self._index = {}

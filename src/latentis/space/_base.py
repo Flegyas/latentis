@@ -50,13 +50,13 @@ class LatentSpace(SerializableMixin):
         if vector_source is None:
             vector_source = torch.empty(0)
 
-        assert isinstance(
-            vector_source, (torch.Tensor, VectorSource)
-        ), f"Expected {torch.Tensor} or {VectorSource}, got {type(vector_source)}"
-
         # add "keys" as second element of tuple if not present
         if isinstance(vector_source, torch.Tensor):
             vector_source = (vector_source, None)
+
+        assert isinstance(
+            vector_source, (torch.Tensor, Tuple, VectorSource)
+        ), f"Expected {torch.Tensor} or {VectorSource} or {Tuple[torch.Tensor, Sequence[str]]}, got {type(vector_source)}"
 
         self._vector_source: torch.Tensor = (
             TensorSource(vectors=vector_source[0], keys=vector_source[1])
