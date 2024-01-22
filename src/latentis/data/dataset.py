@@ -10,7 +10,7 @@ from datasets import DatasetDict
 from torch import nn
 
 from latentis.data import DATA_DIR
-from latentis.data.disk_index import DiskIndex
+from latentis.disk_index import DiskIndex
 from latentis.io_utils import load_json, save_json
 from latentis.space import LatentSpace
 from latentis.types import MetadataMixin, SerializableMixin, StrEnum
@@ -236,30 +236,11 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
         space: LatentSpace,
         save_source_model: bool,
     ) -> LatentSpace:
-        space_id = space.space_id
-        properties = space.info
-        if space_id is None:
-            item = self._encoding_index.get_item_by_properties(**properties)
-        else:
-            item = self._encoding_index.get_item_by_key(space_id)
-
-        if item is None:
-            return self._encoding_index.add_item(
-                item=space,
-                item_key=space_id,
-                properties=properties,
-                save_args={
-                    "save_vector_source": True,
-                    "save_info": True,
-                    "save_source_model": save_source_model,
-                    "save_decoders": True,
-                },
-            )
-        else:
-            existing_space = self._encoding_index.load_item(item_key=space_id, **properties)
+        try:
+            existing_space = self._encoding_index.load_item(**space.primary_keys())
             existing_space.add_vectors(vectors=space.vectors, keys=space.keys)
 
-            target_path = self._encoding_index.get_item_path(item_key=list(item.keys())[0])
+            target_path = self._encoding_index.get_item_path(**space.primary_keys())
 
             existing_space.save_to_disk(
                 target_path,
@@ -267,6 +248,16 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
                 save_info=False,
                 save_source_model=save_source_model,
                 save_decoders=False,
+            )
+        except KeyError:
+            return self._encoding_index.add_item(
+                item=space,
+                save_args={
+                    "save_vector_source": True,
+                    "save_info": True,
+                    "save_source_model": save_source_model,
+                    "save_decoders": True,
+                },
             )
 
     def save_to_disk(self):
