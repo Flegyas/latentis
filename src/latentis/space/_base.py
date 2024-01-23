@@ -72,6 +72,7 @@ class LatentSpace(IndexSerializableMixin):
 
         self._info = info.copy()
 
+    @property
     def properties(self) -> Dict[str, Any]:
         return copy.deepcopy(self.info)
 
