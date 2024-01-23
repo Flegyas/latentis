@@ -6,12 +6,13 @@ from enum import auto
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Union
 
-from latentis.modules import Decoder, LatentisModule
+from latentis.nn import LatentisModule
+from latentis.serialize.disk_index import DiskIndex
 from latentis.serialize.io_utils import IndexableMixin, load_json, load_model, save_json, save_model
 from latentis.space.search import SearchIndex, SearchMetric
 from latentis.space.vector_source import TensorSource, VectorSource
 from latentis.transform import Transform
-from latentis.types import StrEnum
+from latentis.types import Properties, StrEnum
 
 if TYPE_CHECKING:
     from latentis.sample import Sampler
@@ -30,21 +31,19 @@ class _SpaceMetadata(StrEnum):
     _TYPE = auto()
 
 
-SpaceInfo = Mapping[str, Any]
-
-_INFO_FILE_NAME = "info.json"
+_PROPERTIES_FILE_NAME = "properties.json"
 
 
 class LatentSpace(IndexableMixin):
     def __init__(
         self,
         vector_source: Optional[Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]],
-        decoders: Optional[Dict[str, Decoder]] = None,
         source_model: Optional[LatentisModule] = None,
-        info: Optional[Mapping[str, Any]] = None,
+        properties: Optional[Properties] = None,
+        root_path: Optional[Path] = None,
     ):
         super().__init__()
-
+        self.root_path = root_path
         if vector_source is None:
             vector_source = torch.empty(0)
 
@@ -62,37 +61,45 @@ class LatentSpace(IndexableMixin):
             else vector_source
         )
         self._source_model = source_model
-        self._decoders: Dict[str, Decoder] = decoders or {}
 
-        info = info or {}
+        self._decoders = None
+        if root_path is not None:
+            self._decoders: Dict[str, LatentisModule] = DiskIndex(
+                root_path=root_path / "decoders", item_class=LatentisModule
+            )
+            self._decoders.save_to_disk()
+
+        properties = properties or {}
         # metadata[SpaceMetadata._NAME] = self._name
-        info[_SpaceMetadata._VERSION] = self.version
-        info[_SpaceMetadata._TYPE] = LatentSpace.__name__
-        info[_SpaceMetadata._VECTOR_SOURCE] = type(self._vector_source).__name__
+        properties[_SpaceMetadata._VERSION] = self.version
 
-        self._info = info.copy()
+        # TODO: store also the module to use for deserialization,
+        # removing this properties from the index
+        properties[_SpaceMetadata._TYPE] = LatentSpace.__name__
+        properties[_SpaceMetadata._VECTOR_SOURCE] = type(self._vector_source).__name__
+
+        self._properties = properties.copy()
 
     @property
-    def properties(self) -> Dict[str, Any]:
-        return copy.deepcopy(self.info)
+    def properties(self) -> Properties:
+        return copy.deepcopy(self._properties)
 
+    @property
     def split(self):
-        raise NotImplementedError
-
-    @property
-    def info(self) -> Dict[str, Any]:
-        return self._info.copy()
+        return self.properties["split"]
 
     @property
     def name(self) -> str:
-        return self.info.get("name", "space")
+        return self.properties.get("name", "space")
 
     @property
-    def decoders(self) -> Dict[str, Decoder]:
+    def decoders(self) -> Dict[str, LatentisModule]:
+        if self.root_path is None:
+            raise ValueError("Cannot store or access decoders if root_path is None")
         return self._decoders
 
     @property
-    def version(self) -> str:
+    def version(cls) -> str:
         return -42
 
     @property
@@ -106,9 +113,8 @@ class LatentSpace(IndexableMixin):
         self,
         target_path: Path,
         save_vector_source=True,
-        save_info=True,
+        save_properties=True,
         save_source_model=True,
-        save_decoders=True,
     ):
         target_path.mkdir(parents=True, exist_ok=True)
 
@@ -119,53 +125,50 @@ class LatentSpace(IndexableMixin):
             self._vector_source.save_to_disk(vector_path)
 
         # save metadata
-        if save_info:
-            save_json(self.info, target_path / _INFO_FILE_NAME)
+        if save_properties:
+            save_json(self.properties, target_path / _PROPERTIES_FILE_NAME)
 
         # save model
         if save_source_model:
             if self.source_model is not None:
                 save_model(model=self.source_model, target_path=target_path / "model.pt", version=self.version)
 
-        # save decoders
-        if save_decoders:
-            for decoder in self._decoders.values():
-                save_model(model=decoder, target_path=target_path / "decoders" / decoder.name, version=self.version)
+        # TODO: remove save to disk from disk index
+        if self._decoders is not None:
+            self._decoders.save_to_disk()
 
     @classmethod
     def load_properties(cls, space_path: Path) -> Dict[str, Any]:
-        metadata = load_json(space_path / _INFO_FILE_NAME)
+        metadata = load_json(space_path / _PROPERTIES_FILE_NAME)
 
         return metadata
 
     @classmethod
-    def load_from_disk(cls, path: Path, load_source_model: bool = False, load_decoders: bool = False) -> LatentSpace:
+    def load_from_disk(cls, path: Path, load_source_model: bool = False) -> LatentSpace:
         # load VectorSource
         vector_source = TensorSource.load_from_disk(path / "vectors")
 
         # load metadata
-        info = cls.load_properties(path)
-
-        # load decoders
-        decoders = {}
-        for decoder_path in (path / "decoders").glob("*"):
-            decoder = load_model(decoder_path, version=info[_SpaceMetadata._VERSION]) if load_decoders else None
-            decoders[decoder.name] = decoder
+        properties = cls.load_properties(path)
 
         # load model
-        model_path = path / "model.pt"
+        model_path = path
         model = (
-            load_model(model_path, version=info[_SpaceMetadata._VERSION])
+            load_model(model_path, version=properties[_SpaceMetadata._VERSION])
             if (model_path.exists() and load_source_model)
             else None
         )
 
         space = LatentSpace.__new__(cls)
-        space._info = info
+        space._properties = properties
         space._vector_source = vector_source
-        space._decoders = decoders
         space._source_model = model
+        space.root_path: Path = path
 
+        try:
+            space._decoders = DiskIndex.load_from_disk(path=path / "decoders")
+        except FileNotFoundError:
+            space._decoders = DiskIndex(root_path=path / "decoders", item_class=LatentisModule)
         return space
 
     @property
@@ -192,8 +195,8 @@ class LatentSpace(IndexableMixin):
         #
         space: LatentSpace,
         vector_source: Optional[Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]] = None,
-        decoders: Optional[Dict[str, Decoder]] = None,
-        info: Optional[Mapping[str, Any]] = None,
+        # decoders: Optional[Dict[str, LatentisModule]] = None,
+        properties: Optional[Mapping[str, Any]] = None,
         #
         deepcopy: bool = False,
     ):
@@ -213,19 +216,19 @@ class LatentSpace(IndexableMixin):
         if vector_source is None:
             vector_source = space.vector_source if not deepcopy else copy.deepcopy(space.vector_source)
 
-        if decoders is None:
-            decoders = space.decoders if not deepcopy else copy.deepcopy(space.decoders)
+        # if decoders is None:
+        #     decoders = space.decoders if not deepcopy else copy.deepcopy(space.decoders)
         # if source_model is None:
         #     source_model = space.source_model if not deepcopy else copy.deepcopy(space.source_model)
 
-        if info is None:
-            info = space.info if not deepcopy else copy.deepcopy(space.info)
+        if properties is None:
+            properties = space.properties if not deepcopy else copy.deepcopy(space.properties)
 
         # TODO: test deepcopy
         return LatentSpace(
             vector_source=vector_source,
-            decoders=decoders,
-            info=info,
+            # decoders=decoders,
+            properties=properties,
         )
 
     @property
@@ -242,10 +245,10 @@ class LatentSpace(IndexableMixin):
         return len(self._vector_source)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(vectors={self.vectors.shape}, metadata={self.info})"
+        return f"{self.__class__.__name__}(vectors={self.vectors.shape}, metadata={self.properties})"
 
     def __eq__(self, __value: object) -> bool:
-        return self.info == __value.info and self.vector_source == __value.vector_source
+        return self.properties == __value.properties and self.vector_source == __value.vector_source
 
     def add_vectors(self, vectors: torch.Tensor, keys: Optional[Sequence[str]] = None) -> None:
         """Add vectors to this space.
@@ -326,7 +329,3 @@ class LatentSpace(IndexableMixin):
 
     def to_hf_dataset(self, name: str) -> Any:
         raise NotImplementedError
-
-    def add_decoder(self, decoder: Decoder):
-        assert decoder.name not in self._decoders, f"Decoder with name {decoder.name} already exists."
-        self._decoders[decoder.name] = decoder
