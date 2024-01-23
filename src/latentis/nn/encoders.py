@@ -5,32 +5,45 @@ from PIL.Image import Image
 from transformers import AutoFeatureExtractor, AutoModel, AutoTokenizer, BatchEncoding, PreTrainedModel
 
 from latentis.nn._base import WrappedModule
+from latentis.types import Properties
 
 
 class HFEncoder(WrappedModule):
     def __init__(
-        self, model_name: str, requires_grad: bool, encode_fn: Optional[str] = None, decode_fn: Optional[str] = None
+        self,
+        hf_name: str,
+        requires_grad: bool,
+        encode_fn: Optional[str] = None,
+        decode_fn: Optional[str] = None,
+        properties: Optional[Properties] = None,
     ):
         hf_model: PreTrainedModel = (
-            AutoModel.from_pretrained(model_name, output_hidden_states=True, return_dict=True)
+            AutoModel.from_pretrained(hf_name, output_hidden_states=True, return_dict=True)
             .eval()
             .requires_grad_(requires_grad)
         )
-        super().__init__(model_key=model_name, model=hf_model, encode_fn=encode_fn, decode_fn=decode_fn)
+        self.hf_name = hf_name
+        super().__init__(
+            model=hf_model,
+            encode_fn=encode_fn,
+            decode_fn=decode_fn,
+            properties={**(properties or {}), "hf_name": hf_name},
+        )
 
 
 class TextHFEncoder(HFEncoder):
     def __init__(
         self,
-        model_name: str,
+        hf_name: str,
         requires_grad: bool = False,
         truncation: bool = True,
         padding: bool = True,
         max_length: Optional[int] = None,
+        properties: Optional[Properties] = None,
         **kwargs,
     ):
-        super().__init__(model_name, requires_grad, encode_fn=None, decode_fn=None)
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        super().__init__(hf_name, requires_grad, encode_fn=None, decode_fn=None, properties=properties)
+        self.tokenizer = AutoTokenizer.from_pretrained(hf_name)
 
         max_length = max_length or self.model.config.max_length
 
@@ -43,7 +56,7 @@ class TextHFEncoder(HFEncoder):
 
     @torch.no_grad()
     def pre_encode(self, samples: Sequence, feature: str) -> BatchEncoding:
-        is_clip: bool = self.model_key.startswith("openai/clip")
+        is_clip: bool = self.hf_name.startswith("openai/clip")
 
         tok_out: BatchEncoding = self.tokenizer(
             [sample[feature] for sample in samples],
@@ -61,7 +74,7 @@ class TextHFEncoder(HFEncoder):
         mask = tok_out["attention_mask"] * tok_out["special_tokens_mask"].bool().logical_not()
         del tok_out["special_tokens_mask"]
 
-        if self.model_key.startswith("openai/clip"):
+        if self.hf_name.startswith("openai/clip"):
             # TODO: fix this
             encodings = [self.model.text_model(**tok_out, return_dict=True)["last_hidden_state"]]
         else:
@@ -71,13 +84,13 @@ class TextHFEncoder(HFEncoder):
 
 
 class ImageHFEncoder(HFEncoder):
-    def __init__(self, model_name: str, requires_grad: bool = False):
-        super().__init__(model_name, requires_grad)
-        self.extractor = AutoFeatureExtractor.from_pretrained(self.model_name)
+    def __init__(self, hf_name: str, requires_grad: bool = False, properties: Optional[Properties] = None):
+        super().__init__(hf_name, requires_grad, properties=properties)
+        self.extractor = AutoFeatureExtractor.from_pretrained(self.hf_name)
 
     @torch.no_grad()
     def pre_encode(self, samples: Sequence, feature: str, **kwargs):
-        is_clip: bool = self.model_key.startswith("openai/clip")
+        is_clip: bool = self.hf_name.startswith("openai/clip")
 
         images = [sample[feature] for sample in samples]
 

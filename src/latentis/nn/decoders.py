@@ -8,8 +8,6 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torchmetrics import Accuracy, FBetaScore, MetricCollection
 
-from latentis.data import DATA_DIR
-from latentis.data.dataset import LatentisDataset
 from latentis.nn._base import LatentisModule
 
 pylogger = logging.getLogger(__name__)
@@ -30,7 +28,6 @@ class LambdaModule(LatentisModule):
         self.lambda_func = lambda_func
 
     def forward(self, x: torch.Tensor):
-
         return self.lambda_func(x)
 
 
@@ -49,9 +46,23 @@ class Classifier(LatentisModule):
         trainer_params: Mapping[str, Any] = None,
         lr: float = 1e-3,
     ):
-
-        super().__init__(model_key="classifier")
-        self.trainer_params = dict(
+        super().__init__(
+            properties={
+                "name": "classifier",
+                "input_dim": input_dim,
+                "num_classes": num_classes,
+                "deep": deep,
+                "bias": bias,
+                "x_feature": x_feature,
+                "y_feature": y_feature,
+                "first_activation": first_activation.__class__.__name__,
+                "second_activation": second_activation.__class__.__name__,
+                "first_projection_dim": first_projection_dim,
+                # "trainer_params": trainer_params,
+                "lr": lr,
+            }
+        )
+        self.latentis_trainer_params = dict(
             accelerator="auto",
             devices=1,
             max_epochs=5,
@@ -60,7 +71,7 @@ class Classifier(LatentisModule):
             enable_progress_bar=False,
             enable_checkpointing=False,
         )
-        self.trainer_params.update(trainer_params or {})
+        self.latentis_trainer_params.update(trainer_params or {})
         self.lr = lr
 
         if not isinstance(deep, bool):
@@ -105,7 +116,7 @@ class Classifier(LatentisModule):
 
         self.x_feature: str = x_feature
         self.y_feature: str = y_feature
-        self.trainer: Optional[Trainer] = None
+        self.latentis_trainer: Optional[Trainer] = None
 
     def forward(self, x):
         x = self.class_proj(x)
@@ -137,62 +148,11 @@ class Classifier(LatentisModule):
         return optimizer
 
     def fit(self, train_dataloader: DataLoader) -> LatentisModule:
-        self.trainer = Trainer(**self.trainer_params)
-        self.trainer.fit(self, train_dataloaders=train_dataloader)
+        self.latentis_trainer = Trainer(**self.latentis_trainer_params)
+        self.latentis_trainer.fit(self, train_dataloaders=train_dataloader)
         return self.eval()
 
     def score(self, dataloader: DataLoader):
-        if self.trainer is None:
+        if self.latentis_trainer is None:
             raise RuntimeError("Model has not been fitted yet!")
-        return self.trainer.test(dataloaders=dataloader)
-
-
-if __name__ == "__main__":
-    dataset = LatentisDataset.load_from_disk(DATA_DIR / "imdb")
-
-    nclasses = len(dataset.hf_dataset["train"].features["label"].names)
-
-    raw_data = dataset.hf_dataset
-    label_key = "label"
-
-    dataset.encodings.get_item(item_key="3")
-
-    model = Classifier(
-        input_dim=dataset.encodings.load_item(item_key="3").shape[1],
-        num_classes=nclasses,
-        deep=True,
-        bias=True,
-        x_feature="encodings_key",
-        y_feature="hf_y_keys",
-        first_activation=nn.Tanh(),
-        second_activation=nn.ReLU(),
-        first_projection_dim=None,
-    )
-    device = "cpu" if not torch.cuda.is_available() else "cuda"
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-    loss = nn.CrossEntropyLoss()
-
-    train_dataloader = DataLoader(
-        dataset.get_dataset_view(
-            split="train",
-            encodings_key=dataset.encodings.get_item_key(split="train", model="bert-base-uncased"),
-            hf_x_keys=None,
-            hf_y_keys=("label",),
-        ),
-        batch_size=32,
-        shuffle=True,
-    )
-
-    test_dataloader = DataLoader(
-        dataset.get_dataset_view(
-            split="test",
-            encodings_key=dataset.encodings.get_item_key(split="test", model="bert-base-uncased"),
-            hf_x_keys=None,
-            hf_y_keys=("label",),
-        ),
-        batch_size=32,
-        shuffle=True,
-    )
-
-    model.fit(train_dataloader=train_dataloader)
-    print(model.score(dataloader=test_dataloader))
+        return self.latentis_trainer.test(model=self, dataloaders=dataloader)

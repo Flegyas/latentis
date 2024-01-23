@@ -28,6 +28,7 @@ class DiskIndex(SerializableMixin):
             "version": self.version,
         }
 
+        # TODO see if the disk index should implement the indexable mixin
         save_json(info, self.root_path / "info.json")
 
     @classmethod

@@ -91,7 +91,9 @@ def encode_feature(
             collate_fn=functools.partial(collate_fn, model=model, feature=feature.col_name),
         )
 
-        for batch in tqdm(loader, desc=f"Encoding `{split}` samples for feature {feature.col_name} using {model.key}"):
+        for batch in tqdm(
+            loader, desc=f"Encoding `{split}` samples for feature {feature.col_name} using {model.item_id[:8]}"
+        ):
             raw_encoding = model.encode(batch)
 
             if len(poolers) == 0:
@@ -100,8 +102,8 @@ def encode_feature(
                 dataset.add_encoding(
                     item=LatentSpace(
                         vector_source=(raw_encoding, batch[dataset._id_column]),
-                        info={
-                            "model": model.key,
+                        properties={
+                            **{f"model/{key}": value for key, value in model.properties.items()},
                             "feature": feature.col_name,
                             "split": split,
                             "dataset": dataset.name,
@@ -117,8 +119,8 @@ def encode_feature(
                         dataset.add_encoding(
                             item=LatentSpace(
                                 vector_source=(encoding, batch[dataset._id_column]),
-                                info={
-                                    "model": model.key,
+                                properties={
+                                    **{f"model/{key}": value for key, value in model.properties.items()},
                                     "feature": feature.col_name,
                                     "split": split,
                                     "dataset": dataset.name,
@@ -132,9 +134,7 @@ def encode_feature(
 
 
 if __name__ == "__main__":
-    for dataset, hf_encoder in itertools.product(
-        ["trec"], ["bert-base-cased", "bert-base-uncased", "bert-large-cased"]
-    ):
+    for dataset, hf_encoder in itertools.product(["imdb"], ["bert-base-cased", "bert-base-uncased"]):
         dataset = LatentisDataset.load_from_disk(DATA_DIR / dataset)
 
         encode_feature(
