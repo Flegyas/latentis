@@ -194,6 +194,7 @@ class Estimator(Transform):
         self._y_space = y_space
 
     def set_spaces(self, x_space: torch.Tensor, y_space: torch.Tensor) -> "Estimator":
-        self._x_space = x_space
+        # TODO: decide if we want to keep the shuffling or trust the users
+        self._x_space = x_space[torch.randperm(x_space.shape[0])]
         self._y_space = y_space
         return self
