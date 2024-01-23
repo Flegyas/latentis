@@ -199,7 +199,7 @@ class BricksToBridges(Transform):
 
         for rel_proj in self.rel_projs:
             rel_proj.fit(x)
-            tx = rel_proj.transform(x)
+            tx, _ = rel_proj.transform(x)
             relative_spaces.append(tx)
 
         self.aggregation_module.fit(relative_spaces)
@@ -212,7 +212,7 @@ class BricksToBridges(Transform):
         relative_spaces = []
 
         for rel_proj in self.rel_projs:
-            tx = rel_proj.transform(x)
+            tx, _ = rel_proj.transform(x)
             relative_spaces.append(tx.vectors)
 
         rel_aggregation = self.aggregation_module(relative_spaces)
