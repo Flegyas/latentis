@@ -33,13 +33,14 @@ def token_pool(encodings: Tuple[torch.Tensor], mask: torch.Tensor, layers: Optio
     assert all(isinstance(layer, int) and layer >= 0 for layer in layers)
     layers = list(range(len(encodings))) if not layers else set(layers)
 
-    token_encodings = {
-        f"token_pool_{i_layer}": [
-            sample_encoding[sample_mask].cpu().numpy() for sample_encoding, sample_mask in zip(layer_encoding, mask)
-        ]
+    token_encodings = [
+        (
+            [sample_encoding[sample_mask].cpu().numpy() for sample_encoding, sample_mask in zip(layer_encoding, mask)],
+            {"pool": "token", "layer": i_layer},
+        )
         for i_layer, layer_encoding in enumerate(encodings)
         if i_layer in layers
-    }
+    ]
 
     return token_encodings
 
@@ -48,19 +49,20 @@ def mean_pool(encodings: Tuple[torch.Tensor], mask: torch.Tensor, layers: Option
     assert all(isinstance(layer, int) and layer >= 0 for layer in layers)
     layers = list(range(len(encodings))) if not layers else set(layers)
 
-    pooled_encodings = {
-        f"mean_pool_{i_layer}": (
+    pooled_encodings = [
+        (
             torch.stack(
                 [
                     sample_encoding[sample_mask].mean(dim=0)
                     for sample_encoding, sample_mask in zip(layer_encoding, mask)
                 ],
                 dim=0,
-            )
+            ),
+            {"pool": "mean", "layer": i_layer},
         )
         for i_layer, layer_encoding in enumerate(encodings)
         if i_layer in layers
-    }
+    ]
 
     return pooled_encodings
 
@@ -69,16 +71,17 @@ def sum_pool(encodings: Tuple[torch.Tensor], mask: torch.Tensor, layers: Optiona
     assert all(isinstance(layer, int) and layer >= 0 for layer in layers)
     layers = list(range(len(encodings))) if not layers else set(layers)
 
-    pooled_encodings = {
-        f"sum_pool_{i_layer}": (
+    pooled_encodings = [
+        (
             torch.stack(
                 [sample_encoding[sample_mask].sum(dim=0) for sample_encoding, sample_mask in zip(layer_encoding, mask)],
                 dim=0,
-            )
+            ),
+            {"pool": "sum", "layer": i_layer},
         )
         for i_layer, layer_encoding in enumerate(encodings)
         if i_layer in layers
-    }
+    ]
 
     return pooled_encodings
 
@@ -87,10 +90,13 @@ def cls_pool(encodings: Tuple[torch.Tensor], layers: Optional[Sequence[int]] = N
     assert all(isinstance(layer, int) and layer >= 0 for layer in layers)
     layers = list(range(len(encodings))) if not layers else set(layers)
 
-    pooled_encodings = {
-        f"cls_pool_{i_layer}": layer_encoding[:, 0, :]  # TODO: adapt to encoders without CLS as first token
+    pooled_encodings = [
+        (
+            layer_encoding[:, 0, :],
+            {"pool": "cls", "layer": i_layer},
+        )  # TODO: adapt to encoders without CLS as first token
         for i_layer, layer_encoding in enumerate(encodings)
         if i_layer in layers
-    }
+    ]
 
     return pooled_encodings

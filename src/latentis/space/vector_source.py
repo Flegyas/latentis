@@ -71,6 +71,7 @@ class TensorSource(VectorSource, SerializableMixin):
         keys = keys or []
         self._keys2offset = BiMap(x=keys, y=range(len(keys)))
 
+    @property
     def shape(self) -> torch.Size:
         return self._vectors.shape
 
