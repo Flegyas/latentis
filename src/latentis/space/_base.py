@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Union
 
 from latentis.modules import Decoder, LatentisModule
-from latentis.serialize.io_utils import IndexSerializableMixin, load_json, load_model, save_json, save_model
+from latentis.serialize.io_utils import IndexableMixin, load_json, load_model, save_json, save_model
 from latentis.space.search import SearchIndex, SearchMetric
 from latentis.space.vector_source import TensorSource, VectorSource
 from latentis.transform import Transform
@@ -35,7 +35,7 @@ SpaceInfo = Mapping[str, Any]
 _INFO_FILE_NAME = "info.json"
 
 
-class LatentSpace(IndexSerializableMixin):
+class LatentSpace(IndexableMixin):
     def __init__(
         self,
         vector_source: Optional[Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]],

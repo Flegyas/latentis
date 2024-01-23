@@ -5,12 +5,12 @@ from typing import Any, Mapping, Optional, Sequence, Type
 
 import pandas as pd
 
-from latentis.serialize.io_utils import IndexSerializableMixin, SerializableMixin, load_json, save_json
+from latentis.serialize.io_utils import IndexableMixin, SerializableMixin, load_json, save_json
 from latentis.types import Properties
 
 
 class DiskIndex(SerializableMixin):
-    def __init__(self, root_path: Path, item_class: Type[IndexSerializableMixin]):
+    def __init__(self, root_path: Path, item_class: Type[IndexableMixin]):
         self.root_path = root_path
         self._item_class = item_class
         self._index: Mapping[str, Mapping[str, Any]] = {}
@@ -31,7 +31,7 @@ class DiskIndex(SerializableMixin):
         save_json(info, self.root_path / "info.json")
 
     @classmethod
-    def _read_index(cls, path: Path, item_class: Type[IndexSerializableMixin]) -> Mapping[str, Mapping[str, Any]]:
+    def _read_index(cls, path: Path, item_class: Type[IndexableMixin]) -> Mapping[str, Mapping[str, Any]]:
         item_dirs = [item_dir for item_dir in path.iterdir() if item_dir.is_dir()]
         index = {}
         for item_dir in item_dirs:
@@ -42,7 +42,7 @@ class DiskIndex(SerializableMixin):
         return index
 
     @classmethod
-    def load_from_disk(cls, path: Path, *args, **kwargs) -> IndexSerializableMixin:
+    def load_from_disk(cls, path: Path, *args, **kwargs) -> IndexableMixin:
         info = load_json(path / "info.json")
         module = importlib.import_module(info["item_class_module"])
         item_class = getattr(module, info["item_class"])
@@ -84,7 +84,7 @@ class DiskIndex(SerializableMixin):
 
     def add_item(
         self,
-        item: IndexSerializableMixin,
+        item: IndexableMixin,
         save_args: Mapping[str, Any] = None,
     ) -> str:
         item_key = item.item_id
@@ -102,7 +102,7 @@ class DiskIndex(SerializableMixin):
         self.save_to_disk()
         return item_key
 
-    def add_items(self, items: Sequence[IndexSerializableMixin], save_args: Mapping[str, Any] = None) -> Sequence[str]:
+    def add_items(self, items: Sequence[IndexableMixin], save_args: Mapping[str, Any] = None) -> Sequence[str]:
         item_keys = [item.item_id for item in items]
 
         # Avoid adding any of the items if any of the keys already exist
@@ -130,11 +130,11 @@ class DiskIndex(SerializableMixin):
             self._remove_item_by_key(item)
         return items_to_remove
 
-    def load_item(self, item_key: Optional[str] = None, **properties: Any) -> IndexSerializableMixin:
+    def load_item(self, item_key: Optional[str] = None, **properties: Any) -> IndexableMixin:
         item_to_load = self._resolve_item(item_key=item_key, **properties)
         return self._item_class.load_from_disk(self.root_path / item_to_load)
 
-    def load_items(self, item_key: Optional[str] = None, **properties: Any) -> Mapping[str, IndexSerializableMixin]:
+    def load_items(self, item_key: Optional[str] = None, **properties: Any) -> Mapping[str, IndexableMixin]:
         items_to_load = self._resolve_items(item_key=item_key, **properties)
         return {item: self._item_class.load_from_disk(self.root_path / item) for item in items_to_load}
 
