@@ -1,4 +1,5 @@
 import functools
+import itertools
 import logging
 from typing import Sequence
 
@@ -109,18 +110,18 @@ def encode_feature(
                 )
             else:
                 for pooler in poolers:
-                    encodings = pooler(**raw_encoding)
+                    encoding2pooler_properties = pooler(**raw_encoding)
 
-                    for out_name, pooler_out in encodings.items():
+                    for encoding, pooler_properties in encoding2pooler_properties:
                         dataset.add_encoding(
                             item=LatentSpace(
-                                vector_source=(pooler_out, batch[dataset._id_column]),
+                                vector_source=(encoding, batch[dataset._id_column]),
                                 info={
                                     "model": model.key,
                                     "feature": feature.col_name,
                                     "split": split,
                                     "dataset": dataset.name,
-                                    "pooler": out_name,
+                                    **pooler_properties,
                                 },
                             ),
                             save_source_model=save_source_model,
@@ -130,13 +131,15 @@ def encode_feature(
 
 
 if __name__ == "__main__":
-    for dataset in ["trec"]:
+    for dataset, hf_encoder in itertools.product(
+        ["trec"], ["bert-base-cased", "bert-base-uncased", "bert-large-cased"]
+    ):
         dataset = LatentisDataset.load_from_disk(DATA_DIR / dataset)
 
         encode_feature(
             dataset=dataset,
             feature="text",
-            model=TextHFEncoder("bert-base-cased"),
+            model=TextHFEncoder(hf_encoder),
             collate_fn=default_collate,
             encoding_batch_size=256,
             store_every=10,
@@ -144,21 +147,7 @@ if __name__ == "__main__":
             save_source_model=False,
             poolers=[
                 HFPooler(layers=[12], pooling_fn=cls_pool),
-            ],
-            device=torch.device("cpu"),
-        )
-
-        encode_feature(
-            dataset=dataset,
-            feature="text",
-            model=TextHFEncoder("bert-base-uncased"),
-            collate_fn=default_collate,
-            encoding_batch_size=128,
-            store_every=7,
-            num_workers=0,
-            save_source_model=True,
-            poolers=[
-                HFPooler(layers=[12], pooling_fn=cls_pool),
+                # HFPooler(layers=list(range(13)), pooling_fn=sum_pool),
             ],
             device=torch.device("cpu"),
         )
