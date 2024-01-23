@@ -13,7 +13,7 @@ from latentis.benchmark.correspondence import Correspondence, IdentityCorrespond
 from latentis.data import DATA_DIR
 from latentis.data.dataset import LatentisDataset
 from latentis.measure import PairwiseMetric
-from latentis.modules import LatentisModule
+from latentis.nn import LatentisModule
 from latentis.space import LatentSpace
 from latentis.transform import Estimator
 from latentis.transform.translate.aligner import MatrixAligner
@@ -28,6 +28,22 @@ class TaskProperty(StrEnum):
 class TaskType(StrEnum):
     CLASSIFICATION = auto()
     AUTOENCODING = auto()
+
+
+class Accuracy(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        return (x.argmax(dim=-1) == y).float().mean()
+
+    @property
+    def item_id(self):
+        return "Accuracy"
+
+    @property
+    def properties(self):
+        return {"name": self.item_id}
 
 
 class L2Similarity(nn.Module):
@@ -161,7 +177,7 @@ class Experiment(IndexableMixin):
 
         downstream_metrics = [] if downstream_metrics is None else downstream_metrics
         self.downstream_metrics = {
-            downstream_metrics.item_id: downstream_metrics for downstream_metrics in downstream_metrics
+            downstream_metric.item_id: downstream_metric for downstream_metric in downstream_metrics
         }
 
     def estimation_stage(self):
@@ -190,14 +206,11 @@ class Experiment(IndexableMixin):
 
     def downstream_evaluation_stage(self, x_test_transformed: torch.Tensor):
         if self.y_fit_decoder is not None:
-            y_fit_decoder: LatentisModule = self.y_fit.load_decoder(self.y_fit_decoder)
+            y_fit_decoder: LatentisModule = self.y_fit.decoders.load_item(**self.y_fit_decoder)
 
             return {
-                metric.item_id: metric(
-                    y_fit_decoder(x_test_transformed),
-                    self.y_gt,
-                ).item()
-                for metric in self.downstream_metrics
+                metric_id: metric(y_fit_decoder(x_test_transformed), self.y_gt).item()
+                for metric_id, metric in self.downstream_metrics.items()
             }
         else:
             return {}
@@ -205,6 +218,7 @@ class Experiment(IndexableMixin):
     def export(self, results: Sequence[ExperimentResult], selection: Mapping[str, Sequence[str]]) -> pd.DataFrame:
         experiment_properties = self.properties
         export = {f"{k}/{v}": [] for k, values in selection.items() for v in values}
+        export.update(**{k: [] for k, values in selection.items() if len(values) == 0})
 
         for result in results:
             for selection_key, selection_values in selection.items():
@@ -216,8 +230,10 @@ class Experiment(IndexableMixin):
                         export[k].append(
                             experiment_properties[selection_key][getattr(result, selection_key)][selection_value]
                         )
+                if len(selection_values) == 0:
+                    export[selection_key].append(getattr(result, selection_key))
 
-        return pd.DataFrame(export)
+        return pd.DataFrame.from_dict(export)
 
     def run(
         self,
@@ -255,51 +271,68 @@ class Experiment(IndexableMixin):
 
 
 if __name__ == "__main__":
-    dataset: LatentisDataset = LatentisDataset.load_from_disk(DATA_DIR / "imdb")
+    dataset: LatentisDataset = LatentisDataset.load_from_disk(DATA_DIR / "trec")
 
     print(dataset)
     # correspondence_index = CorrespondenceIndex.load_from_disk(DATA_DIR / "correspondence")
 
+    x_fit = dataset.encodings.load_item(
+        **{
+            "split": "train",
+            "model/hf_name": "bert-base-cased",
+            "pool": "cls",
+            "layer": 12,
+        }
+    )
+    y_fit = dataset.encodings.load_item(
+        **{
+            "split": "train",
+            "model/hf_name": "bert-base-cased",
+            "pool": "cls",
+            "layer": 12,
+        }
+    )
+    x_test = dataset.encodings.load_item(
+        **{
+            "split": "test",
+            "model/hf_name": "bert-base-cased",
+            "pool": "cls",
+            "layer": 12,
+        }
+    )
+    y_test = dataset.encodings.load_item(
+        **{
+            "split": "test",
+            "model/hf_name": "bert-base-uncased",
+            "pool": "cls",
+            "layer": 12,
+        }
+    )
+
     experiment = Experiment(
-        x_fit=dataset.encodings.load_item(
-            split="train",
-            model="bert-base-cased",
-            pool="cls",
-            layer=12,
-        ),
-        y_fit=dataset.encodings.load_item(
-            split="train",
-            model="bert-base-uncased",
-            pool="cls",
-            layer=12,
-        ),
+        x_fit=x_fit,
+        y_fit=y_fit,
         fit_correspondence=IdentityCorrespondence(
             n_samples=len(dataset.hf_dataset["train"]),
         ),  # .random_subset(factor=0.01, seed=42),
-        x_test=dataset.encodings.load_item(
-            split="test",
-            model="bert-base-cased",
-            pool="cls",
-            layer=12,
-        ),
-        y_test=dataset.encodings.load_item(
-            split="test",
-            model="bert-base-uncased",
-            pool="cls",
-            layer=12,
-        ),  # .random_subset(factor=0.01, seed=42),
+        x_test=x_test,
+        y_test=y_test,  # .random_subset(factor=0.01, seed=42),
         test_correspondence=IdentityCorrespondence(
             n_samples=len(dataset.hf_dataset["test"]),
         ),
         estimator=MatrixAligner(name="svd", align_fn_state=svd_align_state),
         latent_metrics=[L2Similarity(), L1Similarity(), CosineSimilarity()],
+        y_fit_decoder={},
+        y_gt=torch.as_tensor(dataset.hf_dataset["test"]["coarse_label"]),
+        downstream_metrics=[Accuracy()],
     )
 
     print(experiment.properties)
 
     runs = list(experiment.run())
+    print(runs[0])
 
-    space_selection = ["dataset", "model", "pool", "layer"]
+    space_selection = ["dataset", "model/hf_name", "pool", "layer"]
     selection = {
         "x_fit": space_selection,
         "y_fit": space_selection,
@@ -307,6 +340,7 @@ if __name__ == "__main__":
         "x_test": space_selection,
         "y_test": space_selection,
         "metric": ["name"],
+        "score": [],
     }
 
     experiment.export(results=runs, selection=selection).to_csv(DATA_DIR / "experiment.csv", index=False, sep="\t")

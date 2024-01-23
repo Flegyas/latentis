@@ -134,7 +134,7 @@ def encode_feature(
 
 
 if __name__ == "__main__":
-    for dataset, hf_encoder in itertools.product(["imdb"], ["bert-base-cased", "bert-base-uncased"]):
+    for dataset, hf_encoder in itertools.product(["trec"], ["bert-base-cased", "bert-base-uncased"]):
         dataset = LatentisDataset.load_from_disk(DATA_DIR / dataset)
 
         encode_feature(
@@ -147,8 +147,7 @@ if __name__ == "__main__":
             num_workers=0,
             save_source_model=False,
             poolers=[
-                HFPooler(layers=[12], pooling_fn=cls_pool),
-                # HFPooler(layers=list(range(13)), pooling_fn=sum_pool),
+                HFPooler(layers=[11, 12], pooling_fn=cls_pool),
             ],
             device=torch.device("cpu"),
         )

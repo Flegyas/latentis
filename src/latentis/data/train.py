@@ -1,8 +1,8 @@
 from typing import Callable, Dict, Sequence
 
 import torch
+from torch import nn
 
-from latentis import nn
 from latentis.data import DATA_DIR
 from latentis.data.dataset import LatentisDataset
 from latentis.nn import LatentisModule
@@ -18,14 +18,11 @@ def fit_model(
     batch_size: int,
     num_workers: int,
     device: torch.device,
-    train_split: str = "train",
-    test_split: str = "test",
     **trainer_params,
 ):
     model = model.to(device)
 
     train_dataloader = dataset.get_dataloader(
-        split=train_split,
         space_id=train_space_id,
         hf_x_keys=None,
         hf_y_keys=(y_gt_key,),
@@ -35,7 +32,6 @@ def fit_model(
     )
 
     test_dataloader = dataset.get_dataloader(
-        split=test_split,
         space_id=test_space_id,
         hf_x_keys=None,
         hf_y_keys=(y_gt_key,),
@@ -59,8 +55,6 @@ def attach_decoder(
     batch_size: int,
     num_workers: int,
     device: torch.device,
-    train_split: str = "train",
-    test_split: str = "test",
 ) -> Sequence[Dict[str, float]]:
     model = model_builder().to(device)
     model_perfs = None
@@ -74,8 +68,6 @@ def attach_decoder(
             batch_size=batch_size,
             num_workers=num_workers,
             device=device,
-            train_split=train_split,
-            test_split=test_split,
         )
         print(model_perfs)
 
@@ -84,42 +76,48 @@ def attach_decoder(
 
 
 if __name__ == "__main__":
-    dataset = LatentisDataset.load_from_disk(DATA_DIR / "imdb")
+    dataset = LatentisDataset.load_from_disk(DATA_DIR / "trec")
 
-    res = attach_decoder(
-        dataset=dataset,
-        train_space_id=(
-            space_key := dataset.encodings.get_item_key(split="train", **{"model/hf_name": "bert-base-uncased"})
-        ),
-        test_space_id=dataset.encodings.get_item_key(split="test", **{"model/hf_name": "bert-base-uncased"}),
-        y_gt_key="label",
-        model_builder=lambda: Classifier(
-            input_dim=dataset.encodings.load_item(item_key=space_key).shape[1],  # TODO add this a space property
-            num_classes=len(dataset.hf_dataset["train"].features["label"].names),
-            deep=True,
-            bias=True,
-            x_feature="encodings_key",
-            y_feature="hf_y_keys",
-            first_activation=nn.Tanh(),
-            second_activation=nn.ReLU(),
-            first_projection_dim=None,
-        ),
-        train_model=True,
-        batch_size=32,
-        num_workers=0,
-        device=torch.device("cpu"),
-    )
+    label_feature = "coarse_label"
 
-    space = dataset.encodings.load_item(split="train", **{"model/hf_name": "bert-base-uncased"})
-    decoder = space.decoders.load_item()
+    for space_key in (
+        dataset.encodings.get_item_key(split="train", layer=12, **{"model/hf_name": "bert-base-uncased"}),
+        dataset.encodings.get_item_key(split="train", layer=12, **{"model/hf_name": "bert-base-cased"}),
+    ):
+        res = attach_decoder(
+            dataset=dataset,
+            train_space_id=space_key,
+            test_space_id=dataset.encodings.get_item_key(
+                split="test", layer=12, **{"model/hf_name": "bert-base-uncased"}
+            ),
+            y_gt_key=label_feature,
+            model_builder=lambda: Classifier(
+                input_dim=dataset.encodings.load_item(item_key=space_key).shape[1],  # TODO add this a space property
+                num_classes=len(dataset.hf_dataset["train"].features[label_feature].names),
+                deep=True,
+                bias=True,
+                x_feature="encodings_key",
+                y_feature="hf_y_keys",
+                first_activation=nn.Tanh(),
+                second_activation=nn.ReLU(),
+                first_projection_dim=None,
+            ),
+            train_model=True,
+            batch_size=128,
+            num_workers=0,
+            device=torch.device("cpu"),
+        )
 
-    dataloader = dataset.get_dataloader(
-        space_id=dataset.encodings.get_item_key(split="test", **{"model/hf_name": "bert-base-uncased"}),
-        hf_x_keys=None,
-        hf_y_keys=("label",),
-        batch_size=32,
-        shuffle=True,
-        num_workers=0,
-    )
+        space = dataset.encodings.load_item(split="train", layer=12, **{"model/hf_name": "bert-base-uncased"})
+        decoder = space.decoders.load_item()
 
-    print(decoder.score(dataloader))
+        dataloader = dataset.get_dataloader(
+            space_id=dataset.encodings.get_item_key(split="test", layer=12, **{"model/hf_name": "bert-base-uncased"}),
+            hf_x_keys=None,
+            hf_y_keys=(label_feature,),
+            batch_size=128,
+            shuffle=True,
+            num_workers=0,
+        )
+
+        print(decoder.score(dataloader))
