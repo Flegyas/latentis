@@ -6,12 +6,12 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import auto
 from pathlib import Path
-from typing import Any, Mapping, Optional, Sequence
+from typing import Any, Mapping, Optional, Sequence, Union
 
 import torch
 from datasets import DatasetDict
 from torch import nn
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
 
 from latentis.data import DATA_DIR
 from latentis.serialize.disk_index import DiskIndex
@@ -57,11 +57,10 @@ class FeatureMapping:
 class DatasetView(torch.utils.data.Dataset):
     def __init__(
         self,
-        split: str,
         latentis_dataset: LatentisDataset,
-        encodings_key: Optional[Sequence[str]],
-        hf_x_keys: Optional[Sequence[str]],
-        hf_y_keys: Optional[Sequence[str]] = ("label",),
+        encodings_key: Optional[Union[str, Sequence[str]]],
+        hf_x_keys: Optional[Union[str, Sequence[str]]],
+        hf_y_keys: Optional[Union[str, Sequence[str]]] = ("label",),
     ):
         super().__init__()
         if isinstance(encodings_key, str):
@@ -71,12 +70,16 @@ class DatasetView(torch.utils.data.Dataset):
         if isinstance(hf_y_keys, str):
             hf_y_keys = [hf_y_keys]
 
-        self.data = latentis_dataset.hf_dataset[split]
+        self.spaces = [latentis_dataset.encodings.load_item(item_key=key) for key in encodings_key]
+        spaces_split = set(space.split for space in self.spaces)
+        if len(spaces_split) > 1:
+            raise ValueError(f"Spaces {encodings_key} are not all from the same split!")
+        self.split = spaces_split.pop()
+
+        self.data = latentis_dataset.hf_dataset[self.split]
         self.encodings_key = encodings_key or []
         self.hf_x_keys = hf_x_keys or []
         self.hf_y_keys = hf_y_keys or []
-
-        self.spaces = [latentis_dataset.encodings.load_item(item_key=key) for key in encodings_key]
 
     def __getitem__(self, idx: int) -> Mapping[str, Any]:
         sample = {
@@ -233,7 +236,7 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
             existing_space.save_to_disk(
                 target_path,
                 save_vector_source=True,
-                save_info=False,
+                save_properties=False,
                 save_source_model=save_source_model,
                 save_decoders=False,
             )
@@ -242,7 +245,7 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
                 item=item,
                 save_args={
                     "save_vector_source": True,
-                    "save_info": True,
+                    "save_properties": True,
                     "save_source_model": save_source_model,
                     "save_decoders": True,
                 },
@@ -258,7 +261,6 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
 
     def get_dataset_view(
         self,
-        split: str,
         encodings_key: Sequence[str],
         hf_x_keys: Sequence[str],
         hf_y_keys: Sequence[str],
@@ -268,7 +270,28 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
             encodings_key=encodings_key,
             hf_x_keys=hf_x_keys,
             hf_y_keys=hf_y_keys,
-            split=split,
+        )
+
+    def get_dataloader(
+        self,
+        space_id: Sequence[str],
+        hf_x_keys: Sequence[str],
+        hf_y_keys: Sequence[str],
+        batch_size: int,
+        shuffle: bool,
+        num_workers: int = 0,
+        **kwargs,
+    ):
+        return DataLoader(
+            self.get_dataset_view(
+                encodings_key=space_id,
+                hf_x_keys=hf_x_keys,
+                hf_y_keys=hf_y_keys,
+            ),
+            batch_size=batch_size,
+            shuffle=shuffle,
+            num_workers=num_workers,
+            **kwargs,
         )
 
 
