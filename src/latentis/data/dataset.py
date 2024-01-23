@@ -185,11 +185,11 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
     ) -> LatentSpace:
         # TODO: add consistency check to make sure that the item is compatible with the dataset
         try:
-            existing_space = self.encodings.load_item(**item.properties())
+            existing_space = self.encodings.load_item(**item.properties)
             existing_space.add_vectors(vectors=item.vectors, keys=item.keys)
 
             # TODO: This is a hack, we are bypassing the index
-            target_path = self.encodings.get_item_path(**item.properties())
+            target_path = self.encodings.get_item_path(**item.properties)
             existing_space.save_to_disk(
                 target_path,
                 save_vector_source=True,
