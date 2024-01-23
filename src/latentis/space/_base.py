@@ -134,7 +134,8 @@ class LatentSpace(IndexableMixin):
                 save_model(model=self.source_model, target_path=target_path / "model.pt", version=self.version)
 
         # TODO: remove save to disk from disk index
-        self.decoders.save_to_disk()
+        if self._decoders is not None:
+            self._decoders.save_to_disk()
 
     @classmethod
     def load_properties(cls, space_path: Path) -> Dict[str, Any]:
