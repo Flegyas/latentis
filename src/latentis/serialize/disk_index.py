@@ -1,6 +1,4 @@
-import hashlib
 import importlib
-import json
 import shutil
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence, Type
@@ -39,7 +37,7 @@ class DiskIndex(SerializableMixin):
         for item_dir in item_dirs:
             item_key = item_dir.name
             index[item_key] = item_class.load_properties(item_dir)
-            assert item_key == cls._compute_item_key(index[item_key])
+            assert item_key == item_class.id_from_properties(index[item_key])
 
         return index
 
@@ -55,13 +53,6 @@ class DiskIndex(SerializableMixin):
         instance._item_class = item_class
 
         return instance
-
-    @staticmethod
-    def _compute_item_key(item_properties: Properties) -> str:
-        if len(item_properties) == 0:
-            raise ValueError("Item does not have any properties")
-        hash_object = hashlib.sha256(json.dumps(item_properties, sort_keys=True).encode(encoding="utf-8"))
-        return hash_object.hexdigest()
 
     def _resolve_items(self, item_key: Optional[str] = None, **properties: Any) -> Sequence[str]:
         candidates_items = list(self._index.keys())
@@ -96,33 +87,33 @@ class DiskIndex(SerializableMixin):
         item: IndexSerializableMixin,
         save_args: Mapping[str, Any] = None,
     ) -> str:
-        item_key = self._compute_item_key(item.properties())
+        item_key = item.item_id
 
         if item_key in self._index:
             raise KeyError(f"Key {item_key} already exists in index")
 
-        primary_keys = item.properties()
+        primary_keys = item.properties
         if len(primary_keys) == 0:
             raise ValueError("Item does not have any properties")
 
-        self._index[item_key] = item.properties()
+        self._index[item_key] = item.properties
 
         item.save_to_disk(self.root_path / item_key, **(save_args or {}))
         self.save_to_disk()
         return item_key
 
     def add_items(self, items: Sequence[IndexSerializableMixin], save_args: Mapping[str, Any] = None) -> Sequence[str]:
-        item_keys = [self._compute_item_key(item.properties()) for item in items]
+        item_keys = [item.item_id for item in items]
 
         # Avoid adding any of the items if any of the keys already exist
         if any(item_key in self._index for item_key in item_keys):
             raise KeyError("One of the keys already exists in index")
 
-        if any(len(item.properties()) == 0 for item in items):
+        if any(len(item.properties) == 0 for item in items):
             raise ValueError("One of the items does not have any properties")
 
         for item, item_key in zip(items, item_keys):
-            self._index[item_key] = item.properties()
+            self._index[item_key] = item.properties
             item.save_to_disk(self.root_path / item_key, **(save_args or {}))
 
         self.save_to_disk()

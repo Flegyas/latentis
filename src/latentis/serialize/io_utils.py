@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from abc import abstractmethod
 from pathlib import Path
@@ -58,10 +59,20 @@ class SerializableMixin:
 
 class IndexSerializableMixin(SerializableMixin):
     @classmethod
+    def id_from_properties(cls, properties: Properties) -> str:
+        hash_object = hashlib.sha256(json.dumps(properties, sort_keys=True).encode(encoding="utf-8"))
+        return hash_object.hexdigest()
+
+    @property
+    def item_id(self) -> str:
+        return IndexSerializableMixin.id_from_properties(self.properties)
+
+    @classmethod
     @abstractmethod
     def load_properties(cls, path: Path) -> Properties:
         raise NotImplementedError
 
+    @property
     @abstractmethod
     def properties(self) -> Dict[str, Any]:
         raise NotImplementedError

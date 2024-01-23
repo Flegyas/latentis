@@ -48,7 +48,7 @@ def test_index(tmp_path: Path):
     assert isinstance(item, Mapping)
     assert len(index) == n_items
 
-    index.remove_item(**index.load_item(new_item_key).properties())
+    index.remove_item(**index.load_item(new_item_key).properties)
     assert len(index) == n_items - 1
 
     # get item by properties
