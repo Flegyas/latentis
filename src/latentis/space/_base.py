@@ -6,7 +6,7 @@ from enum import auto
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Union
 
-from latentis.modules import Decoder, LatentisModule
+from latentis.nn import LatentisModule
 from latentis.serialize.io_utils import IndexableMixin, load_json, load_model, save_json, save_model
 from latentis.space.search import SearchIndex, SearchMetric
 from latentis.space.vector_source import TensorSource, VectorSource
@@ -39,7 +39,7 @@ class LatentSpace(IndexableMixin):
     def __init__(
         self,
         vector_source: Optional[Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]],
-        decoders: Optional[Dict[str, Decoder]] = None,
+        decoders: Optional[Dict[str, LatentisModule]] = None,
         source_model: Optional[LatentisModule] = None,
         info: Optional[Mapping[str, Any]] = None,
     ):
@@ -62,11 +62,14 @@ class LatentSpace(IndexableMixin):
             else vector_source
         )
         self._source_model = source_model
-        self._decoders: Dict[str, Decoder] = decoders or {}
+        self._decoders: Dict[str, LatentisModule] = decoders or {}
 
         info = info or {}
         # metadata[SpaceMetadata._NAME] = self._name
         info[_SpaceMetadata._VERSION] = self.version
+
+        # TODO: store also the module to use for deserialization,
+        # removing this info from the index
         info[_SpaceMetadata._TYPE] = LatentSpace.__name__
         info[_SpaceMetadata._VECTOR_SOURCE] = type(self._vector_source).__name__
 
@@ -88,7 +91,7 @@ class LatentSpace(IndexableMixin):
         return self.info.get("name", "space")
 
     @property
-    def decoders(self) -> Dict[str, Decoder]:
+    def decoders(self) -> Dict[str, LatentisModule]:
         return self._decoders
 
     @property
@@ -192,7 +195,7 @@ class LatentSpace(IndexableMixin):
         #
         space: LatentSpace,
         vector_source: Optional[Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]] = None,
-        decoders: Optional[Dict[str, Decoder]] = None,
+        decoders: Optional[Dict[str, LatentisModule]] = None,
         info: Optional[Mapping[str, Any]] = None,
         #
         deepcopy: bool = False,
@@ -327,6 +330,6 @@ class LatentSpace(IndexableMixin):
     def to_hf_dataset(self, name: str) -> Any:
         raise NotImplementedError
 
-    def add_decoder(self, decoder: Decoder):
-        assert decoder.name not in self._decoders, f"Decoder with name {decoder.name} already exists."
+    def add_decoder(self, decoder: LatentisModule):
+        assert decoder.name not in self._decoders, f"LatentisModule with name {decoder.name} already exists."
         self._decoders[decoder.name] = decoder

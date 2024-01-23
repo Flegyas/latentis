@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import shutil
 from dataclasses import dataclass, field
@@ -6,8 +8,10 @@ from enum import auto
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
 
+import torch
 from datasets import DatasetDict
 from torch import nn
+from torch.utils.data import Dataset
 
 from latentis.data import DATA_DIR
 from latentis.serialize.disk_index import DiskIndex
@@ -48,6 +52,42 @@ class Feature:
 class FeatureMapping:
     source_col: str
     target_col: str
+
+
+class DatasetView(torch.utils.data.Dataset):
+    def __init__(
+        self,
+        split: str,
+        latentis_dataset: LatentisDataset,
+        encodings_key: Optional[Sequence[str]],
+        hf_x_keys: Optional[Sequence[str]],
+        hf_y_keys: Optional[Sequence[str]] = ("label",),
+    ):
+        super().__init__()
+        if isinstance(encodings_key, str):
+            encodings_key = [encodings_key]
+        if isinstance(hf_x_keys, str):
+            hf_x_keys = [hf_x_keys]
+        if isinstance(hf_y_keys, str):
+            hf_y_keys = [hf_y_keys]
+
+        self.data = latentis_dataset.hf_dataset[split]
+        self.encodings_key = encodings_key or []
+        self.hf_x_keys = hf_x_keys or []
+        self.hf_y_keys = hf_y_keys or []
+
+        self.spaces = [latentis_dataset.encodings.load_item(item_key=key) for key in encodings_key]
+
+    def __getitem__(self, idx: int) -> Mapping[str, Any]:
+        sample = {
+            "encodings_key": [space[idx] for space in self.spaces],
+            "hf_x_keys": [self.data[idx][key] for key in self.hf_x_keys],
+            "hf_y_keys": [self.data[idx][key] for key in self.hf_y_keys],
+        }
+        return {key: value for key, value in sample.items() if value is not None and len(value) > 0}
+
+    def __len__(self) -> int:
+        return len(self.data)
 
 
 class LatentisDataset(SerializableMixin, MetadataMixin):
@@ -215,6 +255,21 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
     ) -> Sequence[str]:
         for space in items:
             self.add_encoding(item=space, save_source_model=save_source_model)
+
+    def get_dataset_view(
+        self,
+        split: str,
+        encodings_key: Sequence[str],
+        hf_x_keys: Sequence[str],
+        hf_y_keys: Sequence[str],
+    ) -> Dataset:
+        return DatasetView(
+            latentis_dataset=self,
+            encodings_key=encodings_key,
+            hf_x_keys=hf_x_keys,
+            hf_y_keys=hf_y_keys,
+            split=split,
+        )
 
 
 if __name__ == "__main__":

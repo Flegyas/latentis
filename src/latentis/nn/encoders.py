@@ -1,95 +1,13 @@
 from typing import List, Optional, Sequence
 
 import torch
-import torch.nn.functional as F
 from PIL.Image import Image
-from torch import nn
-from torch.utils.data import default_collate
 from transformers import AutoFeatureExtractor, AutoModel, AutoTokenizer, BatchEncoding, PreTrainedModel
 
-
-class SVCModel(nn.Module):
-    def __init__(self, model):
-        super().__init__()
-        self.model = model
-
-    def forward(self, x):
-        return F.one_hot(torch.as_tensor(self.model.predict(x.cpu().numpy()))).to(x.device)
+from latentis.nn._base import WrappedModule
 
 
-class Decoder(nn.Module):
-    pass
-
-
-class LatentisModule(nn.Module):
-    def __init__(
-        self, model_key: str, model: nn.Module, encode_fn: Optional[str] = None, decode_fn: Optional[str] = None
-    ):
-        super().__init__()
-        self.model_key = model_key
-        self.model = model
-        self.encode_fn = encode_fn
-        self.decode_fn = decode_fn
-
-    def pre_encode(self, samples: Sequence, feature: str):
-        return default_collate({feature: [sample[feature] for sample in samples]})
-
-    def encode(self, *args, **kwargs):
-        if self.encode_fn is None:
-            raise NotImplementedError
-        return getattr(self.model, self.encode_fn)(*args, **kwargs)
-
-    def decode(self, *args, **kwargs):
-        if self.decode_fn is None:
-            raise NotImplementedError
-        return getattr(self.model, self.decode_fn)(*args, **kwargs)
-
-    @property
-    def key(self) -> str:
-        return self.model_key
-
-    # def __getattr__(self, item):
-    #     if item in self.__dict__:
-    #         return getattr(self, item)
-
-    #     return getattr(self.model, item)
-
-    # def __getattribute__(self, item):
-    #     if item in self.__dict__:
-    #         return getattr(self, item)
-
-    #     return getattr(self.model, item)
-
-
-class PooledModel(LatentisModule):
-    def __init__(
-        self, model_key: str, model: nn.Module, pooler: nn.Module, encode_fn: str = "encode", decode_fn: str = "decode"
-    ):
-        super().__init__(model_key=model_key, model=model, encode_fn=encode_fn, decode_fn=decode_fn)
-        self.pooler = pooler
-
-    def encode(self, *args, **kwargs):
-        return self.pooler(super().encode(*args, **kwargs))
-
-    @property
-    def key(self) -> str:
-        return f"{super().key}_{self.pooler.name if hasattr(self.pooler, 'name') else self.pooler.__class__.__name__}"
-
-
-class StitchedModel(nn.Module):
-    def __init__(self, encoding_model: LatentisModule, decoding_model: LatentisModule):
-        super().__init__()
-        self.encoding_model = encoding_model
-        self.decoding_model = decoding_model
-
-    def encode(self, *args, **kwargs):
-        return self.encoding_model.encode(*args, **kwargs)
-
-    def decode(self, *args, **kwargs):
-        return self.decoding_model.decode(*args, **kwargs)
-
-
-class HFEncoder(LatentisModule):
+class HFEncoder(WrappedModule):
     def __init__(
         self, model_name: str, requires_grad: bool, encode_fn: Optional[str] = None, decode_fn: Optional[str] = None
     ):

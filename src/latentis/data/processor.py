@@ -336,3 +336,11 @@ class FashionMNIST(DataProcessor):
         )
 
         return dataset
+
+
+if __name__ == "__main__":
+    latentis_dataset = IMDB().process(
+        perc=0.05,
+    )
+
+    latentis_dataset.save_to_disk()
