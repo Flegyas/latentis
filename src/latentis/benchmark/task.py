@@ -1,26 +1,24 @@
 import itertools
-import json
-from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import auto
-from pathlib import Path
-from typing import Callable, Iterable, Mapping, Optional, Sequence, Tuple
+from typing import Mapping, Optional, Sequence
 
 import pandas as pd
 import torch
 import torch.nn.functional as F
+from datasets.search import IndexableMixin
 from torch import nn
 
-from latentis.benchmark import BENCHMARK_DIR
-from latentis.benchmark.correspondence import Correspondence, SameDatasetCorrespondence
+from latentis.benchmark.correspondence import Correspondence, IdentityCorrespondence
 from latentis.data import DATA_DIR
 from latentis.data.dataset import LatentisDataset
 from latentis.measure import PairwiseMetric
+from latentis.modules import LatentisModule
 from latentis.space import LatentSpace
-from latentis.space._base import EncodingKey
-from latentis.transform.translate.aligner import Aligner, MatrixAligner
+from latentis.transform import Estimator
+from latentis.transform.translate.aligner import MatrixAligner
 from latentis.transform.translate.functional import svd_align_state
-from latentis.types import StrEnum
+from latentis.types import Properties, StrEnum
 
 
 class TaskProperty(StrEnum):
@@ -32,49 +30,6 @@ class TaskType(StrEnum):
     AUTOENCODING = auto()
 
 
-@dataclass(frozen=True)
-class Task:
-    col_name: str
-    task_type: TaskType
-    properties: Mapping[TaskProperty, str] = field(default_factory=lambda: {})
-
-
-@dataclass(frozen=True)
-class EncodingKeychain:
-    fit: EncodingKey
-    test: EncodingKey
-
-    @staticmethod
-    def build(
-        fit_split: str,
-        test_split: str,
-        dataset: str,
-        feature: str,
-        model_name: str,
-        pooler_name: str,
-        **extra_properties,
-    ) -> "EncodingKeychain":
-        split2key = {
-            split_name: EncodingKey(
-                dataset=dataset,
-                feature=feature,
-                split=split,
-                model_name=model_name,
-                pooler_name=pooler_name,
-                **extra_properties,
-            )
-            for split_name, split in zip(("fit", "test"), [fit_split, test_split])
-        }
-
-        return EncodingKeychain(**split2key)
-
-
-class Benchmark:
-    def __init__(self, name: str, tasks: Sequence[Task]):
-        self.name = name
-        self.tasks = tasks
-
-
 class L2Similarity(nn.Module):
     def __init__(self):
         super().__init__()
@@ -83,8 +38,12 @@ class L2Similarity(nn.Module):
         return (x - y).norm(p=2, dim=-1).mean()
 
     @property
-    def name(self):
-        return "l2"
+    def item_id(self):
+        return "L1Similarity"
+
+    @property
+    def properties(self):
+        return {"name": self.item_id}
 
 
 class L1Similarity(nn.Module):
@@ -95,8 +54,12 @@ class L1Similarity(nn.Module):
         return (x - y).norm(p=1, dim=-1).mean()
 
     @property
-    def name(self):
-        return "l1"
+    def item_id(self):
+        return "L1Similarity"
+
+    @property
+    def properties(self):
+        return {"name": self.item_id}
 
 
 class CosineSimilarity(nn.Module):
@@ -107,136 +70,243 @@ class CosineSimilarity(nn.Module):
         return F.cosine_similarity(x, y, dim=-1).mean()
 
     @property
-    def name(self):
+    def item_id(self):
         return "cosine"
 
+    @property
+    def properties(self):
+        return {"name": self.item_id}
 
-def exhaustive_policy(x: EncodingKeychain, y: EncodingKeychain) -> bool:
-    return True
+
+@dataclass(frozen=True)
+class ExperimentResult:
+    x_fit: str
+    y_fit: str
+    fit_correspondence: str
+    #
+    estimator: str
+    #
+    x_test: str
+    y_test: str
+    test_correspondence: str
+    #
+    metric: str
+    score: float
+    #
+    # y_fit_decoder: str
+    # y_gt: str
+    # downstream_metric: str
+    # downstream_score: float
 
 
-class AlignmentTask:
+class Experiment(IndexableMixin):
+    @property
+    def properties(self) -> Properties:
+        return {
+            "x_fit": self.x_fit.properties,
+            "y_fit": self.y_fit.properties,
+            "fit_correspondence": self.fit_correspondence.properties,
+            #
+            "estimator": self.estimator.properties,
+            #
+            "x_test": self.x_test.properties,
+            "y_test": self.y_test.properties,
+            "test_correspondence": self.test_correspondence.properties,
+            #
+            "metric": {
+                metric_id: metric.properties
+                for metric_id, metric in itertools.chain(self.latent_metrics.items(), self.downstream_metrics.items())
+            },
+            #
+            # "y_fit_decoder": self.y_fit_decoder.properties if self.y_fit_decoder is not None else {},
+            # "y_gt": self.y_gt.properties if self.y_gt is not None else {},
+        }
+
     def __init__(
         self,
-        name: str,
-        keychains: Sequence[EncodingKey],
-        correspondence: Correspondence,
-        fit_metrics: Sequence[PairwiseMetric],
-        test_metrics: Sequence[PairwiseMetric],
-        pairing_policy: Callable[
-            [Sequence[LatentSpace], Sequence[LatentSpace]], Iterable[Tuple[LatentSpace, LatentSpace]]
-        ] = exhaustive_policy,
+        x_fit: LatentSpace,
+        y_fit: LatentSpace,
+        fit_correspondence: Correspondence,
+        #
+        estimator: Estimator,
+        #
+        x_test: LatentSpace,
+        y_test: LatentSpace,
+        test_correspondence: Correspondence,
+        #
+        latent_metrics: Sequence[PairwiseMetric],
+        #
+        y_fit_decoder: Optional[nn.Module] = None,
+        y_gt: Optional[torch.Tensor] = None,
+        downstream_metrics: Optional[Sequence[PairwiseMetric]] = None,
     ):
-        self.name: str = name
-        self.keychains: Sequence[EncodingKeychain] = keychains
-        self.correspondence: Correspondence = correspondence
-        self.fit_metrics = fit_metrics
-        self.test_metrics = test_metrics
-        self.pairing_policy = pairing_policy
+        if not ((y_fit_decoder is None) == (y_gt is None) == (downstream_metrics is None)):
+            raise ValueError("Either all or none of the downstream task arguments must be provided")
 
-    def get_pairs(self) -> Iterable[Tuple[LatentSpace, LatentSpace]]:
-        yield from (pair for pair in itertools.product(self.keychains, repeat=2) if self.pairing_policy(*pair))
+        self.x_fit = x_fit
+        self.y_fit = y_fit
+        self.fit_correspondence = fit_correspondence
 
-    def get_results(self) -> None:
-        benchmark_dir = DATA_DIR / self.name
+        self.estimator = estimator
 
-        result = defaultdict(dict)
+        self.x_test = x_test
+        self.y_test = y_test
+        self.test_correspondence = test_correspondence
 
-        for aligner_id in benchmark_dir.iterdir():
-            for run_id in aligner_id.iterdir():
-                result[aligner_id][run_id] = pd.read_csv(run_id, sep="\t")
+        latent_metrics = [] if latent_metrics is None else latent_metrics
+        self.latent_metrics = {latent_metrics.item_id: latent_metrics for latent_metrics in latent_metrics}
 
-        return result
+        self.y_fit_decoder = y_fit_decoder
+        self.y_gt = y_gt
 
-    def evaluate(self, estimator: Aligner, run_id: Optional[str] = None, root_dir: Path = BENCHMARK_DIR) -> None:
-        # TODO
-        # if root_dir is not None:
-        #     run_id = run_id or time.strftime("%Y%m%d-%H%M%S")
-        #     run_path: Path = root_dir / self.name / aligner.name / f"{run_id}.tsv"
-        #     try:
-        #         run_path.parent.mkdir(parents=True, exist_ok=False)
-        #     except FileExistsError:
-        #         raise FileExistsError(
-        #             f"Run {run_id} already exists for benchmark {self.name} and aligner {aligner.name}"
-        #         )
+        downstream_metrics = [] if downstream_metrics is None else downstream_metrics
+        self.downstream_metrics = {
+            downstream_metrics.item_id: downstream_metrics for downstream_metrics in downstream_metrics
+        }
 
-        results = defaultdict(list)
+    def estimation_stage(self):
+        corresponding_x_fit: torch.Tensor = self.fit_correspondence.get_x_ids()
+        corresponding_y_fit: torch.Tensor = self.fit_correspondence.get_y_ids()
 
-        for x, y in self.get_pairs():
-            x: EncodingKeychain
-            y: EncodingKeychain
+        estimator = self.estimator.set_spaces(x_space=self.x_fit, y_space=self.y_fit)
+        estimator = estimator.fit(x=self.x_fit[corresponding_x_fit], y=self.y_fit[corresponding_y_fit])
 
-            x_fit: torch.Tensor = self.correspondence.get_fit_vectors(x.fit)
-            y_fit: torch.Tensor = self.correspondence.get_fit_vectors(y.fit)
+        return estimator
 
-            estimator = estimator.fit(x=x_fit, y=y_fit)
+    def transform_stage(self, estimator: Estimator):
+        corresponding_x_test: torch.Tensor = self.test_correspondence.get_x_ids()
+        corresponding_y_test: torch.Tensor = self.test_correspondence.get_y_ids()
 
-            fit_estimation = estimator(x=x_fit, y=y_fit)
+        x_test_transformed, y_test_transformed = estimator.transform(
+            x=self.x_test[corresponding_x_test], y=self.y_test[corresponding_y_test]
+        )
+        return x_test_transformed, y_test_transformed
 
-            # TODO: apply optional decoder here to enable stitching evaluation
+    def latent_evaluation_stage(self, x_test_transformed: torch.Tensor, y_test_transformed: torch.Tensor):
+        return {
+            metric_id: metric(x_test_transformed, y_test_transformed).item()
+            for metric_id, metric in self.latent_metrics.items()
+        }
 
-            fit_pair_stats = {
-                f"fit_{metric.name}": metric(fit_estimation["x"], fit_estimation["y"]) for metric in self.fit_metrics
+    def downstream_evaluation_stage(self, x_test_transformed: torch.Tensor):
+        if self.y_fit_decoder is not None:
+            y_fit_decoder: LatentisModule = self.y_fit.load_decoder(self.y_fit_decoder)
+
+            return {
+                metric.item_id: metric(
+                    y_fit_decoder(x_test_transformed),
+                    self.y_gt,
+                ).item()
+                for metric in self.downstream_metrics
             }
+        else:
+            return {}
 
-            x_test: torch.Tensor = self.correspondence.get_test_vectors(x.test)
-            y_test: torch.Tensor = self.correspondence.get_test_vectors(y.test)
+    def export(self, results: Sequence[ExperimentResult], selection: Mapping[str, Sequence[str]]) -> pd.DataFrame:
+        experiment_properties = self.properties
+        export = {f"{k}/{v}": [] for k, values in selection.items() for v in values}
 
-            test_estimation = estimator(x=x_test, y=y_test)
+        for result in results:
+            for selection_key, selection_values in selection.items():
+                for selection_value in selection_values:
+                    k = f"{selection_key}/{selection_value}"
+                    if selection_key != "metric":
+                        export[k].append(experiment_properties[selection_key][selection_value])
+                    else:
+                        export[k].append(
+                            experiment_properties[selection_key][getattr(result, selection_key)][selection_value]
+                        )
 
-            # TODO: apply optional decoder here to enable stitching evaluation
+        return pd.DataFrame(export)
 
-            test_pair_stats = {
-                f"test_{metric.name}": metric(test_estimation["x"], test_estimation["y"])
-                for metric in self.test_metrics
-            }
+    def run(
+        self,
+        estimator: Optional[Estimator] = None,
+    ):
+        estimator = self.estimation_stage() if estimator is None else estimator
 
-            pair_stats = {**fit_pair_stats, **test_pair_stats}
+        x_test_transformed, y_test_transformed = self.transform_stage(estimator=estimator)
 
-            pair_stats["x_fit_key"] = x.fit
-            pair_stats["y_fit_key"] = y.fit
+        latent_evaluation = self.latent_evaluation_stage(
+            x_test_transformed=x_test_transformed, y_test_transformed=y_test_transformed
+        )
+        downstream_evaluation = self.downstream_evaluation_stage(x_test_transformed=x_test_transformed)
 
-            for k, v in pair_stats.items():
-                results[k].append(v.item() if isinstance(v, torch.Tensor) else v)
-
-        # if root_dir is not None:
-        #     results.to_csv(run_path, sep="\t", index=False)
-
-        return results
+        for metric, score in itertools.chain(latent_evaluation.items(), downstream_evaluation.items()):
+            yield ExperimentResult(
+                x_fit=self.x_fit.item_id,
+                y_fit=self.y_fit.item_id,
+                fit_correspondence=self.fit_correspondence.item_id,
+                #
+                estimator=estimator.item_id,
+                #
+                x_test=self.x_test.name,
+                y_test=self.y_test.name,
+                test_correspondence=self.test_correspondence.item_id,
+                #
+                metric=metric,
+                score=score,
+                #
+                # y_fit_decoder=self.y_fit_decoder.name,
+                # y_gt=self.y_gt.name,
+                # downstream_metric=downstream_metric,
+                # downstream_score=downstream_score,
+            )
 
 
 if __name__ == "__main__":
     dataset: LatentisDataset = LatentisDataset.load_from_disk(DATA_DIR / "imdb")
+
     print(dataset)
+    # correspondence_index = CorrespondenceIndex.load_from_disk(DATA_DIR / "correspondence")
 
-    task = AlignmentTask(
-        name="align_imdb",
-        keychains=(
-            [
-                EncodingKeychain.build(
-                    fit_split="train",
-                    test_split="test",
-                    dataset="imdb",
-                    feature="text",
-                    model_name="bert-base-cased",
-                    pooler_name="cls_pool_12",
-                ),
-                EncodingKeychain.build(
-                    fit_split="train",
-                    test_split="test",
-                    dataset="imdb",
-                    feature="text",
-                    model_name="bert-base-uncased",
-                    pooler_name="cls_pool_12",
-                ),
-            ]
+    experiment = Experiment(
+        x_fit=dataset.encodings.load_item(
+            split="train",
+            model="bert-base-cased",
+            pool="cls",
+            layer=12,
         ),
-        pairing_policy=exhaustive_policy,
-        correspondence=SameDatasetCorrespondence(dataset=dataset, perc=1, seed=42),
-        fit_metrics=[L2Similarity(), L1Similarity(), CosineSimilarity()],
-        test_metrics=[L2Similarity(), L1Similarity(), CosineSimilarity()],
+        y_fit=dataset.encodings.load_item(
+            split="train",
+            model="bert-base-uncased",
+            pool="cls",
+            layer=12,
+        ),
+        fit_correspondence=IdentityCorrespondence(
+            n_samples=len(dataset.hf_dataset["train"]),
+        ),  # .random_subset(factor=0.01, seed=42),
+        x_test=dataset.encodings.load_item(
+            split="test",
+            model="bert-base-cased",
+            pool="cls",
+            layer=12,
+        ),
+        y_test=dataset.encodings.load_item(
+            split="test",
+            model="bert-base-uncased",
+            pool="cls",
+            layer=12,
+        ),  # .random_subset(factor=0.01, seed=42),
+        test_correspondence=IdentityCorrespondence(
+            n_samples=len(dataset.hf_dataset["test"]),
+        ),
+        estimator=MatrixAligner(name="svd", align_fn_state=svd_align_state),
+        latent_metrics=[L2Similarity(), L1Similarity(), CosineSimilarity()],
     )
-    print(task)
 
-    result = task.evaluate(MatrixAligner(name="svd", align_fn_state=svd_align_state))
-    print(json.dumps(result, indent=4))
+    print(experiment.properties)
+
+    runs = list(experiment.run())
+
+    space_selection = ["dataset", "model", "pool", "layer"]
+    selection = {
+        "x_fit": space_selection,
+        "y_fit": space_selection,
+        "estimator": ["name"],
+        "x_test": space_selection,
+        "y_test": space_selection,
+        "metric": ["name"],
+    }
+
+    experiment.export(results=runs, selection=selection).to_csv(DATA_DIR / "experiment.csv", index=False, sep="\t")

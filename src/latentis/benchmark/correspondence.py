@@ -1,54 +1,92 @@
 from abc import abstractmethod
+from pathlib import Path
+from typing import Union
 
 import torch
+from torch._tensor import Tensor
 
 from latentis.data.dataset import LatentisDataset
-from latentis.space._base import EncodingKey
+from latentis.serialize.disk_index import DiskIndex
+from latentis.serialize.io_utils import IndexableMixin, SerializableMixin
+from latentis.space import LatentSpace
 
 # WikimatrixCorrespondence(source_dataset="en", target_dataset="fr", source_id=0)
 
 
 # IdentityCorrespondence(dataset)(source_id=0)
-class Correspondence:
-    def __init__(self, x_dataset: LatentisDataset, y_dataset: LatentisDataset):
-        self.x_dataset = x_dataset
-        self.y_dataset = y_dataset
 
-    @abstractmethod
-    def get_fit_vectors(self, encoding_key: EncodingKey) -> torch.Tensor:
+
+class CorrespondenceIndex:
+    def __init__(self, dataset: LatentisDataset):
+        self.dataset = dataset
+        self.correspondences = DiskIndex(dataset)
+
+
+class Correspondence(IndexableMixin):
+    def __init__(self, **properties):
+        self._properties = properties
+
+    @property
+    def properties(self):
+        return self._properties
+
+    def load_properties(self, path: Path):
+        raise NotImplementedError
+
+    def save_to_disk(self, parent_dir: Path, *args, **kwargs):
+        raise NotImplementedError
+
+    @classmethod
+    def load_from_disk(cls, path: Path, *args, **kwargs) -> SerializableMixin:
         raise NotImplementedError
 
     @abstractmethod
-    def get_test_vectors(self, encoding_key: EncodingKey) -> torch.Tensor:
-        raise NotImplementedError
+    def get_x_ids(self) -> torch.Tensor:
+        return self.x2y[:, 0]
+
+    def get_y_ids(self) -> torch.Tensor:
+        return self.x2y[:, 1]
+
+    @abstractmethod
+    def split(self):
+        pass
+
+    def add_noise(self, x: LatentSpace, y: LatentSpace):
+        pass
+
+    def random_subset(self, factor: Union[int, float], seed: int):
+        n = int(len(self.x2y) * factor) if 0 < factor <= 1 else factor
+        x_ids = self.get_x_ids()
+        y_ids = self.get_y_ids()
+        subset = torch.randperm(x_ids.size(0), generator=torch.Generator().manual_seed(seed))[:n]
+
+        return TensorCorrespondence(x2y=torch.stack([x_ids[subset, :], y_ids[subset, :]], dim=-1))
 
 
-class SameDatasetCorrespondence(Correspondence):
-    def __init__(self, dataset: LatentisDataset, perc: float, seed: int):
-        super().__init__(x_dataset=dataset, y_dataset=dataset)
-        assert 0 < perc <= 1, f"perc must be in (0, 1], got {perc}"
+class TensorCorrespondence(Correspondence):
+    def __init__(self, x2y: torch.Tensor):
+        super().__init__()
+        if x2y.ndim != 2:
+            raise ValueError(f"Expected x2y to have ndim=2, got {x2y.ndim}")
+        if x2y.shape[1] != 2:
+            raise ValueError(f"Expected x2y to be (n, 2), got {x2y.shape}")
 
-        self.perc = perc
-        self.seed = seed
-        train_size: int = len(dataset.hf_dataset["train"])
-        self.fit_ids = torch.randperm(train_size, generator=torch.Generator().manual_seed(seed))[
-            : int(train_size * perc)
-        ]
+        self.x2y: torch.Tensor = x2y
 
-    def get_fit_vectors(self, encoding_key: EncodingKey) -> torch.Tensor:
-        assert (
-            encoding_key.dataset == self.x_dataset._name
-        ), f"Dataset mismatch in encoding key {encoding_key.dataset} and {self.x_dataset.name}"
+    def get_x_ids(self) -> torch.Tensor:
+        return self.x2y[:, 0]
 
-        space = encoding_key.to_space(data_root=self.x_dataset.root_dir.parent)
+    def get_y_ids(self) -> torch.Tensor:
+        return self.x2y[:, 1]
 
-        return space[self.fit_ids]
 
-    def get_test_vectors(self, encoding_key: EncodingKey) -> torch.Tensor:
-        assert (
-            encoding_key.dataset == self.x_dataset.name
-        ), f"Dataset mismatch in encoding key {encoding_key.dataset} and {self.x_dataset.name}"
+class IdentityCorrespondence(Correspondence):
+    def __init__(self, n_samples: int):
+        super().__init__()
+        self.n_samples: int = n_samples
 
-        space = encoding_key.to_space(data_root=self.x_dataset.root_dir.parent)
+    def get_x_ids(self) -> Tensor:
+        return torch.arange(self.n_samples)
 
-        return space.vectors
+    def get_y_ids(self) -> Tensor:
+        return torch.arange(self.n_samples)
