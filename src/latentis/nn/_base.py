@@ -29,6 +29,14 @@ class LatentisModule(LightningModule):
         raise NotImplementedError
 
     @abstractmethod
+    def post_encode(self, *args, **kwargs):
+        raise NotImplementedError
+
+    @abstractmethod
+    def pre_decode(self, *args, **kwargs):
+        raise NotImplementedError
+
+    @abstractmethod
     def decode(self, *args, **kwargs):
         raise NotImplementedError
 
