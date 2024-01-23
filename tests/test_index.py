@@ -20,7 +20,7 @@ def test_index(tmp_path: Path):
     for x, properties in zip(range(n_items), random_properties):
         fake_item = LatentSpace(
             torch.randn(1, 1),
-            info=properties,
+            properties=properties,
         )
 
         index.add_item(item=fake_item)
@@ -30,17 +30,17 @@ def test_index(tmp_path: Path):
     assert len(index) == n_items == len(items)
 
     # add item with same key
-    new_item_key = index.add_item(item=LatentSpace(torch.randn(1, 2), info={"a": 1, "b": 2}))
+    new_item_key = index.add_item(item=LatentSpace(torch.randn(1, 2), properties={"a": 1, "b": 2}))
     assert len(index) == n_items + 1
 
     with pytest.raises(KeyError):
-        index.add_item(item=LatentSpace(torch.randn(1, 2), info=properties))
+        index.add_item(item=LatentSpace(torch.randn(1, 2), properties=properties))
 
     index.remove_item(item_key=new_item_key)
     assert len(index) == n_items
 
     index.remove_item(**properties)
-    new_item_key = index.add_item(item=LatentSpace(torch.randn(1, 2), info=properties))
+    new_item_key = index.add_item(item=LatentSpace(torch.randn(1, 2), properties=properties))
     assert len(index) == n_items
 
     # get item by key
@@ -83,7 +83,7 @@ def test_index(tmp_path: Path):
     assert len(list(tmp_path.iterdir())) == 1
 
     # but it works indeed
-    index.add_item(item=LatentSpace(torch.randn(1, 2), info=properties))
+    index.add_item(item=LatentSpace(torch.randn(1, 2), properties=properties))
     index.clear()
     assert len(index) == 0
     assert len(list(tmp_path.iterdir())) == 1

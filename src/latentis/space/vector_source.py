@@ -28,6 +28,7 @@ class VectorSourceMeta(type):
 
 
 class VectorSource(metaclass=VectorSourceMeta):
+    @property
     @abstractmethod
     def shape(self) -> torch.Size:
         raise NotImplementedError
