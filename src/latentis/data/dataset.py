@@ -238,7 +238,6 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
                 save_vector_source=True,
                 save_properties=False,
                 save_source_model=save_source_model,
-                save_decoders=False,
             )
         except KeyError:
             return self.encodings.add_item(
@@ -247,7 +246,6 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
                     "save_vector_source": True,
                     "save_properties": True,
                     "save_source_model": save_source_model,
-                    "save_decoders": True,
                 },
             )
 
