@@ -131,7 +131,6 @@ class LatentSpace(IndexableMixin):
         # save model
         if save_source_model:
             if self.source_model is not None:
-                # TODO: save model to disk index
                 save_model(model=self.source_model, target_path=target_path / "model.pt", version=self.version)
 
         # TODO: remove save to disk from disk index
