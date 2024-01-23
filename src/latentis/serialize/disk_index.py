@@ -28,6 +28,7 @@ class DiskIndex(SerializableMixin):
             "version": self.version,
         }
 
+        # TODO see if the disk index should implement the indexable mixin
         save_json(info, self.root_path / "info.json")
 
     @classmethod
@@ -71,7 +72,7 @@ class DiskIndex(SerializableMixin):
         if len(items) == 0:
             raise KeyError(f"No items with key prefix '{item_key}' matching {properties} found")
         elif len(items) > 1:
-            raise ValueError(f"Multiple items with key prefix '{item_key}' matching {properties} found")
+            raise ValueError(f"Multiple items with key prefix '{item_key}' matching {properties} found: {items}")
         return items[0]
 
     def _remove_item_by_key(self, item_key: str) -> None:
@@ -158,8 +159,12 @@ class DiskIndex(SerializableMixin):
         items = self.get_items(item_key=item_key, **properties)
         return pd.DataFrame.from_dict(items, orient="index").reset_index(names="item_key")
 
-    def get_item_key(self, **properties: Any) -> str:
-        item_to_load = self._resolve_item(item_key=None, **properties)
+    def get_item_key(self, item_key: Optional[str] = None, **properties: Any) -> str:
+        item_to_load = self._resolve_item(item_key=item_key, **properties)
+        return item_to_load
+
+    def get_items_key(self, item_key: Optional[str] = None, **properties: Any) -> str:
+        item_to_load = self._resolve_items(item_key=item_key, **properties)
         return item_to_load
 
     def clear(self):

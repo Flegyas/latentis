@@ -4,7 +4,7 @@ from typing import Dict, Sequence
 import pandas as pd
 from transformers import BatchEncoding
 
-from latentis.modules import LatentisModule
+from latentis.nn import LatentisModule
 from latentis.serialize.io_utils import SerializableMixin
 
 
