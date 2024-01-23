@@ -52,7 +52,6 @@ class SerializableMixin:
         raise NotImplementedError
 
     @property
-    @abstractmethod
     def version(self) -> int:
         raise NotImplementedError
 
@@ -60,7 +59,9 @@ class SerializableMixin:
 class IndexableMixin(SerializableMixin):
     @classmethod
     def id_from_properties(cls, properties: Properties) -> str:
-        hash_object = hashlib.sha256(json.dumps(properties, sort_keys=True).encode(encoding="utf-8"))
+        hash_object = hashlib.sha256(
+            json.dumps(properties, default=lambda o: o.__dict__, sort_keys=True).encode(encoding="utf-8")
+        )
         return hash_object.hexdigest()
 
     @property
