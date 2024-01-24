@@ -8,9 +8,9 @@ from typing import Optional
 from omegaconf import OmegaConf
 
 from latentis.benchmark import BENCHMARK_DIR
-from latentis.correspondence import correspondences_index
 from latentis.data import DATA_DIR
 from latentis.data.dataset import LatentisDataset
+from latentis.nexus import correspondences_index
 
 BENCHMARK_DIR.mkdir(parents=True, exist_ok=True)
 
