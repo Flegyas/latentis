@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from datasets import ClassLabel, Dataset, DatasetDict, load_dataset
-from torchvision.transforms import Compose, ToTensor
 
 from latentis.data import DATA_DIR
 from latentis.data.dataset import DataType, Feature, FeatureMapping, FeatureProperty, LatentisDataset
@@ -199,18 +198,18 @@ class MNIST(DataProcessor):
         )
 
     def _process(self, dataset: DatasetDict) -> DatasetDict:
-        transforms = Compose(
-            [
-                ToTensor(),
-            ]
-        )
+        # transforms = Compose(
+        #     [
+        #         ToTensor(),
+        #     ]
+        # )
 
-        dataset = dataset.map(
-            lambda images: {"image": [transforms(image.convert("RGB")) for image in images]},
-            input_columns=["image"],
-            batched=True,
-        )
-        dataset = dataset.with_format("torch", columns=["image"])
+        # dataset = dataset.map(
+        #     lambda images: {"image": [transforms(image.convert("RGB")) for image in images]},
+        #     input_columns=["image"],
+        #     batched=True,
+        # )
+        # dataset = dataset.with_format("torch", columns=["image"])
 
         dataset = dataset.cast_column(
             "label",
@@ -234,18 +233,19 @@ class CIFAR10(DataProcessor):
         )
 
     def _process(self, dataset: DatasetDict) -> DatasetDict:
-        transforms = Compose(
-            [
-                ToTensor(),
-            ]
-        )
+        # transforms = Compose(
+        #     [
+        #         ToTensor(),
+        #     ]
+        # )
 
-        dataset = dataset.map(
-            lambda images: {"image": [transforms(image.convert("RGB")) for image in images]},
-            input_columns=["img"],
-            batched=True,
-        )
-        dataset = dataset.with_format("torch", columns=["image"])
+        # dataset = dataset.map(
+        #     lambda images: {"image": [transforms(image.convert("RGB")) for image in images]},
+        #     input_columns=["img"],
+        #     batched=True,
+        # )
+        # dataset = dataset.with_format("torch", columns=["image"])
+        dataset = dataset.rename_column("img", "image")
 
         dataset = dataset.cast_column(
             "label",
@@ -278,18 +278,19 @@ class CIFAR100(DataProcessor):
         )
 
     def _process(self, dataset: DatasetDict) -> DatasetDict:
-        transforms = Compose(
-            [
-                ToTensor(),
-            ]
-        )
+        # transforms = Compose(
+        #     [
+        #         ToTensor(),
+        #     ]
+        # )
 
-        dataset = dataset.map(
-            lambda images: {"image": [transforms(image.convert("RGB")) for image in images]},
-            input_columns=["img"],
-            batched=True,
-        )
-        dataset = dataset.with_format("torch", columns=["image"])
+        # dataset = dataset.map(
+        #     lambda images: {"image": [transforms(image.convert("RGB")) for image in images]},
+        #     input_columns=["img"],
+        #     batched=True,
+        # )
+        # dataset = dataset.with_format("torch", columns=["image"])
+        dataset = dataset.rename_column("img", "image")
 
         for label in ("coarse_label", "fine_label"):
             dataset = dataset.cast_column(
@@ -314,18 +315,19 @@ class FashionMNIST(DataProcessor):
         )
 
     def _process(self, dataset: DatasetDict) -> DatasetDict:
-        transforms = Compose(
-            [
-                ToTensor(),
-            ]
-        )
+        # transforms = Compose(
+        #     [
+        #         ToTensor(),
+        #     ]
+        # )
 
-        dataset = dataset.map(
-            lambda images: {"image": [transforms(image.convert("RGB")) for image in images]},
-            input_columns=["image"],
-            batched=True,
-        )
-        dataset = dataset.with_format("torch", columns=["image"])
+        # dataset = dataset.map(
+        #     lambda images: {"image": [transforms(image.convert("RGB")) for image in images]},
+        #     input_columns=["image"],
+        #     batched=True,
+        # )
+
+        # dataset = dataset.with_format("torch", columns=["image"])
 
         dataset = dataset.cast_column(
             "label",
