@@ -3,6 +3,7 @@ multirun.yaml
 storage
 # ignore only top level benchmark folder
 /benchmarks
+/nexus
 
 # ignore the _version.py file
 _version.py

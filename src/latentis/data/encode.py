@@ -13,6 +13,7 @@ from latentis.data.dataset import Feature
 from latentis.data.processor import LatentisDataset
 from latentis.data.text_encoding import HFPooler, cls_pool
 from latentis.data.utils import default_collate
+from latentis.nexus import space_index
 from latentis.nn import LatentisModule
 from latentis.nn.encoders import TextHFEncoder
 from latentis.space import LatentSpace
@@ -44,11 +45,40 @@ DEFAULT_ENCODERS = {
 }
 
 
-# encoding_module = encoder.vision_model if encoder_name.startswith("openai/clip") else encoder
-# for batch in tqdm(loader, desc=f"Embedding samples"):
-#     embeddings.extend(encoding_module(batch["image"].to(DEVICE)).cpu().tolist())
+def add_encoding(
+    item: LatentSpace,
+    save_source_model: bool,
+) -> LatentSpace:
+    # TODO: add consistency check to make sure that the item is compatible with the dataset
+    try:
+        existing_space = space_index.load_item(**item.properties)
+        existing_space.add_vectors(vectors=item.vectors, keys=item.keys)
 
-# return embeddings
+        # TODO: This is a hack, we are bypassing the index
+        target_path = space_index.get_item_path(**item.properties)
+        existing_space.save_to_disk(
+            target_path,
+            save_vector_source=True,
+            save_properties=False,
+            save_source_model=save_source_model,
+        )
+    except KeyError:
+        return space_index.add_item(
+            item=item,
+            save_args={
+                "save_vector_source": True,
+                "save_properties": True,
+                "save_source_model": save_source_model,
+            },
+        )
+
+
+def add_encodings(
+    items: Sequence[LatentSpace],
+    save_source_model: bool,
+) -> Sequence[str]:
+    for space in items:
+        add_encoding(item=space, save_source_model=save_source_model)
 
 
 def encode_feature(
@@ -101,7 +131,7 @@ def encode_feature(
             if not poolers:
                 assert isinstance(raw_encoding, torch.Tensor)
 
-                dataset.add_encoding(
+                add_encoding(
                     item=LatentSpace(
                         vector_source=(raw_encoding.detach().cpu(), batch[dataset._id_column].cpu().tolist()),
                         properties={
@@ -118,7 +148,7 @@ def encode_feature(
                     encoding2pooler_properties = pooler(**raw_encoding)
 
                     for encoding, pooler_properties in encoding2pooler_properties:
-                        dataset.add_encoding(
+                        add_encoding(
                             item=LatentSpace(
                                 vector_source=(encoding.detach().cpu(), batch[dataset._id_column].cpu().tolist()),
                                 properties={
@@ -136,7 +166,7 @@ def encode_feature(
 
 
 if __name__ == "__main__":
-    for dataset, hf_encoder in itertools.product(["trec"], ["bert-base-cased", "bert-base-uncased"]):
+    for dataset, hf_encoder in itertools.product(["trec"], ["bert-base-cased"]):
         dataset = LatentisDataset.load_from_disk(DATA_DIR / dataset)
 
         encode_feature(
@@ -149,7 +179,7 @@ if __name__ == "__main__":
             num_workers=0,
             save_source_model=False,
             poolers=[
-                HFPooler(layers=[11, 12], pooling_fn=cls_pool),
+                HFPooler(layers=[12], pooling_fn=cls_pool),
             ],
             device=torch.device("cpu"),
         )

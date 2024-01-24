@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import shutil
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import auto
@@ -10,13 +9,11 @@ from typing import Any, Mapping, Optional, Sequence, Union
 
 import torch
 from datasets import DatasetDict
-from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
 from latentis.data import DATA_DIR
-from latentis.serialize.disk_index import DiskIndex
+from latentis.nexus import space_index
 from latentis.serialize.io_utils import MetadataMixin, SerializableMixin, load_json, save_json
-from latentis.space import LatentSpace
 from latentis.types import StrEnum
 
 pylogger = logging.getLogger(__name__)
@@ -70,7 +67,7 @@ class DatasetView(torch.utils.data.Dataset):
         if isinstance(hf_y_keys, str):
             hf_y_keys = [hf_y_keys]
 
-        self.spaces = [latentis_dataset.encodings.load_item(item_key=key) for key in encodings_key]
+        self.spaces = [space_index.load_item(item_key=key) for key in encodings_key]
         spaces_split = set(space.split for space in self.spaces)
         if len(spaces_split) > 1:
             raise ValueError(f"Spaces {encodings_key} are not all from the same split!")
@@ -123,7 +120,6 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
         self._perc: float = perc
         self._properties: Mapping[DatasetProperty, Any] = properties or {}
         self._root_dir: Path = parent_dir / name
-        self.encodings = DiskIndex(self._root_dir / "encodings", item_class=LatentSpace)
 
     def save_to_disk(self):
         target_path = self._root_dir
@@ -132,13 +128,7 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
 
         self._hf_dataset.save_to_disk(target_path / "hf_dataset")
 
-        # Copy the encodings directory, if needed
-        if (target_path / "encodings").exists():
-            shutil.copy(self._root_dir / "encodings", target_path / "encodings")
-
         save_json(self.metadata, target_path / self._METADATA_FILE_NAME, indent=4)
-
-        self.encodings.save_to_disk()
 
     @classmethod
     def load_from_disk(
@@ -168,7 +158,6 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
         dataset._perc: float = metadata["perc"]
         dataset._root_dir: Path = path
         dataset._properties = properties
-        dataset.encodings = DiskIndex.load_from_disk(path=path / "encodings")
 
         return dataset
 
@@ -218,48 +207,6 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
     def __repr__(self):
         return f"{self.__class__.__name__}(features={self._features}, perc={self._perc}, metadata={self.metadata})"
 
-    def add_decoder(self, encoding_key: str, decoder: nn.Module):
-        raise NotImplementedError
-
-    def load_decoders(self, encodings: Sequence[str]) -> Mapping[str, nn.Module]:
-        raise NotImplementedError
-
-    def add_encoding(
-        self,
-        item: LatentSpace,
-        save_source_model: bool,
-    ) -> LatentSpace:
-        # TODO: add consistency check to make sure that the item is compatible with the dataset
-        try:
-            existing_space = self.encodings.load_item(**item.properties)
-            existing_space.add_vectors(vectors=item.vectors, keys=item.keys)
-
-            # TODO: This is a hack, we are bypassing the index
-            target_path = self.encodings.get_item_path(**item.properties)
-            existing_space.save_to_disk(
-                target_path,
-                save_vector_source=True,
-                save_properties=False,
-                save_source_model=save_source_model,
-            )
-        except KeyError:
-            return self.encodings.add_item(
-                item=item,
-                save_args={
-                    "save_vector_source": True,
-                    "save_properties": True,
-                    "save_source_model": save_source_model,
-                },
-            )
-
-    def add_encodings(
-        self,
-        items: Sequence[LatentSpace],
-        save_source_model: bool,
-    ) -> Sequence[str]:
-        for space in items:
-            self.add_encoding(item=space, save_source_model=save_source_model)
-
     def get_dataset_view(
         self,
         encodings_key: Sequence[str],
@@ -294,8 +241,3 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
             num_workers=num_workers,
             **kwargs,
         )
-
-
-if __name__ == "__main__":
-    dataset = LatentisDataset.load_from_disk(DATA_DIR / "imdb")
-    print(dataset.encodings.get_items_df())

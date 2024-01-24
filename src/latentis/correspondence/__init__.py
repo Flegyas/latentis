@@ -1,6 +1,5 @@
-from ._base import Correspondence, correspondences_index
+from ._base import Correspondence
 
 __all__ = [
-    "correspondences_index",
     "Correspondence",
 ]
