@@ -7,7 +7,6 @@ from pathlib import Path
 import torch
 
 from latentis.data import DATA_DIR
-from latentis.serialize.disk_index import DiskIndex
 from latentis.serialize.io_utils import IndexableMixin, load_json, save_json
 from latentis.space import LatentSpace
 from latentis.types import Properties, StrEnum
@@ -75,10 +74,3 @@ class Correspondence(IndexableMixin):
     #     subset = torch.randperm(x_ids.size(0), generator=torch.Generator().manual_seed(seed))[:n]
 
     #     return TensorCorrespondence(x2y=torch.stack([x_ids[subset, :], y_ids[subset, :]], dim=-1))
-
-
-try:
-    correspondences_index = DiskIndex.load_from_disk(path=DATA_DIR / _CORRESPONDENCE_DIR)
-except FileNotFoundError:
-    correspondences_index = DiskIndex(root_path=DATA_DIR / _CORRESPONDENCE_DIR, item_class=Correspondence)
-    correspondences_index.save_to_disk()

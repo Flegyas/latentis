@@ -6,6 +6,7 @@ from torch import nn
 
 from latentis.data import DATA_DIR
 from latentis.data.dataset import LatentisDataset
+from latentis.nexus import space_index
 from latentis.nn import LatentisModule
 from latentis.nn.decoders import Classifier
 
@@ -73,7 +74,7 @@ def attach_decoder(
         )
         print(model_perfs)
 
-    train_space = dataset.encodings.load_item(item_key=train_space_id)
+    train_space = space_index.load_item(item_key=train_space_id)
 
     try:
         train_space.decoders.add_item(item=model)
@@ -92,14 +93,12 @@ if __name__ == "__main__":
         res = attach_decoder(
             dataset=dataset,
             train_space_id=(
-                space_key := dataset.encodings.get_item_key(
-                    split="train", layer=12, **{"model/hf_name": hf_encoder_name}
-                )
+                space_key := space_index.get_item_key(split="train", layer=12, **{"model/hf_name": hf_encoder_name})
             ),
-            test_space_id=dataset.encodings.get_item_key(split="test", layer=12, **{"model/hf_name": hf_encoder_name}),
+            test_space_id=space_index.get_item_key(split="test", layer=12, **{"model/hf_name": hf_encoder_name}),
             y_gt_key=label_feature,
             model_builder=lambda: Classifier(
-                input_dim=dataset.encodings.load_item(item_key=space_key).shape[1],  # TODO add this a space property
+                input_dim=space_index.load_item(item_key=space_key).shape[1],  # TODO add this a space property
                 num_classes=len(dataset.hf_dataset["train"].features[label_feature].names),
                 deep=True,
                 bias=True,
@@ -116,11 +115,11 @@ if __name__ == "__main__":
             exists_ok=True,  # TODO: careful here
         )
 
-        # space = dataset.encodings.load_item(split="train", layer=12, **{"model/hf_name": "bert-base-uncased"})
+        # space = space_index.load_item(split="train", layer=12, **{"model/hf_name": "bert-base-uncased"})
         # decoder = space.decoders.load_item()
 
         # dataloader = dataset.get_dataloader(
-        #     space_id=dataset.encodings.get_item_key(
+        #     space_id=space_index.get_item_key(
         #         split="test", layer=12, **{"model/hf_name": "bert-base-uncased"}
         #     ),
         #     hf_x_keys=None,

@@ -1,7 +1,7 @@
 import torch
 
-from latentis.correspondence import correspondences_index
 from latentis.correspondence._base import Correspondence
+from latentis.nexus import correspondences_index
 
 if __name__ == "__main__":
     for x_dataset in ["trec", "imdb"]:
