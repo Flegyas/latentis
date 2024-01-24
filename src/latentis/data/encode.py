@@ -81,6 +81,8 @@ def encode_feature(
 
     pylogger.info(f"Encoding {feature} for dataset {dataset._name}")
 
+    model = model.to(device)
+
     for split, split_data in dataset.hf_dataset.items():
         loader = DataLoader(
             split_data,
@@ -94,14 +96,14 @@ def encode_feature(
         for batch in tqdm(
             loader, desc=f"Encoding `{split}` samples for feature {feature.col_name} using {model.item_id[:8]}"
         ):
-            raw_encoding = model.encode(batch)
+            raw_encoding = model.encode(batch.to(device))
 
-            if len(poolers) == 0:
+            if not poolers:
                 assert isinstance(raw_encoding, torch.Tensor)
 
                 dataset.add_encoding(
                     item=LatentSpace(
-                        vector_source=(raw_encoding, batch[dataset._id_column]),
+                        vector_source=(raw_encoding.detach().cpu(), batch[dataset._id_column].cpu().tolist()),
                         properties={
                             **{f"model/{key}": value for key, value in model.properties.items()},
                             "feature": feature.col_name,
@@ -118,7 +120,7 @@ def encode_feature(
                     for encoding, pooler_properties in encoding2pooler_properties:
                         dataset.add_encoding(
                             item=LatentSpace(
-                                vector_source=(encoding, batch[dataset._id_column]),
+                                vector_source=(encoding.detach().cpu(), batch[dataset._id_column].cpu().tolist()),
                                 properties={
                                     **{f"model/{key}": value for key, value in model.properties.items()},
                                     "feature": feature.col_name,
@@ -130,7 +132,7 @@ def encode_feature(
                             save_source_model=save_source_model,
                         )
 
-        # model.cpu()
+    model.cpu()
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Dict, Sequence
 
 import pandas as pd
+import torch
 from transformers import BatchEncoding
 
 from latentis.nn import LatentisModule
@@ -73,6 +74,6 @@ def default_collate(
 
     id_column = id_column or _ID_COLUMN
     batch = model.pre_encode(samples, feature=feature)
-    batch[id_column] = [sample[id_column] for sample in samples]
+    batch[id_column] = torch.as_tensor([sample[id_column] for sample in samples])
 
-    return batch
+    return BatchEncoding(batch)

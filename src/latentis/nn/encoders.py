@@ -1,8 +1,7 @@
-from typing import List, Optional, Sequence
+from typing import Optional, Sequence
 
 import torch
-from PIL.Image import Image
-from transformers import AutoFeatureExtractor, AutoModel, AutoTokenizer, BatchEncoding, PreTrainedModel
+from transformers import AutoImageProcessor, AutoModel, AutoTokenizer, BatchEncoding, PreTrainedModel
 
 from latentis.nn._base import WrappedModule
 from latentis.types import Properties
@@ -86,31 +85,18 @@ class TextHFEncoder(HFEncoder):
 class ImageHFEncoder(HFEncoder):
     def __init__(self, hf_name: str, requires_grad: bool = False, properties: Optional[Properties] = None):
         super().__init__(hf_name, requires_grad, properties=properties)
-        self.extractor = AutoFeatureExtractor.from_pretrained(self.hf_name)
+        self.processor = AutoImageProcessor.from_pretrained(self.hf_name)
 
     @torch.no_grad()
     def pre_encode(self, samples: Sequence, feature: str, **kwargs):
-        is_clip: bool = self.hf_name.startswith("openai/clip")
+        images = [sample[feature].convert("RGB") for sample in samples]
+        # images = [sample[feature] for sample in samples]
+        images = self.processor(images=images, return_tensors="pt")
 
-        images = [sample[feature] for sample in samples]
-
-        kwargs["return_tensors"] = "pt"
-
-        if is_clip:
-            return self._clip_image_encode(images=images, **kwargs)
-        else:
-            return self._image_encode(images=images, **kwargs)
+        return {"proc_out": images}
 
     @torch.no_grad()
-    def _image_encode(self, images: Sequence[Image], **kwargs):
-        images: List[torch.Tensor] = [self.extractor(image["image"].convert("RGB"), **kwargs) for image in images]
-        images: torch.Tensor = torch.stack(images, dim=0)
-
-        return {"image": images}
-
-    @torch.no_grad()
-    def _clip_image_encode(self, images: Sequence[Image], **kwargs):
-        images = [image["image"].convert("RGB") for image in images]
-        images = self.extractor(images=images, **kwargs)
-
-        return {"image": images}
+    def encode(self, x: BatchEncoding):
+        x = x["proc_out"]
+        outputs = self.model(**x)
+        return outputs.last_hidden_state[:, 0, :]
