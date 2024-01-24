@@ -78,7 +78,7 @@ class Correspondence(IndexableMixin):
 
 
 try:
-    correspondences = DiskIndex.load_from_disk(path=_CORRESPONDENCE_DIR)
+    correspondences_index = DiskIndex.load_from_disk(path=DATA_DIR / _CORRESPONDENCE_DIR)
 except FileNotFoundError:
-    correspondences = DiskIndex(root_path=_CORRESPONDENCE_DIR, item_class=Correspondence)
-    correspondences.save_to_disk()
+    correspondences_index = DiskIndex(root_path=DATA_DIR / _CORRESPONDENCE_DIR, item_class=Correspondence)
+    correspondences_index.save_to_disk()

@@ -1,3 +1,4 @@
+import itertools
 from typing import Callable, Dict, Sequence
 
 import torch
@@ -55,6 +56,7 @@ def attach_decoder(
     batch_size: int,
     num_workers: int,
     device: torch.device,
+    exists_ok: bool = False,
 ) -> Sequence[Dict[str, float]]:
     model = model_builder().to(device)
     model_perfs = None
@@ -72,24 +74,29 @@ def attach_decoder(
         print(model_perfs)
 
     train_space = dataset.encodings.load_item(item_key=train_space_id)
-    train_space.decoders.add_item(item=model)
+
+    try:
+        train_space.decoders.add_item(item=model)
+    except FileExistsError as e:
+        if not exists_ok:
+            raise e
 
 
 if __name__ == "__main__":
-    dataset = LatentisDataset.load_from_disk(DATA_DIR / "trec")
-
-    label_feature = "coarse_label"
-
-    for space_key in (
-        dataset.encodings.get_item_key(split="train", layer=12, **{"model/hf_name": "bert-base-uncased"}),
-        dataset.encodings.get_item_key(split="train", layer=12, **{"model/hf_name": "bert-base-cased"}),
+    for (dataset_name, label_feature), hf_encoder_name in itertools.product(
+        [("trec", "coarse_label"), ("imdb", "label"), ("ag_news", "label")],
+        ["bert-base-cased", "bert-base-uncased", "roberta-base"],
     ):
+        dataset = LatentisDataset.load_from_disk(DATA_DIR / dataset_name)
+
         res = attach_decoder(
             dataset=dataset,
-            train_space_id=space_key,
-            test_space_id=dataset.encodings.get_item_key(
-                split="test", layer=12, **{"model/hf_name": "bert-base-uncased"}
+            train_space_id=(
+                space_key := dataset.encodings.get_item_key(
+                    split="train", layer=12, **{"model/hf_name": hf_encoder_name}
+                )
             ),
+            test_space_id=dataset.encodings.get_item_key(split="test", layer=12, **{"model/hf_name": hf_encoder_name}),
             y_gt_key=label_feature,
             model_builder=lambda: Classifier(
                 input_dim=dataset.encodings.load_item(item_key=space_key).shape[1],  # TODO add this a space property
@@ -106,18 +113,21 @@ if __name__ == "__main__":
             batch_size=128,
             num_workers=0,
             device=torch.device("cpu"),
+            exists_ok=True,  # TODO: careful here
         )
 
-        space = dataset.encodings.load_item(split="train", layer=12, **{"model/hf_name": "bert-base-uncased"})
-        decoder = space.decoders.load_item()
+        # space = dataset.encodings.load_item(split="train", layer=12, **{"model/hf_name": "bert-base-uncased"})
+        # decoder = space.decoders.load_item()
 
-        dataloader = dataset.get_dataloader(
-            space_id=dataset.encodings.get_item_key(split="test", layer=12, **{"model/hf_name": "bert-base-uncased"}),
-            hf_x_keys=None,
-            hf_y_keys=(label_feature,),
-            batch_size=128,
-            shuffle=True,
-            num_workers=0,
-        )
+        # dataloader = dataset.get_dataloader(
+        #     space_id=dataset.encodings.get_item_key(
+        #         split="test", layer=12, **{"model/hf_name": "bert-base-uncased"}
+        #     ),
+        #     hf_x_keys=None,
+        #     hf_y_keys=(label_feature,),
+        #     batch_size=128,
+        #     shuffle=True,
+        #     num_workers=0,
+        # )
 
-        print(decoder.score(dataloader))
+        # print(decoder.score(dataloader))
