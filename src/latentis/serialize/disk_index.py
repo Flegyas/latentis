@@ -91,7 +91,7 @@ class DiskIndex(SerializableMixin):
         item_key = item.item_id
 
         if item_key in self._index:
-            raise KeyError(f"Key {item_key} already exists in index")
+            raise FileExistsError(f"Key {item_key} already exists in index: {self._index[item_key]}")
 
         primary_keys = item.properties
         if len(primary_keys) == 0:
@@ -108,7 +108,7 @@ class DiskIndex(SerializableMixin):
 
         # Avoid adding any of the items if any of the keys already exist
         if any(item_key in self._index for item_key in item_keys):
-            raise KeyError("One of the keys already exists in index")
+            raise FileExistsError("One of the keys already exists in index")
 
         if any(len(item.properties) == 0 for item in items):
             raise ValueError("One of the items does not have any properties")

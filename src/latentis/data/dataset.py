@@ -144,6 +144,7 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
     def load_from_disk(
         cls,
         path: Path,
+        load_hf_dataset: bool = True,
     ) -> "LatentisDataset":
         assert (
             path / cls._METADATA_FILE_NAME
@@ -151,7 +152,9 @@ class LatentisDataset(SerializableMixin, MetadataMixin):
 
         metadata = load_json(path / cls._METADATA_FILE_NAME)
 
-        hf_dataset = DatasetDict.load_from_disk(path / "hf_dataset")
+        hf_dataset = None
+        if load_hf_dataset:
+            hf_dataset = DatasetDict.load_from_disk(path / "hf_dataset")
 
         properties = metadata["properties"]
         features = [Feature(**feature) for feature in metadata["features"]]

@@ -78,6 +78,10 @@ class IndexableMixin(SerializableMixin):
     def properties(self) -> Dict[str, Any]:
         raise NotImplementedError
 
+    def __repr__(self) -> str:
+        public_properties = {k: v for k, v in self.properties.items() if not k.startswith("_")}
+        return f"{self.__class__.__name__}(id={self.item_id[:5]}, properties={public_properties})"
+
 
 class MetadataMixin:
     _METADATA_FILE_NAME: str = "metadata.json"
