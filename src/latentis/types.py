@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Union
-
 import torch
 
 try:
@@ -10,9 +8,14 @@ try:
 except ImportError:
     from backports.strenum import StrEnum as PythonStrEnum
 
+from typing import TYPE_CHECKING, Any, Mapping, Union
+
 if TYPE_CHECKING:
     from latentis.space import LatentSpace
 
     Space = Union[LatentSpace, torch.Tensor]
 
 StrEnum = PythonStrEnum
+
+
+Properties = Mapping[str, Any]

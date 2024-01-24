@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING, Tuple
 import pytest
 import torch
 
-from latentis import LatentSpace
 from latentis.measure.base import CKAMode
+from latentis.space import LatentSpace
 
 if TYPE_CHECKING:
     from latentis.types import Space
@@ -16,24 +16,22 @@ class SameShapeSpaces(object):
     instances = [
         (
             LatentSpace(
-                vector_source=torch.randn(x_n, space_1_dim, dtype=torch.double),
-                name="space1",
+                vector_source=torch.randn(x_n, x_dim, dtype=torch.double),
             ),
             LatentSpace(
                 vector_source=torch.randn(y_n, y_dim, dtype=torch.double),
-                name="y",
             ),
         )
-        for (x_n, space_1_dim), (y_n, y_dim) in [
+        for (x_n, x_dim), (y_n, y_dim) in [
             ((50, 250), (50, 250)),
             ((20, 300), (20, 300)),
         ]
     ] + [
         (
-            torch.randn(x_n, space_1_dim, dtype=torch.double),
+            torch.randn(x_n, x_dim, dtype=torch.double),
             torch.randn(y_n, y_dim, dtype=torch.double),
         )
-        for (x_n, space_1_dim), (y_n, y_dim) in [
+        for (x_n, x_dim), (y_n, y_dim) in [
             ((50, 250), (50, 250)),
             ((20, 300), (20, 300)),
         ]
@@ -45,11 +43,9 @@ class DifferentDimSpaces(object):
         (
             LatentSpace(
                 vector_source=torch.randn(x_n, space_1_dim, dtype=torch.double),
-                name="x",
             ),
             LatentSpace(
                 vector_source=torch.randn(y_n, y_dim, dtype=torch.double),
-                name="y",
             ),
         )
         for (x_n, space_1_dim), (y_n, y_dim) in [

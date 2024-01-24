@@ -6,7 +6,7 @@ import pytest
 import torch
 from torch import Tensor
 
-from latentis import LatentSpace
+from latentis.space import LatentSpace
 from latentis.utils import seed_everything
 
 if TYPE_CHECKING:
@@ -18,7 +18,6 @@ class Space1Params(object):
     instances = [
         LatentSpace(
             vector_source=torch.randn(1000, 128, dtype=torch.double),
-            name="space1",
         ),
         torch.randn(1000, 128, dtype=torch.double),
     ]
@@ -34,7 +33,6 @@ class Space2Params(object):
     instances = [
         LatentSpace(
             vector_source=torch.randn(53, 250, dtype=torch.double),
-            name="space2",
         ),
         torch.randn(53, 250, dtype=torch.double),
     ]
@@ -50,11 +48,9 @@ class ParallelSpaces(object):
         (
             LatentSpace(
                 vector_source=torch.randn(space1_n, space_1_dim, dtype=torch.double),
-                name="space1",
             ),
             LatentSpace(
                 vector_source=torch.randn(space2_n, space2_dim, dtype=torch.double),
-                name="space2",
             ),
         )
         for (space1_n, space_1_dim), (space2_n, space2_dim) in [

@@ -1,10 +1,11 @@
 import logging
 from abc import abstractmethod
+from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from datasets import ClassLabel, Dataset, DatasetDict, load_dataset
-from torchvision.transforms import Compose, ToTensor
 
+from latentis.data import DATA_DIR
 from latentis.data.dataset import DataType, Feature, FeatureMapping, FeatureProperty, LatentisDataset
 
 pylogger = logging.getLogger(__name__)
@@ -32,18 +33,17 @@ def map_features(dataset: Dataset, *feature_mappings: FeatureMapping):
 
 
 _RANDOM_SEED: int = 42
+_ID_COLUMN: str = "sample_id"
 
 
 class DataProcessor:
     def __init__(
         self,
-        dataset_name: str,
         load_dataset_params: Mapping[str, Any],
         features: Sequence[Feature],
         metadata={},
-        id_column: str = "sample_id",
+        id_column: str = _ID_COLUMN,
     ):
-        self.dataset_name: str = dataset_name
         self.load_dataset_params = load_dataset_params
         self.features = features
         self.metadata = metadata
@@ -53,38 +53,40 @@ class DataProcessor:
     def _process(self, dataset: DatasetDict) -> DatasetDict:
         raise NotImplementedError
 
-    def process(self, perc: float = 1) -> LatentisDataset:
-        dataset: DatasetDict = load_dataset(**self.load_dataset_params)
+    def process(self, dataset_name: str = None, perc: float = 1, parent_dir: Path = DATA_DIR) -> LatentisDataset:
+        hf_dataset: DatasetDict = load_dataset(**self.load_dataset_params)
+        dataset_name: str = dataset_name or list(hf_dataset.values())[0].info.dataset_name
 
         # Select a random subset, if needed
         if perc != 1:
-            dataset = DatasetDict(
+            hf_dataset = DatasetDict(
                 {
-                    split: dataset[split]
+                    split: hf_dataset[split]
                     .shuffle(seed=_RANDOM_SEED)
-                    .select(list(range(int(len(dataset[split]) * perc))))
-                    for split in dataset.keys()
+                    .select(list(range(int(len(hf_dataset[split]) * perc))))
+                    for split in hf_dataset.keys()
                 }
             )
-        start_columns = {col for cols in dataset.column_names.values() for col in cols}
+
+        start_columns = {col for cols in hf_dataset.column_names.values() for col in cols}
         core_columns = {feature.col_name for feature in self.features}
 
-        dataset: DatasetDict = self._process(dataset=dataset)
+        hf_dataset: DatasetDict = self._process(dataset=hf_dataset)
 
-        dataset = dataset.remove_columns([col for col in start_columns if col not in core_columns])
+        hf_dataset = hf_dataset.remove_columns([col for col in start_columns if col not in core_columns])
 
-        dataset = dataset.map(
+        hf_dataset = hf_dataset.map(
             lambda _, index: {self.id_column: index},
             with_indices=True,
         )
 
         processed_dataset = LatentisDataset(
-            dataset=dataset,
-            name=self.dataset_name,
+            name=dataset_name,
+            perc=perc,
+            hf_dataset=hf_dataset,
             id_column=self.id_column,
             features=self.features,
-            perc=perc,
-            metadata=self.metadata,
+            parent_dir=parent_dir,
         )
 
         return processed_dataset
@@ -93,7 +95,6 @@ class DataProcessor:
 class DBPedia14(DataProcessor):
     def __init__(self):
         super().__init__(
-            dataset_name="dbpedia_14",
             load_dataset_params=dict(path="dbpedia_14"),
             features=[
                 Feature(col_name="x", data_type=DataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"}),
@@ -117,7 +118,6 @@ class DBPedia14(DataProcessor):
 class TREC(DataProcessor):
     def __init__(self):
         super().__init__(
-            dataset_name="trec",
             load_dataset_params=dict(path="trec"),
             features=[
                 Feature(col_name="text", data_type=DataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"}),
@@ -141,7 +141,6 @@ class TREC(DataProcessor):
 class AGNews(DataProcessor):
     def __init__(self):
         super().__init__(
-            dataset_name="ag_news",
             load_dataset_params=dict(path="ag_news"),
             features=[
                 Feature(col_name="text", data_type=DataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"}),
@@ -164,7 +163,6 @@ class AGNews(DataProcessor):
 class IMDB(DataProcessor):
     def __init__(self):
         super().__init__(
-            dataset_name="imdb",
             load_dataset_params=dict(path="imdb"),
             features=[
                 Feature(col_name="text", data_type=DataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"}),
@@ -192,7 +190,6 @@ class IMDB(DataProcessor):
 class MNIST(DataProcessor):
     def __init__(self):
         super().__init__(
-            dataset_name="mnist",
             load_dataset_params=dict(path="mnist"),
             features=[
                 Feature(col_name="image", data_type=DataType.IMAGE),
@@ -201,18 +198,18 @@ class MNIST(DataProcessor):
         )
 
     def _process(self, dataset: DatasetDict) -> DatasetDict:
-        transforms = Compose(
-            [
-                ToTensor(),
-            ]
-        )
+        # transforms = Compose(
+        #     [
+        #         ToTensor(),
+        #     ]
+        # )
 
-        dataset = dataset.map(
-            lambda images: {"image": [transforms(image.convert("RGB")) for image in images]},
-            input_columns=["image"],
-            batched=True,
-        )
-        dataset = dataset.with_format("torch", columns=["image"])
+        # dataset = dataset.map(
+        #     lambda images: {"image": [transforms(image.convert("RGB")) for image in images]},
+        #     input_columns=["image"],
+        #     batched=True,
+        # )
+        # dataset = dataset.with_format("torch", columns=["image"])
 
         dataset = dataset.cast_column(
             "label",
@@ -228,7 +225,6 @@ class MNIST(DataProcessor):
 class CIFAR10(DataProcessor):
     def __init__(self):
         super().__init__(
-            dataset_name="cifar10",
             load_dataset_params=dict(path="cifar10"),
             features=[
                 Feature(col_name="image", data_type=DataType.IMAGE),
@@ -237,18 +233,19 @@ class CIFAR10(DataProcessor):
         )
 
     def _process(self, dataset: DatasetDict) -> DatasetDict:
-        transforms = Compose(
-            [
-                ToTensor(),
-            ]
-        )
+        # transforms = Compose(
+        #     [
+        #         ToTensor(),
+        #     ]
+        # )
 
-        dataset = dataset.map(
-            lambda images: {"image": [transforms(image.convert("RGB")) for image in images]},
-            input_columns=["img"],
-            batched=True,
-        )
-        dataset = dataset.with_format("torch", columns=["image"])
+        # dataset = dataset.map(
+        #     lambda images: {"image": [transforms(image.convert("RGB")) for image in images]},
+        #     input_columns=["img"],
+        #     batched=True,
+        # )
+        # dataset = dataset.with_format("torch", columns=["image"])
+        dataset = dataset.rename_column("img", "image")
 
         dataset = dataset.cast_column(
             "label",
@@ -264,7 +261,6 @@ class CIFAR10(DataProcessor):
 class CIFAR100(DataProcessor):
     def __init__(self):
         super().__init__(
-            dataset_name="cifar100",
             load_dataset_params=dict(path="cifar100"),
             features=[
                 Feature(col_name="image", data_type=DataType.IMAGE),
@@ -282,18 +278,19 @@ class CIFAR100(DataProcessor):
         )
 
     def _process(self, dataset: DatasetDict) -> DatasetDict:
-        transforms = Compose(
-            [
-                ToTensor(),
-            ]
-        )
+        # transforms = Compose(
+        #     [
+        #         ToTensor(),
+        #     ]
+        # )
 
-        dataset = dataset.map(
-            lambda images: {"image": [transforms(image.convert("RGB")) for image in images]},
-            input_columns=["img"],
-            batched=True,
-        )
-        dataset = dataset.with_format("torch", columns=["image"])
+        # dataset = dataset.map(
+        #     lambda images: {"image": [transforms(image.convert("RGB")) for image in images]},
+        #     input_columns=["img"],
+        #     batched=True,
+        # )
+        # dataset = dataset.with_format("torch", columns=["image"])
+        dataset = dataset.rename_column("img", "image")
 
         for label in ("coarse_label", "fine_label"):
             dataset = dataset.cast_column(
@@ -310,7 +307,6 @@ class CIFAR100(DataProcessor):
 class FashionMNIST(DataProcessor):
     def __init__(self):
         super().__init__(
-            dataset_name="fashion_mnist",
             load_dataset_params=dict(path="fashion_mnist"),
             features=[
                 Feature(col_name="image", data_type=DataType.IMAGE),
@@ -319,18 +315,19 @@ class FashionMNIST(DataProcessor):
         )
 
     def _process(self, dataset: DatasetDict) -> DatasetDict:
-        transforms = Compose(
-            [
-                ToTensor(),
-            ]
-        )
+        # transforms = Compose(
+        #     [
+        #         ToTensor(),
+        #     ]
+        # )
 
-        dataset = dataset.map(
-            lambda images: {"image": [transforms(image.convert("RGB")) for image in images]},
-            input_columns=["image"],
-            batched=True,
-        )
-        dataset = dataset.with_format("torch", columns=["image"])
+        # dataset = dataset.map(
+        #     lambda images: {"image": [transforms(image.convert("RGB")) for image in images]},
+        #     input_columns=["image"],
+        #     batched=True,
+        # )
+
+        # dataset = dataset.with_format("torch", columns=["image"])
 
         dataset = dataset.cast_column(
             "label",
@@ -341,3 +338,11 @@ class FashionMNIST(DataProcessor):
         )
 
         return dataset
+
+
+if __name__ == "__main__":
+    latentis_dataset = IMDB().process(
+        perc=0.05,
+    )
+
+    latentis_dataset.save_to_disk()

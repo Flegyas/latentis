@@ -1,249 +1,102 @@
 import logging
-from enum import auto
-from typing import Sequence
+from abc import abstractmethod
+from typing import Optional, Sequence, Tuple
 
 import torch
-from transformers import PreTrainedModel, PreTrainedTokenizer
-
-from latentis.types import StrEnum
+from torch import nn
 
 pylogger = logging.getLogger(__name__)
 
 
-class EncodeMode(StrEnum):
-    MEAN = auto()
-    TOKEN = auto()
-    RAW = auto()
-    SUM = auto()
-    CLS = auto()
+class Pooler(nn.Module):
+    def __init__(self, name: str):
+        super().__init__()
+        self.name: str = name
 
-
-@torch.no_grad()
-def batch_encode(
-    batch,
-    encoder: PreTrainedModel,
-    encoder_name: str,
-    modes: Sequence[EncodeMode] = EncodeMode.MEAN,
-    only_last: bool = False,
-    return_tensors: str = "pt",
-):
-    batch = batch["tokenizer_result"]
-    modes = set(modes)
-    mask = batch["attention_mask"] * batch["special_tokens_mask"].bool().logical_not()
-    del batch["special_tokens_mask"]
-
-    batch = batch.to(encoder.device)
-
-    if encoder_name.startswith("openai/clip"):
-        encodings = [encoder.text_model(**batch, return_dict=True)["last_hidden_state"]]
-    else:
-        encodings = encoder(**batch)["hidden_states"]
-
-    raw_encodings = {f"raw_encoding_{i_layer}": layer_encoding for i_layer, layer_encoding in enumerate(encodings)}
-
-    result = {} if EncodeMode.RAW not in modes else raw_encodings
-    if EncodeMode.TOKEN in modes:
-        token_encodings = {
-            f"token_encoding_{i_layer}": [
-                sample_encoding[sample_mask].cpu().numpy() for sample_encoding, sample_mask in zip(layer_encoding, mask)
-            ]
-            for i_layer, layer_encoding in enumerate(encodings)
-        }
-        result.update(**token_encodings)
-
-    if EncodeMode.MEAN in modes:
-        pooled_encodings = {
-            f"mean_encoding_{i_layer}": (
-                torch.stack(
-                    [
-                        sample_encoding[sample_mask].mean(dim=0)
-                        for sample_encoding, sample_mask in zip(layer_encoding, mask)
-                    ],
-                    dim=0,
-                )
-            )
-            for i_layer, layer_encoding in enumerate(raw_encodings.values())
-        }
-        if only_last:
-            pooled_encodings = {
-                "mean_encoding": list(pooled_encodings.values())[-1].clone()
-            }  # the standard encoding is set to be the one from the last layer
-        else:
-            pooled_encodings["mean_encoding"] = list(pooled_encodings.values())[
-                -1
-            ].clone()  # the standard encoding is set to be the one from the last layer
-
-        result.update(**pooled_encodings)
-
-    if EncodeMode.SUM in modes:
-        pooled_encodings = {
-            f"sum_encoding_{i_layer}": (
-                torch.stack(
-                    [
-                        sample_encoding[sample_mask].sum(dim=0)
-                        for sample_encoding, sample_mask in zip(layer_encoding, mask)
-                    ],
-                    dim=0,
-                )
-            )
-            for i_layer, layer_encoding in enumerate(raw_encodings.values())
-        }
-
-        if only_last:
-            pooled_encodings = {
-                "sum_encoding": list(pooled_encodings.values())[-1].clone()
-            }  # the standard encoding is set to be the one from the last layer
-        else:
-            pooled_encodings["sum_encoding"] = list(pooled_encodings.values())[
-                -1
-            ].clone()  # the standard encoding is set to be the one from the last layer
-
-        result.update(**pooled_encodings)
-
-    if EncodeMode.CLS in modes:
-        pooled_encodings = {
-            f"cls_encoding_{i_layer}": layer_encoding[:, 0, :]  # TODO: adapt to encoders without CLS as first token
-            for i_layer, layer_encoding in enumerate(raw_encodings.values())
-        }
-
-        if only_last:
-            pooled_encodings = {
-                "cls_encoding": list(pooled_encodings.values())[-1].clone()
-            }  # the standard encoding is set to be the one from the last layer
-        else:
-            pooled_encodings["cls_encoding"] = list(pooled_encodings.values())[
-                -1
-            ].clone()  # the standard encoding is set to be the one from the last layer
-
-        result.update(**pooled_encodings)
-
-    if return_tensors == "numpy":
-        result = {k: v.cpu().numpy() if isinstance(v, torch.Tensor) else v for k, v in result.items()}
-    elif return_tensors == "pt":
-        pass
-    else:
+    @abstractmethod
+    def forward(self, x: torch.Tensor, *args, **kwargs):
         raise NotImplementedError
 
-    return result
+
+class HFPooler(Pooler):
+    def __init__(self, pooling_fn: callable, layers: Optional[Sequence[int]] = None):
+        assert all(isinstance(layer, int) and layer >= 0 for layer in layers)
+        super().__init__(name=f"{pooling_fn.__name__}_{layers}")
+        self.pooling_fn = pooling_fn
+        self.layers = layers
+
+    def forward(self, x: torch.Tensor, mask: torch.Tensor):
+        return self.pooling_fn(encodings=x, mask=mask, layers=self.layers)
 
 
-@torch.no_grad()
-def sample_encode(
-    batch,
-    tokenizer: PreTrainedTokenizer,
-    encoder: PreTrainedModel,
-    prefix: str,
-    modes: Sequence[EncodeMode] = EncodeMode.MEAN,
-    only_last: bool = False,
-    return_tensors: str = "pt",
-    data_key: str = "data",
-):
-    modes = set(modes)
+def token_pool(encodings: Tuple[torch.Tensor], mask: torch.Tensor, layers: Optional[Sequence[int]] = None):
+    assert all(isinstance(layer, int) and layer >= 0 for layer in layers)
+    layers = list(range(len(encodings))) if not layers else set(layers)
 
-    encoding = tokenizer(
-        batch[data_key],
-        return_special_tokens_mask=True,
-        return_token_type_ids=True,
-        return_tensors="pt",
-        truncation=True,
-        max_length=encoder.config.max_length,
-        padding=True,
-    ).to(encoder.device)
+    token_encodings = [
+        (
+            [sample_encoding[sample_mask].cpu().numpy() for sample_encoding, sample_mask in zip(layer_encoding, mask)],
+            {"pool": "token", "layer": i_layer},
+        )
+        for i_layer, layer_encoding in enumerate(encodings)
+        if i_layer in layers
+    ]
 
-    mask = encoding["attention_mask"] * encoding["special_tokens_mask"].bool().logical_not()
-    del encoding["special_tokens_mask"]
+    return token_encodings
 
-    encoding = encoding.to(encoder.device)
 
-    encodings = encoder(**encoding)["hidden_states"]
+def mean_pool(encodings: Tuple[torch.Tensor], mask: torch.Tensor, layers: Optional[Sequence[int]] = None):
+    assert all(isinstance(layer, int) and layer >= 0 for layer in layers)
+    layers = list(range(len(encodings))) if not layers else set(layers)
 
-    raw_encodings = {
-        f"{prefix}_raw_encoding_{i_layer}": layer_encoding for i_layer, layer_encoding in enumerate(encodings)
-    }
+    pooled_encodings = [
+        (
+            torch.stack(
+                [
+                    sample_encoding[sample_mask].mean(dim=0)
+                    for sample_encoding, sample_mask in zip(layer_encoding, mask)
+                ],
+                dim=0,
+            ),
+            {"pool": "mean", "layer": i_layer},
+        )
+        for i_layer, layer_encoding in enumerate(encodings)
+        if i_layer in layers
+    ]
 
-    result = {} if EncodeMode.RAW not in modes else raw_encodings
-    if EncodeMode.TOKEN in modes:
-        token_encodings = {
-            f"{prefix}_token_encoding_{i_layer}": [
-                sample_encoding[sample_mask].cpu().numpy() for sample_encoding, sample_mask in zip(layer_encoding, mask)
-            ]
-            for i_layer, layer_encoding in enumerate(encodings)
-        }
-        result.update(**token_encodings)
+    return pooled_encodings
 
-    if EncodeMode.MEAN in modes:
-        pooled_encodings = {
-            f"{prefix}_mean_encoding_{i_layer}": (
-                torch.stack(
-                    [
-                        sample_encoding[sample_mask].mean(dim=0)
-                        for sample_encoding, sample_mask in zip(layer_encoding, mask)
-                    ],
-                    dim=0,
-                )
-            )
-            for i_layer, layer_encoding in enumerate(raw_encodings.values())
-        }
-        if only_last:
-            pooled_encodings = {
-                f"{prefix}_mean_encoding": list(pooled_encodings.values())[-1].clone()
-            }  # the standard encoding is set to be the one from the last layer
-        else:
-            pooled_encodings[f"{prefix}_mean_encoding"] = list(pooled_encodings.values())[
-                -1
-            ].clone()  # the standard encoding is set to be the one from the last layer
 
-        result.update(**pooled_encodings)
+def sum_pool(encodings: Tuple[torch.Tensor], mask: torch.Tensor, layers: Optional[Sequence[int]] = None):
+    assert all(isinstance(layer, int) and layer >= 0 for layer in layers)
+    layers = list(range(len(encodings))) if not layers else set(layers)
 
-    if EncodeMode.SUM in modes:
-        pooled_encodings = {
-            f"{prefix}_sum_encoding_{i_layer}": (
-                torch.stack(
-                    [
-                        sample_encoding[sample_mask].sum(dim=0)
-                        for sample_encoding, sample_mask in zip(layer_encoding, mask)
-                    ],
-                    dim=0,
-                )
-            )
-            for i_layer, layer_encoding in enumerate(raw_encodings.values())
-        }
+    pooled_encodings = [
+        (
+            torch.stack(
+                [sample_encoding[sample_mask].sum(dim=0) for sample_encoding, sample_mask in zip(layer_encoding, mask)],
+                dim=0,
+            ),
+            {"pool": "sum", "layer": i_layer},
+        )
+        for i_layer, layer_encoding in enumerate(encodings)
+        if i_layer in layers
+    ]
 
-        if only_last:
-            pooled_encodings = {
-                f"{prefix}_sum_encoding": list(pooled_encodings.values())[-1].clone()
-            }  # the standard encoding is set to be the one from the last layer
-        else:
-            pooled_encodings[f"{prefix}_sum_encoding"] = list(pooled_encodings.values())[
-                -1
-            ].clone()  # the standard encoding is set to be the one from the last layer
+    return pooled_encodings
 
-        result.update(**pooled_encodings)
 
-    if EncodeMode.CLS in modes:
-        pooled_encodings = {
-            f"{prefix}_cls_encoding_{i_layer}": layer_encoding[
-                :, 0, :
-            ]  # TODO: adapt to encoders without CLS as first token
-            for i_layer, layer_encoding in enumerate(raw_encodings.values())
-        }
+def cls_pool(encodings: Tuple[torch.Tensor], layers: Optional[Sequence[int]] = None, **kwargs):
+    assert all(isinstance(layer, int) and layer >= 0 for layer in layers)
+    layers = list(range(len(encodings))) if not layers else set(layers)
 
-        if only_last:
-            pooled_encodings = {
-                f"{prefix}_cls_encoding": list(pooled_encodings.values())[-1].clone()
-            }  # the standard encoding is set to be the one from the last layer
-        else:
-            pooled_encodings[f"{prefix}_cls_encoding"] = list(pooled_encodings.values())[
-                -1
-            ].clone()  # the standard encoding is set to be the one from the last layer
+    pooled_encodings = [
+        (
+            layer_encoding[:, 0, :],
+            {"pool": "cls", "layer": i_layer},
+        )  # TODO: adapt to encoders without CLS as first token
+        for i_layer, layer_encoding in enumerate(encodings)
+        if i_layer in layers
+    ]
 
-        result.update(**pooled_encodings)
-
-    if return_tensors == "numpy":
-        result = {k: v.cpu().numpy() if isinstance(v, torch.Tensor) else v for k, v in result.items()}
-    elif return_tensors == "pt":
-        pass
-    else:
-        raise NotImplementedError
-
-    return result
+    return pooled_encodings

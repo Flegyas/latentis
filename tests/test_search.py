@@ -6,8 +6,8 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from latentis import LatentSpace
-from latentis.search import SearchIndex, SearchMetric
+from latentis.space import LatentSpace
+from latentis.space.search import SearchIndex, SearchMetric
 from latentis.utils import seed_everything
 
 
@@ -35,7 +35,6 @@ def test_index(
 
     space = LatentSpace(
         vector_source=torch.randn(num_vectors, num_dimensions, dtype=torch.double),
-        name="space1",
     )
     index = space.to_index(metric_fn=metric_fn, keys=[str(i) for i in range(num_vectors)])
 
@@ -136,7 +135,6 @@ def test_transform(num_vectors: int, num_dimensions: int):
 
     space = LatentSpace(
         vector_source=torch.randn(num_vectors, num_dimensions, dtype=torch.double),
-        name="space1",
     )
     index1 = space.to_index(metric_fn=SearchMetric.COSINE)
     index2 = space.to_index(metric_fn=SearchMetric.INNER_PRODUCT, transform=lambda x: F.normalize(x, p=2, dim=1))
@@ -152,7 +150,6 @@ def test_transform(num_vectors: int, num_dimensions: int):
 
     space = LatentSpace(
         vector_source=vectors,
-        name="space1",
     )
     index = space.to_index(metric_fn=SearchMetric.COSINE)
     assert index.transform is not None
@@ -189,7 +186,6 @@ def test_range_search(num_vectors: int, num_dimensions: int, search_metric2radiu
     vectors = torch.randn(num_vectors, num_dimensions, dtype=torch.double) * 10
     space = LatentSpace(
         vector_source=vectors,
-        name="space1",
     )
 
     index: SearchIndex = space.to_index(metric_fn=search_metric)
@@ -210,7 +206,6 @@ def test_keys(
 
     space = LatentSpace(
         vector_source=torch.randn(num_vectors, 100, dtype=torch.float32),
-        name="space1",
     )
 
     keys = ["".join([chr(ord("a") + np.random.randint(0, 26)) for _ in range(8)]) for _ in range(num_vectors)]
@@ -253,7 +248,6 @@ def test_get_vectors(num_vectors: int, num_dimensions: int):
     vectors = torch.randn(num_vectors, num_dimensions, dtype=torch.float32)
     space = LatentSpace(
         vector_source=vectors,
-        name="space1",
     )
 
     index = space.to_index(metric_fn=SearchMetric.EUCLIDEAN)

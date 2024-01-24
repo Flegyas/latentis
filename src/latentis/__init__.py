@@ -15,8 +15,8 @@ from pathlib import Path
 
 import git
 
-from .space import LatentSpace
-from latentis.utils import load_envs
+# from .space import LatentSpace
+from .utils import load_envs
 
 logger = logging.getLogger(__name__)
 

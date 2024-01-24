@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 
 from latentis.space import LatentSpace
-from latentis.transform._abstract import Identity, Transform, TransformSequence
+from latentis.transform._abstract import Identity, Transform
 from latentis.transform.functional import TransformFn
 
 if TYPE_CHECKING:
@@ -72,7 +72,7 @@ def angular_proj(
     anchors = F.normalize(anchors, p=2, dim=-1)
 
     x = (x @ anchors.mT).clamp(-1.0, 1.0)
-    x = 1 - torch.arccos(x)
+    x = torch.arccos(x) / torch.pi
 
     return x
 
@@ -157,8 +157,8 @@ class RelativeProjection(Transform):
     def __init__(
         self,
         projection_fn: TransformFn,
-        abs_transform: Optional[TransformSequence] = None,
-        rel_transform: Optional[TransformSequence] = None,
+        abs_transform: Optional[Transform] = None,
+        rel_transform: Optional[Transform] = None,
     ):
         super().__init__()
         self.projection_fn = projection_fn
@@ -166,17 +166,16 @@ class RelativeProjection(Transform):
         self.rel_transform = rel_transform or Identity()
 
     def fit(self, x: Space, **kwargs) -> "RelativeProjection":
-        self.abs_transform.fit(x)
-        x = self.abs_transform.transform(x)
+        x, _ = self.abs_transform.fit_transform(x)
         self._register_state(dict(anchors=x))
         rel_x = relative_projection(x, anchors=x, projection_fn=self.projection_fn)
         self.rel_transform.fit(rel_x)
 
         return self
 
-    def transform(self, x: Space) -> torch.Tensor:
-        x = self.abs_transform.transform(x)
+    def transform(self, x: Space, y=None) -> torch.Tensor:
+        x, _ = self.abs_transform.transform(x=x, y=y)
         rel_x = relative_projection(x, **self.get_state(), projection_fn=self.projection_fn)
-        rel_x = self.rel_transform.transform(rel_x)
+        rel_x, _ = self.rel_transform.transform(x=rel_x, y=y)
 
-        return rel_x
+        return rel_x, y
