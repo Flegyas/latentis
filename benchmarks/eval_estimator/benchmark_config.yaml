@@ -9,7 +9,8 @@ estimators:
   - cca
 
 pairing_policy:
-  - correspondence_constraints:
+  - estimators: ${estimators}
+    correspondence_constraints:
       quality: 1
     space_constraints:
       pool: "cls"
