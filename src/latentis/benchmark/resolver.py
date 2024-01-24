@@ -98,7 +98,7 @@ def resolve_benchmark(benchmark_name: str) -> list[dict]:
                         )
 
                         for x_space_test_key, y_space_test_key in itertools.product(x_spaces_test, y_spaces_test):
-                            for estimator_name in config.estimators:
+                            for estimator_name in pairing_policy.estimators:
                                 for metric_type, metrics in config.metrics.items():
                                     for metric_name in metrics:
                                         experiments.append(
@@ -133,12 +133,7 @@ def resolve_benchmark(benchmark_name: str) -> list[dict]:
                                             }
                                         )
 
-        (BENCHMARK_DIR / benchmark_name / "benchmark.json").write_text(
-            json.dumps(
-                experiments,
-                indent=4,
-            )
-        )
+        (BENCHMARK_DIR / benchmark_name / "benchmark.json").write_text(f"{json.dumps(experiments, indent=4)}\n")
         return experiments
 
 
