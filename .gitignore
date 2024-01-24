@@ -2,7 +2,7 @@ wandb
 multirun.yaml
 storage
 # ignore only top level benchmark folder
-/benchmark
+/benchmarks
 
 # ignore the _version.py file
 _version.py
