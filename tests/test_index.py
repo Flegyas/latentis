@@ -33,7 +33,7 @@ def test_index(tmp_path: Path):
     new_item_key = index.add_item(item=LatentSpace(torch.randn(1, 2), properties={"a": 1, "b": 2}))
     assert len(index) == n_items + 1
 
-    with pytest.raises(KeyError):
+    with pytest.raises(FileExistsError):
         index.add_item(item=LatentSpace(torch.randn(1, 2), properties=properties))
 
     index.remove_item(item_key=new_item_key)
