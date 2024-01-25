@@ -1,17 +1,18 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Optional, Sequence, Type
+from typing import TYPE_CHECKING, Any, Optional, Sequence, Type
 
 import torch
 from torch import nn
 from torch.nn import functional as F
 
-from latentis.transform._abstract import Identity, Transform, TransformSequence
+from latentis.nn._base import LatentisModule
+from latentis.transform._abstract import Identity, TransformSequence
 from latentis.transform.projection import RelativeProjection
 
 if TYPE_CHECKING:
-    from latentis.types import Space
+    pass
 
 log = logging.getLogger(__name__)
 
@@ -149,12 +150,14 @@ class SelfAttentionLayer(Aggregation):
         return torch.sum(out, dim=1)
 
 
-class BricksToBridges(Transform):
+class BricksToBridges(LatentisModule):
     def __init__(
         self,
         projection_fns: Sequence[TransformSequence],
         aggregation_type: Type[Aggregation],
         num_anchors: int,
+        encoder: Optional[nn.Module] = None,
+        decoder: Optional[nn.Module] = None,
         aggregate_transforms: Optional[TransformSequence] = None,
         abs_transforms: Optional[Sequence[TransformSequence]] = None,
         rel_transforms: Optional[Sequence[TransformSequence]] = None,
@@ -180,6 +183,9 @@ class BricksToBridges(Transform):
             ]
         )
 
+        self.encoder = encoder
+        self.decoder = decoder
+
         assert len(self.projection_fns) > 1, "projection_fns must be at least 2"
 
         assert (
@@ -194,28 +200,62 @@ class BricksToBridges(Transform):
         if duplicates:
             log.warning(f"There are some projection functions that are duplicated: {duplicates}")
 
-    def fit(self, x: Space, **kwargs) -> "BricksToBridges":
+    def encode(self, x: torch.Tensor, *args, **kwargs):
+        return self.encoder(x) if self.encoder is not None else x
+
+    def post_encode(self, x: torch.Tensor, *args, **kwargs) -> Sequence[torch.Tensor]:
+        relative_spaces = []
+
+        for rel_proj in self.rel_projs:
+            tx = rel_proj.transform(x)
+            relative_spaces.append(tx[0].vectors)
+
+        return relative_spaces
+
+    def pre_decode(self, x: Sequence[torch.Tensor], *args, **kwargs) -> torch.Tensor:
+        rel_aggregation = self.aggregation_module(x)
+        t_rel_agg = self.aggregate_transforms.transform(rel_aggregation)
+
+        return t_rel_agg
+
+    def decode(self, x: torch.Tensor, *args, **kwargs):
+        return self.decoder(x) if self.decoder is not None else x
+
+    def fit(self, anchors: torch.Tensor, **kwargs) -> "BricksToBridges":
+        relative_spaces = self._fit_pre_encode(anchors)
+        self.aggregation_module.fit(relative_spaces)
+
+        return self
+
+    def _fit_pre_encode(self, x: torch.Tensor, **kwargs) -> "BricksToBridges":
         relative_spaces = []
 
         for rel_proj in self.rel_projs:
             rel_proj.fit(x)
-            tx, _ = rel_proj.transform(x)
-            relative_spaces.append(tx)
+            tx = rel_proj.transform(x)
+            relative_spaces.append(tx[0])
 
+        return relative_spaces
+
+    def _fit_pre_decode(self, relative_spaces: Sequence[torch.Tensor], **kwargs) -> "BricksToBridges":
         self.aggregation_module.fit(relative_spaces)
         rel_aggregation = self.aggregation_module(relative_spaces)
         self.aggregate_transforms.fit(rel_aggregation)
 
-        return self
+    def forward(
+        self, x: torch.Tensor, anchors: Optional[torch.Tensor], is_pretrained: bool = True, *args: Any, **kwargs: Any
+    ):
+        #   TODO: check this
+        if self.training:
+            self.fit(anchors)
 
-    def transform(self, x: Space) -> torch.Tensor:
-        relative_spaces = []
+        if not is_pretrained:
+            x = self.encode(x)
 
-        for rel_proj in self.rel_projs:
-            tx, _ = rel_proj.transform(x)
-            relative_spaces.append(tx.vectors)
+        rel_spaces = self.post_encode(x)
+        aggregated = self.pre_decode(rel_spaces)
 
-        rel_aggregation = self.aggregation_module(relative_spaces)
-        t_rel_agg = self.aggregate_transforms.transform(rel_aggregation)
+        #  TODO: change, this is just for testing purposes
+        # out = self.decode(aggregated)
 
-        return t_rel_agg
+        return aggregated
