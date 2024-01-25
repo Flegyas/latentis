@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Union
 
 from latentis.nn import LatentisModule
-from latentis.serialize.disk_index import DiskIndex
 from latentis.serialize.io_utils import IndexableMixin, load_json, load_model, save_json, save_model
 from latentis.space.search import SearchIndex, SearchMetric
 from latentis.space.vector_source import TensorSource, VectorSource
@@ -62,13 +61,6 @@ class LatentSpace(IndexableMixin):
         )
         self._source_model = source_model
 
-        self._decoders = None
-        if root_path is not None:
-            self._decoders: Dict[str, LatentisModule] = DiskIndex(
-                root_path=root_path / "decoders", item_class=LatentisModule
-            )
-            self._decoders.save_to_disk()
-
         properties = properties or {}
         # metadata[SpaceMetadata._NAME] = self._name
         properties[_SpaceMetadata._VERSION] = self.version
@@ -91,12 +83,6 @@ class LatentSpace(IndexableMixin):
     @property
     def name(self) -> str:
         return self.properties.get("name", "space")
-
-    @property
-    def decoders(self) -> Dict[str, LatentisModule]:
-        if self.root_path is None:
-            raise ValueError("Cannot store or access decoders if root_path is None")
-        return self._decoders
 
     @property
     def version(cls) -> str:
@@ -133,10 +119,6 @@ class LatentSpace(IndexableMixin):
             if self.source_model is not None:
                 save_model(model=self.source_model, target_path=target_path / "model.pt", version=self.version)
 
-        # TODO: remove save to disk from disk index
-        if self._decoders is not None:
-            self._decoders.save_to_disk()
-
     @classmethod
     def load_properties(cls, space_path: Path) -> Dict[str, Any]:
         metadata = load_json(space_path / _PROPERTIES_FILE_NAME)
@@ -165,10 +147,6 @@ class LatentSpace(IndexableMixin):
         space._source_model = model
         space.root_path: Path = path
 
-        try:
-            space._decoders = DiskIndex.load_from_disk(path=path / "decoders")
-        except FileNotFoundError:
-            space._decoders = DiskIndex(root_path=path / "decoders", item_class=LatentisModule)
         return space
 
     @property
@@ -195,7 +173,6 @@ class LatentSpace(IndexableMixin):
         #
         space: LatentSpace,
         vector_source: Optional[Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]] = None,
-        # decoders: Optional[Dict[str, LatentisModule]] = None,
         properties: Optional[Mapping[str, Any]] = None,
         #
         deepcopy: bool = False,
@@ -216,8 +193,6 @@ class LatentSpace(IndexableMixin):
         if vector_source is None:
             vector_source = space.vector_source if not deepcopy else copy.deepcopy(space.vector_source)
 
-        # if decoders is None:
-        #     decoders = space.decoders if not deepcopy else copy.deepcopy(space.decoders)
         # if source_model is None:
         #     source_model = space.source_model if not deepcopy else copy.deepcopy(space.source_model)
 
@@ -227,7 +202,6 @@ class LatentSpace(IndexableMixin):
         # TODO: test deepcopy
         return LatentSpace(
             vector_source=vector_source,
-            # decoders=decoders,
             properties=properties,
         )
 

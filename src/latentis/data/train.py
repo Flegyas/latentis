@@ -6,7 +6,7 @@ from torch import nn
 
 from latentis.data import DATA_DIR
 from latentis.data.dataset import LatentisDataset
-from latentis.nexus import space_index
+from latentis.nexus import decoders_index, space_index
 from latentis.nn import LatentisModule
 from latentis.nn.decoders import Classifier
 
@@ -59,7 +59,9 @@ def attach_decoder(
     device: torch.device,
     exists_ok: bool = False,
 ) -> Sequence[Dict[str, float]]:
-    model = model_builder().to(device)
+    train_space = space_index.load_item(item_id=train_space_id)
+    model = model_builder({"space": train_space.properties}).to(device)
+
     model_perfs = None
     if train_model:
         model_perfs = fit_model(
@@ -74,10 +76,8 @@ def attach_decoder(
         )
         print(model_perfs)
 
-    train_space = space_index.load_item(item_key=train_space_id)
-
     try:
-        train_space.decoders.add_item(item=model)
+        decoders_index.add_item(item=model)
     except FileExistsError as e:
         if not exists_ok:
             raise e
@@ -93,12 +93,16 @@ if __name__ == "__main__":
         res = attach_decoder(
             dataset=dataset,
             train_space_id=(
-                space_key := space_index.get_item_key(split="train", layer=12, **{"model/hf_name": hf_encoder_name})
+                space_key := space_index.get_item_id(
+                    dataset=dataset_name, split="train", layer=12, **{"model/hf_name": hf_encoder_name}
+                )
             ),
-            test_space_id=space_index.get_item_key(split="test", layer=12, **{"model/hf_name": hf_encoder_name}),
+            test_space_id=space_index.get_item_id(
+                dataset=dataset_name, split="test", layer=12, **{"model/hf_name": hf_encoder_name}
+            ),
             y_gt_key=label_feature,
-            model_builder=lambda: Classifier(
-                input_dim=space_index.load_item(item_key=space_key).shape[1],  # TODO add this a space property
+            model_builder=lambda properties: Classifier(
+                input_dim=space_index.load_item(item_id=space_key).shape[1],  # TODO add this a space property
                 num_classes=len(dataset.hf_dataset["train"].features[label_feature].names),
                 deep=True,
                 bias=True,
@@ -107,6 +111,7 @@ if __name__ == "__main__":
                 first_activation=nn.Tanh(),
                 second_activation=nn.ReLU(),
                 first_projection_dim=None,
+                properties=properties,
             ),
             train_model=True,
             batch_size=128,
@@ -119,7 +124,7 @@ if __name__ == "__main__":
         # decoder = space.decoders.load_item()
 
         # dataloader = dataset.get_dataloader(
-        #     space_id=space_index.get_item_key(
+        #     space_id=space_index.get_item_id(
         #         split="test", layer=12, **{"model/hf_name": "bert-base-uncased"}
         #     ),
         #     hf_x_keys=None,

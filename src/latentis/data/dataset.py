@@ -67,7 +67,7 @@ class DatasetView(torch.utils.data.Dataset):
         if isinstance(hf_y_keys, str):
             hf_y_keys = [hf_y_keys]
 
-        self.spaces = [space_index.load_item(item_key=key) for key in encodings_key]
+        self.spaces = [space_index.load_item(item_id=key) for key in encodings_key]
         spaces_split = set(space.split for space in self.spaces)
         if len(spaces_split) > 1:
             raise ValueError(f"Spaces {encodings_key} are not all from the same split!")

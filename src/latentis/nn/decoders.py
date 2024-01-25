@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 from torchmetrics import Accuracy, FBetaScore, MetricCollection
 
 from latentis.nn._base import LatentisModule
+from latentis.types import Properties
 
 pylogger = logging.getLogger(__name__)
 
@@ -45,6 +46,7 @@ class Classifier(LatentisModule):
         first_projection_dim: Optional[int] = None,
         trainer_params: Mapping[str, Any] = None,
         lr: float = 1e-3,
+        properties: Optional[Properties] = None,
     ):
         super().__init__(
             properties={
@@ -60,6 +62,7 @@ class Classifier(LatentisModule):
                 "first_projection_dim": first_projection_dim,
                 # "trainer_params": trainer_params,
                 "lr": lr,
+                **(properties or {}),
             }
         )
         self.latentis_trainer_params = dict(

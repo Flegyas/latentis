@@ -30,25 +30,25 @@ def test_index(tmp_path: Path):
     assert len(index) == n_items == len(items)
 
     # add item with same key
-    new_item_key = index.add_item(item=LatentSpace(torch.randn(1, 2), properties={"a": 1, "b": 2}))
+    new_item_id = index.add_item(item=LatentSpace(torch.randn(1, 2), properties={"a": 1, "b": 2}))
     assert len(index) == n_items + 1
 
     with pytest.raises(FileExistsError):
         index.add_item(item=LatentSpace(torch.randn(1, 2), properties=properties))
 
-    index.remove_item(item_key=new_item_key)
+    index.remove_item(item_id=new_item_id)
     assert len(index) == n_items
 
     index.remove_item(**properties)
-    new_item_key = index.add_item(item=LatentSpace(torch.randn(1, 2), properties=properties))
+    new_item_id = index.add_item(item=LatentSpace(torch.randn(1, 2), properties=properties))
     assert len(index) == n_items
 
     # get item by key
-    item = index.get_item(new_item_key)
+    item = index.get_item(new_item_id)
     assert isinstance(item, Mapping)
     assert len(index) == n_items
 
-    index.remove_item(**index.load_item(new_item_key).properties)
+    index.remove_item(**index.load_item(new_item_id).properties)
     assert len(index) == n_items - 1
 
     # get item by properties

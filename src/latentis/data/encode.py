@@ -135,7 +135,7 @@ def encode_feature(
                     item=LatentSpace(
                         vector_source=(raw_encoding.detach().cpu(), batch[dataset._id_column].cpu().tolist()),
                         properties={
-                            **{f"model/{key}": value for key, value in model.properties.items()},
+                            "model": model.properties,
                             "feature": feature.col_name,
                             "split": split,
                             "dataset": dataset.name,
@@ -152,7 +152,7 @@ def encode_feature(
                             item=LatentSpace(
                                 vector_source=(encoding.detach().cpu(), batch[dataset._id_column].cpu().tolist()),
                                 properties={
-                                    **{f"model/{key}": value for key, value in model.properties.items()},
+                                    "model": model.properties,
                                     "feature": feature.col_name,
                                     "split": split,
                                     "dataset": dataset.name,
@@ -166,13 +166,16 @@ def encode_feature(
 
 
 if __name__ == "__main__":
-    for dataset, hf_encoder in itertools.product(["trec"], ["bert-base-cased"]):
+    for (dataset, label_feature), hf_encoder_name in itertools.product(
+        [("trec", "coarse_label"), ("imdb", "label"), ("ag_news", "label")],
+        ["bert-base-cased", "bert-base-uncased", "roberta-base"],
+    ):
         dataset = LatentisDataset.load_from_disk(DATA_DIR / dataset)
 
         encode_feature(
             dataset=dataset,
             feature="text",
-            model=TextHFEncoder(hf_encoder),
+            model=TextHFEncoder(hf_encoder_name),
             collate_fn=default_collate,
             encoding_batch_size=256,
             store_every=10,
