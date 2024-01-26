@@ -30,6 +30,8 @@ pairing_policy:
 
     tests:
       - split: "train"
+        test_decoder_y: True
+        y_gt_label: label
         correspondence_constraints:
           x_dataset: "imdb"
           y_dataset: "imdb"
@@ -42,6 +44,8 @@ pairing_policy:
           model/hf_name: "bert-base-uncased"
 
       - split: "test"
+        test_decoder_y: True
+        y_gt_label: label
         correspondence_constraints:
           x_dataset: "imdb"
           y_dataset: "imdb"
