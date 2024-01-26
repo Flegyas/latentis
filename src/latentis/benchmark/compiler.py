@@ -1,36 +1,32 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Dict, Optional, Sequence, Tuple
+from typing import Dict, Optional, Tuple, Union
 
+import networkx as nx
 from omegaconf import DictConfig
 
 from latentis.benchmark import BENCHMARK_DIR
 
 
 class Job:
-    def __init__(self) -> None:
-        self.children: Sequence[Job] = []
-
-    def add_child(self, child: Job) -> None:
-        self.children.append(child)
-
     @abstractmethod
     def run(self):
         pass
 
     @abstractmethod
-    def _get_hash_properties(self):
+    def properties(self):
         pass
 
-    def __hash__(self) -> str:
-        return hash(self._get_hash_properties())
+    def item_id(self) -> int:
+        s = json.dumps(self.properties(), default=lambda o: o.__dict__, sort_keys=True).encode(encoding="utf-8")
+        return int(hashlib.sha1(s).hexdigest(), 16) % (10**8)
 
-    # def __repr__(self) -> str:
-    #     f = lambda f: f[:5] if isinstance(f, str) else f
-    #     return f"{self.__class__.__name__}({json.dumps(list(map(f, self._get_hash_properties())), default=lambda o: list(map(f, o._get_hash_properties())))})"
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}"
 
 
 class EstimationJob(Job):
@@ -56,13 +52,24 @@ class EstimationJob(Job):
     def run(self) -> EstimationJob.Result:
         pass
 
-    def _get_hash_properties(self) -> Tuple:
+    def properties(self) -> Tuple:
         return (
             self.space_x_fit_id,
             self.space_y_fit_id,
             self.correspondence_fit_id,
             self.estimator,
         )
+
+    def __repr__(self) -> str:
+        return f"{self.estimator}(Xf: {self.space_x_fit_id[:3]}, Yf: {self.space_y_fit_id[:3]}, Cf: {self.correspondence_fit_id[:3]})"
+
+    def node_info(self) -> Dict[str, str]:
+        return {
+            "space_x_fit_id": self.space_x_fit_id,
+            "space_y_fit_id": self.space_y_fit_id,
+            "correspondence_fit_id": self.correspondence_fit_id,
+            "estimator": self.estimator,
+        }
 
 
 class TransformationJob(Job):
@@ -86,8 +93,17 @@ class TransformationJob(Job):
     def run(self) -> TransformationJob.Result:
         pass
 
-    def _get_hash_properties(self) -> Tuple:
+    def properties(self) -> Tuple:
         return self.estimator, self.space_x_test_id, self.space_y_test_id
+
+    def __repr__(self) -> str:
+        return f"T(Xt: {self.space_x_test_id[:3]}, Yt: {self.space_y_test_id[:3]})"
+
+    def node_info(self) -> Dict[str, str]:
+        return {
+            "space_x_test_id": self.space_x_test_id,
+            "space_y_test_id": self.space_y_test_id,
+        }
 
 
 class LatentJob(Job):
@@ -111,12 +127,21 @@ class LatentJob(Job):
     def run(self) -> LatentJob.Result:
         pass
 
-    def _get_hash_properties(self) -> Tuple:
+    def properties(self) -> Tuple:
         return (
             self.correspondence_test_id,
             self.metric_id,
             self.transformation_job,
         )
+
+    def __repr__(self) -> str:
+        return f"{self.metric_id[:3]}(Ct: {self.correspondence_test_id[:3]})"
+
+    def node_info(self) -> Dict[str, str]:
+        return {
+            "correspondence_test_id": self.correspondence_test_id,
+            "metric_id": self.metric_id,
+        }
 
 
 class DownstreamJob(Job):
@@ -144,7 +169,7 @@ class DownstreamJob(Job):
     def run(self) -> DownstreamJob.Result:
         pass
 
-    def _get_hash_properties(self) -> Tuple:
+    def properties(self) -> Tuple:
         return (
             self.correspondence_test_id,
             self.metric_id,
@@ -152,6 +177,17 @@ class DownstreamJob(Job):
             self.y_gt_test,
             self.decoder_y_fit_id,
         )
+
+    def __repr__(self) -> str:
+        return f"{self.metric_id[:3]}(Ct: {self.correspondence_test_id[:3]}, Ygtt: {self.y_gt_test[0]}, Dyf: {self.decoder_y_fit_id[:3]})"
+
+    def node_info(self):
+        return {
+            "correspondence_test_id": self.correspondence_test_id,
+            "metric_id": self.metric_id,
+            "y_gt_test": self.y_gt_test,
+            "decoder_y_fit_id": self.decoder_y_fit_id,
+        }
 
 
 class AgreementJob(Job):
@@ -179,7 +215,7 @@ class AgreementJob(Job):
     def run(self) -> AgreementJob.Result:
         pass
 
-    def _get_hash_properties(self) -> Tuple:
+    def properties(self) -> Tuple:
         return (
             self.correspondence_test_id,
             self.metric_id,
@@ -188,24 +224,40 @@ class AgreementJob(Job):
             self.decoder_y_fit_id,
         )
 
+    def __repr__(self) -> str:
+        return f"{self.metric_id[:3]}(Ct: {self.correspondence_test_id[:3]}, Yt: {self.space_y_test_id[:3]}, Dyf: {self.decoder_y_fit_id[:3]})"
 
-def _add_to_stage(stage: Dict[str, Job], job: Job) -> Job:
-    if hash(job) not in stage:
-        stage[hash(job)] = job
-    return stage[hash(job)]
+    def node_info(self):
+        return {
+            "correspondence_test_id": self.correspondence_test_id,
+            "metric_id": self.metric_id,
+            "space_y_test_id": self.space_y_test_id,
+            "decoder_y_fit_id": self.decoder_y_fit_id,
+        }
 
 
-def compile_experiments(benchmark_name: str) -> Sequence[Job]:
+def _add_to_graph(graph: nx.Graph, job: Job) -> int:
+    if job.item_id() in graph.nodes:
+        job = graph.nodes[job.item_id()]["job"]
+    else:
+        graph.add_node(job.item_id(), job=job)
+    return job.item_id()
+
+
+def compile_experiments(benchmark_name: str) -> Dict[str, Union[nx.Graph, str]]:
     with (BENCHMARK_DIR / benchmark_name / "benchmark.json").open("r") as f:
         experiments = json.load(f)
 
-    estimation_stage: Dict[str, EstimationJob] = {}
-    transformation_stage: Dict[str, TransformationJob] = {}
-    eval_stage: Dict[str, LatentJob] = {}
+    graph = nx.Graph()
+    estimations = set()
+    transformations = set()
+    downstreams = set()
+    agreements = set()
+    latents = set()
 
     for experiment in experiments:
-        estimation_job = _add_to_stage(
-            stage=estimation_stage,
+        estimation_job = _add_to_graph(
+            graph=graph,
             job=EstimationJob(
                 space_x_fit_id=experiment["fit_x_space"]["__id"],
                 space_y_fit_id=experiment["fit_y_space"]["__id"],
@@ -213,70 +265,78 @@ def compile_experiments(benchmark_name: str) -> Sequence[Job]:
                 estimator=experiment["estimator"],
             ),
         )
+        estimations.add(estimation_job)
 
-        transformation_job = _add_to_stage(
-            stage=transformation_stage,
+        transformation_job = _add_to_graph(
+            graph=graph,
             job=TransformationJob(
                 estimator=estimation_job,
                 space_x_test_id=experiment["test_x_space"]["__id"],
                 space_y_test_id=experiment["test_y_space"]["__id"],
             ),
         )
-        estimation_job.add_child(transformation_job)
+        graph.add_edge(estimation_job, transformation_job)
+        transformations.add(transformation_job)
 
         if experiment["metric_type"] == "latent":
-            eval_job = _add_to_stage(
-                stage=eval_stage,
+            latent_job = _add_to_graph(
+                graph=graph,
                 job=LatentJob(
                     correspondence_test_id=experiment["test_correspondence"]["__id"],
                     metric_id=experiment["metric"],
                     transformation_job=transformation_job,
                 ),
             )
+            latents.add(latent_job)
+            graph.add_edge(transformation_job, latent_job)
 
         elif experiment["metric_type"] == "downstream":
-            eval_job = _add_to_stage(
-                stage=eval_stage,
-                job=DownstreamJob(
-                    correspondence_test_id=experiment["test_correspondence"]["__id"],
-                    metric_id=experiment["metric"],
-                    transformation_job=transformation_job,
-                    y_gt_test=(
-                        experiment["test_y_space"]["dataset"],
-                        experiment["test_y_space"]["split"],
-                        "y_label",  # experiment["test_y_space"]["label"],  # TODO: add this to the solver
+            if experiment["test_decoder_y"]:
+                down_job = _add_to_graph(
+                    graph=graph,
+                    job=DownstreamJob(
+                        correspondence_test_id=experiment["test_correspondence"]["__id"],
+                        metric_id=experiment["metric"],
+                        transformation_job=transformation_job,
+                        y_gt_test=(
+                            experiment["y_test_gt"]["dataset"],
+                            experiment["y_test_gt"]["split"],
+                            experiment["y_test_gt"]["y_label"],
+                        ),
+                        decoder_y_fit_id=experiment["fit_y_space"]["__id"],
                     ),
-                    decoder_y_fit_id=experiment["fit_y_space"]["__id"],
-                ),
-            )
+                )
+                downstreams.add(down_job)
+                graph.add_edge(transformation_job, down_job)
+
         elif experiment["metric_type"] == "agreement":
-            eval_job = _add_to_stage(
-                stage=eval_stage,
-                job=AgreementJob(
-                    correspondence_test_id=experiment["test_correspondence"]["__id"],
-                    metric_id=experiment["metric"],
-                    transformation_job=transformation_job,
-                    space_y_test_id=experiment["test_y_space"]["__id"],
-                    decoder_y_fit_id=experiment["fit_y_space"]["__id"],
-                ),
-            )
+            if experiment["test_decoder_y"]:
+                agreement_job = _add_to_graph(
+                    graph=graph,
+                    job=AgreementJob(
+                        correspondence_test_id=experiment["test_correspondence"]["__id"],
+                        metric_id=experiment["metric"],
+                        transformation_job=transformation_job,
+                        space_y_test_id=experiment["test_y_space"]["__id"],
+                        decoder_y_fit_id=experiment["fit_y_space"]["__id"],
+                    ),
+                )
+                agreements.add(agreement_job)
+                graph.add_edge(transformation_job, agreement_job)
+
         else:
             raise ValueError(f'Unknown metric type: {experiment["metric_type"]}')
 
-        transformation_job.add_child(eval_job)
-
-    return estimation_stage.values()
-
-
-def print_graph(job: Job, depth: int = 0) -> None:
-    print("  " * depth + str(job))
-    for child in job.children:
-        print_graph(child, depth + 1)
+    return graph, {
+        "estimations": estimations,
+        "transformations": transformations,
+        "latents": latents,
+        "downstreams": downstreams,
+        "agreements": agreements,
+    }
 
 
 if __name__ == "__main__":
     benchmark_name = "eval_estimator"
-    graph = compile_experiments(benchmark_name)
-    for job in graph:
-        print_graph(job)
-        print()
+    graph, _ = compile_experiments(benchmark_name)
+    print(graph)
