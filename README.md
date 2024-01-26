@@ -1,4 +1,9 @@
-# Latentis
+
+:construction::construction::construction: **Developers At Work. The library will be ready next month. Feel free to contact us directly for any specific request!** :construction::construction::construction:
+
+---
+
+# Latentis: Your Gateway to Latent Space Communication
 
 <p align="center">
     <img align="center" alt="CI" src="https://github.com/Flegyas/latentis/actions/workflows/test_suite.yml/badge.svg?branch=main">
@@ -8,21 +13,22 @@
     <img align="center" alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg">
 </p>
 
+Welcome to **Latentis**, *the first-of-its-kind* Python library dedicated to the innovative field of [Latent Space Communication](https://github.com/UniReps/UniReps-resources). Latentis is designed to empower researchers, data scientists, and enthusiasts to unlock new insights by providing a comprehensive suite of tools where latent spaces are the core ingredient.
 
-A Python package for analyzing and transforming neural latent spaces.
 
+## Core Features
 
-## Installation
+Latentis offers a structured suite of tools designed for efficiency and ease of use:
+- **Data Download & Processing**: streamline the acquisition and preparation of complex datasets (via HuggingFace Datasets).
+- **Advanced Encoding**: either employ pre-trained models or bring your own to encode anything.
+- **Benchmarking Tools**: standard and customizable benchmarking tools, allowing for thorough evaluation and refinement of methods.
 
+## Getting Started
+
+Ease into your next research project with:
 ```bash
-pip install git+ssh://git@github.com/flegyas/latentis.git
+pip install latentis
 ```
-
-
-## Quickstart
-
-[comment]: <> (> Fill me!)
-
 
 ## Development installation
 
