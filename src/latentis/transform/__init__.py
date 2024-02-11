@@ -1,9 +1,9 @@
-from ._abstract import Estimator, Identity, SimpleTransform, Transform, TransformSequence
+from ._abstract import Estimator, FunctionalTransform, Identity, Transform, TransformSequence
 
 __all__ = [
     "Transform",
     "Identity",
-    "SimpleTransform",
+    "FunctionalTransform",
     "TransformSequence",
     "Estimator",
 ]
