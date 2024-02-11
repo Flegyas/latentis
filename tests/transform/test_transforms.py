@@ -4,7 +4,7 @@ import pytest
 import torch
 
 import latentis.transform.functional as FL
-from latentis.transform._abstract import SimpleTransform, Transform
+from latentis.transform._abstract import FunctionalTransform, Transform
 from latentis.transform.base import (
     Centering,
     InverseTransform,
@@ -81,7 +81,7 @@ def test_functional_transforms(
     state = state_fn(x=space, **fit_params) if state_fn else {}
     space_out1: FL.TransformResult = transform_fn(x=space, **state, **transform_params)
 
-    simple_transform = SimpleTransform(
+    simple_transform = FunctionalTransform(
         transform_fn=transform_fn,
         inverse_fn=inverse_fn,
         state_fn=state_fn,
