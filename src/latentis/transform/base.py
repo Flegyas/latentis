@@ -4,10 +4,10 @@ import torch
 import torch.nn.functional as F
 
 import latentis.transform.functional as FL
-from latentis.transform import SimpleTransform, Transform
+from latentis.transform import FunctionalTransform, Transform
 
 
-class Centering(SimpleTransform):
+class Centering(FunctionalTransform):
     def __init__(self):
         super().__init__(
             transform_fn=FL.centering_transform,
@@ -17,7 +17,7 @@ class Centering(SimpleTransform):
         )
 
 
-class STDScaling(SimpleTransform):
+class STDScaling(FunctionalTransform):
     def __init__(self):
         super().__init__(
             transform_fn=FL.std_scaling_transform,
@@ -27,7 +27,7 @@ class STDScaling(SimpleTransform):
         )
 
 
-class StandardScaling(SimpleTransform):
+class StandardScaling(FunctionalTransform):
     def __init__(self):
         super().__init__(
             transform_fn=FL.standard_scaling_transform,

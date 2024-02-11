@@ -84,7 +84,7 @@ class Transform(nn.Module, IndexableMixin):
         raise RuntimeError(f"Inverse transform not implemented for {type(self).__name__}.")
 
 
-class SimpleTransform(Transform):
+class FunctionalTransform(Transform):
     def __init__(
         self,
         transform_fn: TransformFn,
@@ -150,7 +150,7 @@ class SimpleTransform(Transform):
         return self._inverse_fn(x=x, **self._inverse_params, **self.get_state()), y
 
 
-class Identity(SimpleTransform):
+class Identity(FunctionalTransform):
     def __init__(self):
         super().__init__(
             transform_fn=lambda x: x,
