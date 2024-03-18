@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Callable
 
 import torch
 import torch.nn.functional as F
 
 from latentis.space import LatentSpace
-from latentis.transform._abstract import Identity, Transform
+from latentis.transform._abstract import Transform
 from latentis.transform.functional import TransformFn
 
 if TYPE_CHECKING:
@@ -157,25 +157,15 @@ class RelativeProjection(Transform):
     def __init__(
         self,
         projection_fn: TransformFn,
-        abs_transform: Optional[Transform] = None,
-        rel_transform: Optional[Transform] = None,
     ):
         super().__init__()
         self.projection_fn = projection_fn
-        self.abs_transform = abs_transform or Identity()
-        self.rel_transform = rel_transform or Identity()
 
-    def fit(self, x: Space, **kwargs) -> "RelativeProjection":
-        x, _ = self.abs_transform.fit_transform(x)
-        self._register_state(dict(anchors=x))
-        rel_x = relative_projection(x, anchors=x, projection_fn=self.projection_fn)
-        self.rel_transform.fit(rel_x)
-
+    def fit(self, anchors: Space) -> "RelativeProjection":
+        self._register_state(dict(anchors=anchors))
         return self
 
-    def transform(self, x: Space, y=None) -> torch.Tensor:
-        x, _ = self.abs_transform.transform(x=x, y=y)
+    def transform(self, x: Space) -> torch.Tensor:
         rel_x = relative_projection(x, **self.get_state(), projection_fn=self.projection_fn)
-        rel_x, _ = self.rel_transform.transform(x=rel_x, y=y)
 
-        return rel_x, y
+        return rel_x
