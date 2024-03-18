@@ -4,7 +4,7 @@ import pytest
 import torch
 
 import latentis.transform.functional as FL
-from latentis.transform._abstract import FunctionalTransform, Transform
+from latentis.transform._abstract import FuncXTransform, Transform
 from latentis.transform.base import (
     Centering,
     InverseTransform,
@@ -81,7 +81,7 @@ def test_functional_transforms(
     state = state_fn(x=space, **fit_params) if state_fn else {}
     space_out1: FL.TransformResult = transform_fn(x=space, **state, **transform_params)
 
-    simple_transform = FunctionalTransform(
+    simple_transform = FuncXTransform(
         transform_fn=transform_fn,
         inverse_fn=inverse_fn,
         state_fn=state_fn,
@@ -90,21 +90,21 @@ def test_functional_transforms(
         inverse_params=inverse_params,
     )
     simple_transform.fit(x=space)
-    space_out2, _ = simple_transform.transform(x=space)
+    space_out2 = simple_transform.transform(x=space)
 
     transform = transform().fit(x=space)
-    space_out3, _ = transform.transform(x=space)
+    space_out3 = transform.transform(x=space)
 
     assert torch.allclose(space_out1, space_out2)
     assert torch.allclose(space_out1, space_out3)
 
     if simple_transform.invertible:
-        rev_out1, _ = simple_transform.inverse_transform(x=space_out1)
+        rev_out1 = simple_transform.inverse_transform(x=space_out1)
         rev_out2 = inverse_fn(x=space_out1, **inverse_params, **state)
-        rev_out3, _ = transform.inverse_transform(x=space_out1)
+        rev_out3 = transform.inverse_transform(x=space_out1)
         inverse_transform = InverseTransform(transform=transform)
 
-        rev_out4, _ = inverse_transform.transform(x=space_out1, y=None)
+        rev_out4 = inverse_transform.transform(x=space_out1)
 
         assert torch.allclose(space, rev_out1)
         assert torch.allclose(rev_out1, rev_out2)

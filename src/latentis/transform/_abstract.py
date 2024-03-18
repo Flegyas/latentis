@@ -59,32 +59,32 @@ class Transform(nn.Module, IndexableMixin):
             if k.startswith(Transform._STATE_PREFIX)
         }
 
-    def fit(self, x: torch.Tensor, y: torch.Tensor = None) -> "Transform":
+    def fit(self, x: torch.Tensor, **kwargs) -> "Transform":
         return self
 
-    def transform(self, x: torch.Tensor, y: torch.Tensor = None) -> torch.Tensor:
+    def transform(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
         raise NotImplementedError
 
-    def fit_transform(self, x: torch.Tensor, y: torch.Tensor = None) -> torch.Tensor:
-        return self.fit(x=x, y=y).transform(x=x, y=y)
+    def fit_transform(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
+        return self.fit(x=x, **kwargs).transform(x=x, **kwargs)
 
-    def forward(self, x: torch.Tensor, y=None, inverse: bool = False) -> torch.Tensor:
-        x, y = self.transform(x=x, y=y) if not inverse else self.inverse_transform(x=x, y=y)
+    # def forward(self, x: torch.Tensor, y=None, inverse: bool = False) -> torch.Tensor:
+    #     x, y = self.transform(x=x, y=y) if not inverse else self.inverse_transform(x=x, y=y)
 
-        return {
-            "x": x,
-            "y": y,
-        }
+    #     return {
+    #         "x": x,
+    #         "y": y,
+    #     }
 
     @property
     def invertible(self) -> bool:
         return self._invertible
 
-    def inverse_transform(self, x: torch.Tensor, y=None) -> torch.Tensor:
+    def inverse_transform(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
         raise RuntimeError(f"Inverse transform not implemented for {type(self).__name__}.")
 
 
-class FunctionalTransform(Transform):
+class FuncXTransform(Transform):
     def __init__(
         self,
         transform_fn: TransformFn,
@@ -129,63 +129,71 @@ class FunctionalTransform(Transform):
     def inverse_fn(self) -> Optional[InverseFn]:
         return self._inverse_fn
 
-    def fit(self, x: torch.Tensor, y=None) -> "Transform":
+    def fit(self, x: torch.Tensor) -> "Transform":
         if self._state_fn is not None:
             self._register_state(self._state_fn(x=x, **self._state_params))
 
         self._fitted = True
         return self
 
-    def transform(self, x: torch.Tensor, y=None) -> torch.Tensor:
+    def transform(self, x: torch.Tensor) -> torch.Tensor:
         if not self._fitted and self._state_fn is not None:
             raise RuntimeError("Transform not fitted.")
 
-        return self._transform_fn(x=x, **self._transform_params, **self.get_state()), y
+        return self._transform_fn(x=x, **self._transform_params, **self.get_state())
 
-    def inverse_transform(self, x: torch.Tensor, y=None) -> torch.Tensor:
+    def inverse_transform(self, x: torch.Tensor) -> torch.Tensor:
         if not self._fitted and self._state_fn is not None:
             raise RuntimeError("Transform not fitted.")
 
         # return x, self._inverse_fn(x=y, **self._inverse_params, **self.get_state())
-        return self._inverse_fn(x=x, **self._inverse_params, **self.get_state()), y
+        return self._inverse_fn(x=x, **self._inverse_params, **self.get_state())
 
 
-class Identity(FunctionalTransform):
+class Identity(Transform):
     def __init__(self):
-        super().__init__(
-            transform_fn=lambda x: x,
-            inverse_fn=lambda x: x,
-            name="identity",
-        )
+        super().__init__(invertible=True)
+
+    def transform(self, **kwargs) -> torch.Tensor:
+        return tuple(kwargs.values())
+
+    def inverse_transform(self, **kwargs) -> torch.Tensor:
+        return tuple(kwargs.values())
+
+    def fit(self, x: Space) -> "Identity":
+        return self
+
+    def fit_transform(self, **kwargs) -> torch.Tensor:
+        return tuple(kwargs.values())
 
 
-class TransformSequence(Transform):
+class XTransformSequence(Transform):
     def __init__(self, transforms: Sequence[Transform]):
         super().__init__()
         self.transforms = transforms
 
-    def fit(self, x: Space, y=None) -> "TransformSequence":
+    def fit(self, x: Space) -> "XTransformSequence":
         for transform in self.transforms:
-            x, y = transform.fit_transform(x=x, y=y)
+            x = transform.fit_transform(x=x)
 
         return self
 
-    def transform(self, x: Space, y=None) -> torch.Tensor:
+    def transform(self, x: Space) -> torch.Tensor:
         for transform in self.transforms:
-            x, y = transform.transform(x=x, y=y)
+            x = transform.transform(x=x)
 
-        return x, y
+        return x
 
     @property
     def invertible(self) -> bool:
         return all(transform.invertible for transform in self.transforms)
 
-    def inverse_transform(self, x: Space, y=None) -> torch.Tensor:
+    def inverse_transform(self, x: Space) -> torch.Tensor:
         assert self.invertible, "Not all transforms in the sequence are invertible."
         for transform in reversed(self.transforms):
-            x, y = transform.inverse_transform(x=x, y=y)
+            x = transform.inverse_transform(x=x)
 
-        return x, y
+        return x
 
 
 class Estimator(Transform):
@@ -201,6 +209,15 @@ class Estimator(Transform):
 
         self._x_space = x_space
         self._y_space = y_space
+
+    def fit(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> "Estimator":
+        return self
+
+    def transform(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> torch.Tensor:
+        raise NotImplementedError
+
+    # def fit_transform(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> torch.Tensor:
+    #     return self.fit(x=x, y=y, **kwargs).transform(x=x, **kwargs)
 
     def set_spaces(self, x_space: torch.Tensor, y_space: torch.Tensor) -> "Estimator":
         # TODO: decide if we want to keep the shuffling or trust the users

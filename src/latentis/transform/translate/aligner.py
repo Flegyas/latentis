@@ -27,30 +27,27 @@ class Translator(Estimator):
         self._fitted = False
 
     def fit(self, x: torch.Tensor, y: torch.Tensor) -> Mapping[str, Any]:
-        self.x_transform.fit(x)
-        x, _ = self.x_transform.transform(x=x, y=None)
-
-        self.y_transform.fit(y)
-        y, _ = self.y_transform.transform(x=y, y=None)
+        x = self.x_transform.fit_transform(x=x)
+        y = self.y_transform.fit_transform(x=y)
 
         x, y = self.dim_matcher.fit_transform(x=x, y=y)
 
-        self.aligner.fit(x, y)
+        self.aligner.fit(x=x, y=y)
 
         self._fitted = True
 
         return self
 
-    def transform(self, x: torch.Tensor, y=None) -> torch.Tensor:
+    def transform(self, x: torch.Tensor) -> torch.Tensor:
         assert self._fitted, "The transform should be fitted before being applied."
 
-        x, _ = self.x_transform.transform(x=x, y=None)
-        x, y = self.dim_matcher.transform(x=x, y=y)
-        x, y = self.aligner.transform(x=x, y=y)
-        _, x = self.dim_matcher.inverse_transform(x=None, y=x)
-        x, _ = self.y_transform.inverse_transform(x=x, y=None)
+        x = self.x_transform.transform(x=x)
+        x = self.dim_matcher.transform(x=x)
+        x = self.aligner.transform(x=x)
+        x = self.dim_matcher.inverse_transform(x=None, y=x)
+        x = self.y_transform.inverse_transform(x=x)
 
-        return x, y
+        return x
 
     # def inverse_transform(self, x: torch.Tensor, y: torch.Tensor = None) -> torch.Tensor:
     #     # assert x is None, "The inverse transform should be applied on the target space (y)"
@@ -77,10 +74,10 @@ class MatrixAligner(Estimator):
 
         return self
 
-    def transform(self, x: torch.Tensor, y: torch.Tensor = None) -> torch.Tensor:
+    def transform(self, x: torch.Tensor) -> torch.Tensor:
         x = x @ self.get_state("matrix")
 
-        return x, y
+        return x
 
     def inverse_transform(self, x: torch.Tensor, y: torch.Tensor = None) -> torch.Tensor:
         raise NotImplementedError
@@ -100,6 +97,7 @@ class SGDAffineAligner(Estimator):
 
         self.translation: nn.Linear = None
 
+    # TODO: add a parameter to control the gradients on the output
     def fit(self, x: torch.Tensor, y: torch.Tensor) -> Mapping[str, Any]:
         translation: nn.Module = sgd_affine_align_state(
             x=x, y=y, num_steps=self.num_steps, lr=self.lr, random_seed=self.random_seed
@@ -108,8 +106,8 @@ class SGDAffineAligner(Estimator):
 
         return self
 
-    def transform(self, x: torch.Tensor, y: torch.Tensor = None) -> torch.Tensor:
-        return self.translation(x), y
+    def transform(self, x: torch.Tensor) -> torch.Tensor:
+        return self.translation(x)
 
 
 class Procrustes(Translator):
