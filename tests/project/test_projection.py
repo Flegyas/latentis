@@ -9,8 +9,9 @@ from scipy.stats import ortho_group
 
 from tests.project.conftest import LATENT_DIM
 
+from latentis.pipeline.flow import Flow, NNPipeline
 from latentis.space import LatentSpace
-from latentis.transform import Identity, TransformSequence
+from latentis.transform import Identity, Transform
 from latentis.transform.base import Centering
 from latentis.transform.projection import (
     RelativeProjection,
@@ -63,7 +64,7 @@ def test_pointwise_wrapper(projection_fn, unsqueeze: bool, tensor_space_with_ref
 
 
 @pytest.mark.parametrize(
-    "projection_fn,invariance,invariant,abs_transforms,rel_transforms",
+    "projection_fn,invariance,invariant,abs_transform,rel_transform",
     [
         (
             angular_proj,
@@ -83,7 +84,7 @@ def test_pointwise_wrapper(projection_fn, unsqueeze: bool, tensor_space_with_ref
             angular_proj,
             lambda x: x @ random_ortho_matrix(random_seed=42) + 100,
             True,
-            [Centering()],
+            Centering(),
             [],
         ),
         (
@@ -97,14 +98,14 @@ def test_pointwise_wrapper(projection_fn, unsqueeze: bool, tensor_space_with_ref
             cosine_proj,
             lambda x: (x + 20) @ random_ortho_matrix(42),
             True,
-            [Centering()],
+            Centering(),
             [],
         ),
         (
             cosine_proj,
             lambda x: (x) @ random_ortho_matrix(42) + 20,
             True,
-            [Centering()],
+            Centering(),
             [],
         ),
         (
@@ -167,21 +168,21 @@ def test_pointwise_wrapper(projection_fn, unsqueeze: bool, tensor_space_with_ref
             cosine_proj,
             lambda x: (x + 100) * random_isotropic_scaling(42),
             True,
-            [Centering()],
+            Centering(),
             [],
         ),
         (
             cosine_proj,
             lambda x: (x + 100) * random_isotropic_scaling(42) + 100,
             True,
-            [Centering()],
+            Centering(),
             [],
         ),
         (
             change_of_basis_proj,
             lambda x: (x + 100) * random_isotropic_scaling(42),
             True,
-            [Centering()],
+            Centering(),
             [],
         ),
         (
@@ -201,7 +202,7 @@ def test_pointwise_wrapper(projection_fn, unsqueeze: bool, tensor_space_with_ref
     ],
 )
 def test_invariances(
-    projection_fn, x: Space, x_anchors, invariance, invariant, abs_transforms: list, rel_transforms: list
+    projection_fn, x: Space, x_anchors, invariance, invariant, abs_transform: Transform, rel_transform: Transform
 ):
     y = invariance(x) if isinstance(x, torch.Tensor) else x.transform(invariance)
     y_anchors = invariance(x_anchors if isinstance(x_anchors, torch.Tensor) else x_anchors.vectors)
@@ -212,21 +213,35 @@ def test_invariances(
     if isinstance(x_anchors, LatentSpace):
         x_anchors = x_anchors.vectors
 
-    abs_transforms = TransformSequence(abs_transforms) if abs_transforms else Identity()
-    rel_transforms = TransformSequence(rel_transforms) if rel_transforms else Identity()
+    abs_transform = abs_transform if abs_transform else Identity()
+    rel_transform = rel_transform if rel_transform else Identity()
 
-    pipeline = RelativeProjection(
-        projection_fn=projection_fn,
-        abs_transform=abs_transforms,
-        rel_transform=rel_transforms,
+    RelProj = NNPipeline(name="RelProj")
+    RelProj.add(
+        Flow(name="fit", inputs="anchors", outputs="rel_anchors")
+        .add(block="abs_transform", method="fit_transform", inputs="anchors:x", outputs="abs_anchors")
+        .add(block="projection", method="fit", inputs="abs_anchors:anchors", outputs="rel_proj")
+        .add(block="projection", method="transform", inputs="abs_anchors:x", outputs="rel_anchors")
+        .add(block="rel_transform", method="fit_transform", inputs="rel_anchors:x", outputs="rel_anchors")
     )
-    pipeline.fit(x_anchors.vectors if isinstance(x_anchors, LatentSpace) else x_anchors)
-    x_projected, _ = pipeline.transform(x if isinstance(x, torch.Tensor) else x.vectors)
+    RelProj.add(
+        Flow(name="transform", inputs="x", outputs="rel_x")
+        .add(block="abs_transform", method="transform", inputs="x", outputs="abs_x")
+        .add(block="projection", method="transform", inputs=["abs_x:x"], outputs="rel_x")
+        .add(block="rel_transform", method="transform", inputs="rel_x:x", outputs="rel_x")
+    )
+    pipeline = RelProj.build(
+        abs_transform=abs_transform,
+        projection=RelativeProjection(projection_fn=projection_fn),
+        rel_transform=rel_transform,
+    )
+    pipeline.run(flow="fit", anchors=x_anchors.vectors if isinstance(x_anchors, LatentSpace) else x_anchors)
+    x_projected = pipeline.run(flow="transform", x=x if isinstance(x, torch.Tensor) else x.vectors)
 
-    pipeline.fit(y_anchors.vectors if isinstance(y_anchors, LatentSpace) else y_anchors)
-    y_projected, _ = pipeline.transform(y if isinstance(y, torch.Tensor) else y.vectors)
+    pipeline.run(flow="fit", anchors=y_anchors.vectors if isinstance(y_anchors, LatentSpace) else y_anchors)
+    y_projected = pipeline.run(flow="transform", x=y if isinstance(y, torch.Tensor) else y.vectors)
 
-    assert not invariant or torch.allclose(x_projected, y_projected)
+    assert not invariant or torch.allclose(x_projected["rel_x"], y_projected["rel_x"])
 
     if isinstance(x, LatentSpace):
         pytest.skip("LatentSpace does not support relative projections.")

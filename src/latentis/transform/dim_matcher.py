@@ -15,6 +15,11 @@ class ZeroPadding(DimMatcher):
         super().__init__(name="zero_padding", invertible=True)
 
     def fit(self, x: torch.Tensor, y: torch.Tensor) -> Mapping[str, torch.Tensor]:
+        if len(x.shape) != 2:
+            raise ValueError("The source tensor must be 2D.")
+        if len(y.shape) != 2:
+            raise ValueError("The target tensor must be 2D.")
+
         x_pad = y.size(1) - x.size(1)
         y_pad = x.size(1) - y.size(1)
         transform_x = x_pad > 0
@@ -37,7 +42,8 @@ class ZeroPadding(DimMatcher):
         y: Optional[torch.Tensor] = None,
     ) -> Dict[str, torch.Tensor]:
         if x is not None and self.get_state("transform_x"):
-            assert x.ndim == 2, "The source tensor must be 2D."
+            if x.ndim != 2:
+                raise ValueError("The source tensor must be 2D.")
             x = torch.nn.functional.pad(
                 x,
                 (0, self.get_state("x_pad")),
@@ -46,7 +52,8 @@ class ZeroPadding(DimMatcher):
             )
 
         if y is not None and self.get_state("transform_y"):
-            assert y.ndim == 2, "The target tensor must be 2D."
+            if y.ndim != 2:
+                raise ValueError("The target tensor must be 2D.")
             y = torch.nn.functional.pad(
                 y,
                 (0, self.get_state("y_pad")),
@@ -54,20 +61,39 @@ class ZeroPadding(DimMatcher):
                 value=0,
             )
 
-        return x, y
+        if x is None and y is None:
+            raise ValueError("Either x or y must be provided.")
+
+        # I'm sorry for this :]
+        result = []
+
+        if x is not None:
+            result.append(x)
+
+        if y is not None:
+            result.append(y)
+
+        return tuple(result)
 
     def inverse_transform(
         self,
         x: Optional[torch.Tensor] = None,
         y: Optional[torch.Tensor] = None,
     ) -> Dict[str, torch.Tensor]:
-        if x is not None and self.get_state("transform_x"):
-            x = x[..., : -self.get_state("x_pad")]
+        if x is not None:
+            if self.get_state("transform_x"):
+                x = x[..., : -self.get_state("x_pad")]
+            return x
 
-        if y is not None and self.get_state("transform_y"):
-            y = y[..., : -self.get_state("y_pad")]
+        if y is not None:
+            if self.get_state("transform_y"):
+                y = y[..., : -self.get_state("y_pad")]
+            return y
 
-        return x, y
+        raise ValueError("Either x or y must be provided.")
+
+    def fit_transform(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        return self.fit(x=x, y=y).transform(x=x, y=y)
 
 
 # class PCATruncation(DimMatcher):
