@@ -1,9 +1,9 @@
-from ._abstract import Estimator, FunctionalTransform, Identity, Transform, TransformSequence
+from ._abstract import Estimator, FuncXTransform, Identity, Transform, XTransformSequence
 
 __all__ = [
     "Transform",
     "Identity",
-    "FunctionalTransform",
-    "TransformSequence",
+    "FuncXTransform",
+    "XTransformSequence",
     "Estimator",
 ]

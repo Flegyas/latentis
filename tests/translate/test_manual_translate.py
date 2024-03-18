@@ -7,13 +7,13 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from latentis.pipeline.flow import Flow, NNPipeline
 from latentis.space import LatentSpace
-from latentis.transform import TransformSequence
+from latentis.transform import Identity, XTransformSequence
 from latentis.transform.base import Centering, MeanLPNorm, StandardScaling, STDScaling
 from latentis.transform.dim_matcher import ZeroPadding
-from latentis.transform.functional import std_scaling_state, std_scaling_transform
 from latentis.transform.translate import MatrixAligner
-from latentis.transform.translate.aligner import Procrustes, SGDAffineAligner, Translator
+from latentis.transform.translate.aligner import SGDAffineAligner
 from latentis.transform.translate.functional import lstsq_align_state, lstsq_ortho_align_state, svd_align_state
 from latentis.utils import seed_everything
 
@@ -177,13 +177,7 @@ _RANDOM_SEED = 0
 @pytest.mark.parametrize(
     "manual_method, aligner_factory",
     [
-        (
-            "svd",
-            lambda: Translator(
-                aligner=MatrixAligner("svd", align_fn_state=svd_align_state),
-                dim_matcher=ZeroPadding(),
-            ),
-        ),
+        ("svd", lambda: MatrixAligner("svd", align_fn_state=svd_align_state)),
         ("lstsq", lambda: MatrixAligner("lstsq", align_fn_state=lstsq_align_state)),
         ("lstsq+ortho", lambda: MatrixAligner("lstsq+ortho", align_fn_state=lstsq_ortho_align_state)),
         ("linear", lambda: SGDAffineAligner(num_steps=20, lr=1e-3, random_seed=0)),
@@ -196,8 +190,8 @@ _RANDOM_SEED = 0
             True,
             True,
             False,
-            TransformSequence([Centering(), STDScaling()]),
-            TransformSequence([Centering(), STDScaling()]),
+            XTransformSequence([Centering(), STDScaling()]),
+            XTransformSequence([Centering(), STDScaling()]),
         ),
         (
             True,
@@ -217,8 +211,8 @@ _RANDOM_SEED = 0
             True,
             False,
             True,
-            TransformSequence([Centering(), MeanLPNorm(p=2)]),
-            TransformSequence([Centering(), MeanLPNorm(p=2)]),
+            XTransformSequence([Centering(), MeanLPNorm(p=2)]),
+            XTransformSequence([Centering(), MeanLPNorm(p=2)]),
         ),
         (False, False, True, MeanLPNorm(p=2), MeanLPNorm(p=2)),
     ],
@@ -240,24 +234,48 @@ def test_manual_translation(
         l2_norm=manual_l2_norm,
         method=manual_method,
     )
-    translator = Translator(
-        # random_seed=0,
-        aligner=aligner_factory(),
-        x_transform=x_transform,
-        y_transform=y_transform,
+    # translator = Translator(
+    #     # random_seed=0,
+    #     aligner=aligner_factory(),
+    #     x_transform=x_transform,
+    #     y_transform=y_transform,
+    # )
+    translator = NNPipeline(
+        name="translator",
+        flows={
+            "fit": Flow(name="fit", inputs=["fit_source", "fit_target"], outputs="estimator")
+            .add(block="x_transform", method="fit_transform", inputs="fit_source:x", outputs="x")
+            .add(block="y_transform", method="fit_transform", inputs="fit_target:x", outputs="y")
+            .add(block="padder", method="fit_transform", inputs=["x", "y"], outputs=["padded_x", "padded_y"])
+            .add(block="aligner", method="fit", inputs=["padded_x:x", "padded_y:y"], outputs=["aligner_state"]),
+            #
+            "transform": Flow(name="transform", inputs=["source"], outputs=["translated_x"])
+            .add(block="x_transform", method="transform", inputs="source:x", outputs="x")
+            .add(block="padder", method="transform", inputs="x", outputs="x")
+            .add(block="aligner", method="transform", inputs="x", outputs="x")
+            .add(block="padder", method="inverse_transform", inputs="x:y", outputs="x")
+            .add(block="y_transform", method="inverse_transform", inputs="x", outputs="translated_x"),
+        },
+        blocks={
+            "x_transform": x_transform,
+            "y_transform": y_transform,
+            "aligner": aligner_factory(),
+            "padder": ZeroPadding() if manual_method == "svd" else Identity(),
+        },
     )
 
     A, B = parallel_spaces
     A = A.vectors if isinstance(A, LatentSpace) else A
     B = B.vectors if isinstance(B, LatentSpace) else B
     manual_translator.fit(A, B)
-    translator.fit(x=A, y=B)
+    translator.run(flow="fit", fit_source=A, fit_target=B)
 
     manual_output = manual_translator.transform(A)["target"]
-    latentis_output, _ = translator.transform(x=A, y=B)
+    latentis_output = translator.run(flow="transform", source=A)
 
     assert torch.allclose(
-        manual_output, latentis_output.vectors if isinstance(latentis_output, LatentSpace) else latentis_output
+        manual_output,
+        latentis_output.vectors if isinstance(latentis_output, LatentSpace) else latentis_output["translated_x"],
     )
 
     if isinstance(A, LatentSpace):
@@ -274,10 +292,32 @@ def test_procrustes(
     x = x.vectors if isinstance(x, LatentSpace) else x
     y = y.vectors if isinstance(y, LatentSpace) else y
 
-    x = std_scaling_transform(x, **std_scaling_state(x))
-    y = std_scaling_transform(y, **std_scaling_state(y))
+    procrustes = NNPipeline(
+        name="procrustes",
+        flows={
+            "fit": Flow(name="fit", inputs=["fit_source", "fit_target"], outputs="estimator")
+            .add(block="x_transform", method="fit_transform", inputs="fit_source:x", outputs="x")
+            .add(block="y_transform", method="fit_transform", inputs="fit_target:x", outputs="y")
+            .add(block="padder", method="fit_transform", inputs=["x", "y"], outputs=["padded_x", "padded_y"])
+            .add(block="aligner", method="fit", inputs=["padded_x:x", "padded_y:y"], outputs=["aligner_state"]),
+            #
+            "transform": Flow(name="transform", inputs=["source"], outputs=["translated_x"])
+            .add(block="x_transform", method="transform", inputs="source:x", outputs="x")
+            .add(block="padder", method="transform", inputs="x", outputs="x")
+            .add(block="aligner", method="transform", inputs="x", outputs="x")
+            .add(block="padder", method="inverse_transform", inputs="x:y", outputs="x")
+            .add(block="y_transform", method="inverse_transform", inputs="x", outputs="translated_x"),
+        },
+        blocks={
+            "x_transform": StandardScaling(),
+            "y_transform": StandardScaling(),
+            "aligner": MatrixAligner("svd", align_fn_state=svd_align_state),
+            "padder": ZeroPadding(),
+        },
+    )
+    procrustes.run(flow="fit", fit_source=x, fit_target=y)
+    x1 = procrustes.run(flow="transform", source=x)["translated_x"]
 
-    x1, _ = Procrustes().fit_transform(x, y)
     manual_result = (
         ManualLatentTranslation(seed=42, centering=True, std_correction=True, l2_norm=False, method="svd")
         .fit(x=x, y=y)
