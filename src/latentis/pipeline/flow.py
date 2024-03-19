@@ -83,7 +83,7 @@ class FlowInput(Step):
 
     @property
     def name(self) -> str:
-        return f"FlowInput({self._outputs[0]})"
+        return self._outputs[0]
 
     def run(self, block: Block, **kwargs) -> Mapping[str, Any]:
         return {self._outputs[0]: kwargs[self._outputs[0]]}
@@ -99,7 +99,7 @@ class Flow:
         self.inputs = [FlowInput(name=input_var) for input_var in inputs]
         self.outputs = outputs
 
-        self.dag = nx.DiGraph()
+        self.dag = nx.MultiDiGraph()
 
         for flow_input in self.inputs:
             self._add_step(step=flow_input)
@@ -109,13 +109,24 @@ class Flow:
 
         graph = graphviz.Digraph()
 
+        node_padding = "4"
+        edge_padding = "2"
+
         for node in self.dag.nodes:
             step = self.dag.nodes[node]["step"]
-            graph.node(node, label=step.name, block=step.block, method=step._method)
+            if isinstance(step, FlowInput):
+                node_shape = "square"
+                color = "blue"
+            else:
+                node_shape = "ellipse"
+                color = "black"
+            node_label = f'<<table border="0" cellborder="0" cellspacing="0" cellpadding="{node_padding}"><tr><td>{step.name}</td></tr></table>>'
+            graph.node(node, label=node_label, shape=node_shape, block=step.block, method=step._method, color=color)
 
         for edge in self.dag.edges:
             edge_label = self.dag.edges[edge]["mappings"]
-            edge_label = ", ".join([f"{k}:{v}" for k, v in edge_label.items()])
+            edge_label = ", ".join([f"{k}:{','.join(v)}" for k, v in edge_label.items()])
+            edge_label = f'<<table border="0" cellborder="0" cellspacing="0" cellpadding="{edge_padding}"><tr><td>{edge_label}</td></tr></table>>'
             graph.edge(edge[0], edge[1], label=edge_label)
 
         return graph
