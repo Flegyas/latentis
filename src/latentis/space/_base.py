@@ -16,7 +16,7 @@ from latentis.types import Properties, StrEnum
 
 if TYPE_CHECKING:
     from latentis.sample import Sampler
-    from latentis.types import Space
+    from latentis.types import LatentisSpace
     from latentis.measure import MetricFn
     from latentis.transform.translate import Translator
 
@@ -34,7 +34,7 @@ class _SpaceMetadata(StrEnum):
 _PROPERTIES_FILE_NAME = "properties.json"
 
 
-class LatentSpace(IndexableMixin):
+class Space(IndexableMixin):
     def __init__(
         self,
         vector_source: Optional[Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]],
@@ -75,7 +75,7 @@ class LatentSpace(IndexableMixin):
 
         # TODO: store also the module to use for deserialization,
         # removing this properties from the index
-        properties[_SpaceMetadata._TYPE] = LatentSpace.__name__
+        properties[_SpaceMetadata._TYPE] = Space.__name__
         properties[_SpaceMetadata._VECTOR_SOURCE] = type(self._vector_source).__name__
 
         self._properties = properties.copy()
@@ -144,7 +144,7 @@ class LatentSpace(IndexableMixin):
         return metadata
 
     @classmethod
-    def load_from_disk(cls, path: Path, load_source_model: bool = False) -> LatentSpace:
+    def load_from_disk(cls, path: Path, load_source_model: bool = False) -> Space:
         # load VectorSource
         vector_source = TensorSource.load_from_disk(path / "vectors")
 
@@ -159,11 +159,11 @@ class LatentSpace(IndexableMixin):
             else None
         )
 
-        space = LatentSpace.__new__(cls)
+        space = Space.__new__(cls)
         space._properties = properties
         space._vector_source = vector_source
         space._source_model = model
-        space.root_path: Path = path
+        space.root_path = path
 
         try:
             space._decoders = DiskIndex.load_from_disk(path=path / "decoders")
@@ -179,12 +179,12 @@ class LatentSpace(IndexableMixin):
     def vectors(self) -> torch.Tensor:
         return self._vector_source.as_tensor()
 
-    def to_memory(self) -> "LatentSpace":
+    def to_memory(self) -> "Space":
         if isinstance(self._vector_source, torch.Tensor):
             pylogger.info("Already in memory, skipping.")
             return self
 
-        return LatentSpace.like(
+        return Space.like(
             space=self,
             vector_source=self.as_tensor(),
         )
@@ -193,7 +193,7 @@ class LatentSpace(IndexableMixin):
     def like(
         cls,
         #
-        space: LatentSpace,
+        space: Space,
         vector_source: Optional[Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]] = None,
         # decoders: Optional[Dict[str, LatentisModule]] = None,
         properties: Optional[Mapping[str, Any]] = None,
@@ -205,13 +205,13 @@ class LatentSpace(IndexableMixin):
         There is no copy of the vectors, so changes to the vectors of the new space will also affect the vectors of the given space.
 
         Args:
-            space (LatentSpace): The space to copy.
+            space (Space): The space to copy.
             name (Optional[str]): The name of the new space.
             vector_source (Optional[torch.Tensor], optional): The vectors of the new space.
             metadata (Optional[Dict[str, Any]], optional): The metadata of the new space.
 
         Returns:
-            LatentSpace: The new space, with the arguments not provided taken from the given space.
+            Space: The new space, with the arguments not provided taken from the given space.
         """
         if vector_source is None:
             vector_source = space.vector_source if not deepcopy else copy.deepcopy(space.vector_source)
@@ -225,7 +225,7 @@ class LatentSpace(IndexableMixin):
             properties = space.properties if not deepcopy else copy.deepcopy(space.properties)
 
         # TODO: test deepcopy
-        return LatentSpace(
+        return Space(
             vector_source=vector_source,
             # decoders=decoders,
             properties=properties,
@@ -258,11 +258,11 @@ class LatentSpace(IndexableMixin):
             keys (Optional[Sequence[str]], optional): The keys of the vectors. Defaults to None.
 
         Returns:
-            LatentSpace: The new space.
+            Space: The new space.
         """
         self._vector_source.add_vectors_(vectors=vectors, keys=keys)
 
-    def sample(self, sampler: Sampler, n: int) -> "LatentSpace":
+    def sample(self, sampler: Sampler, n: int) -> "Space":
         """Sample n vectors from this space using the given sampler.
 
         Args:
@@ -270,13 +270,15 @@ class LatentSpace(IndexableMixin):
             n (int): The number of vectors to sample.
 
         Returns:
-            LatentSpace: The sampled space.
+            Space: The sampled space.
 
         """
         return sampler(self, n=n)
 
     def compare(
-        self, *others: Space, metrics: Mapping[str, Union[SearchMetric, Callable[[Space, Space], torch.Tensor]]]
+        self,
+        *others: LatentisSpace,
+        metrics: Mapping[str, Union[SearchMetric, Callable[[LatentisSpace, LatentisSpace], torch.Tensor]]],
     ):
         """Compare this space with another space using the given metrics.
 
@@ -321,8 +323,8 @@ class LatentSpace(IndexableMixin):
 
         return index
 
-    def transform(self, transform: Union[Transform, Translator]) -> "LatentSpace":
-        return LatentSpace.like(
+    def transform(self, transform: Union[Transform, Translator]) -> "Space":
+        return Space.like(
             space=self,
             vector_source=transform(x=self.vectors),
         )

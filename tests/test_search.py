@@ -6,7 +6,7 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from latentis.space import LatentSpace
+from latentis.space import Space
 from latentis.space.search import SearchIndex, SearchMetric
 from latentis.utils import seed_everything
 
@@ -33,7 +33,7 @@ def test_index(
 ):
     seed_everything(seed=0)
 
-    space = LatentSpace(
+    space = Space(
         vector_source=torch.randn(num_vectors, num_dimensions, dtype=torch.double),
     )
     index = space.to_index(metric_fn=metric_fn, keys=[str(i) for i in range(num_vectors)])
@@ -135,7 +135,7 @@ def test_index(
 def test_transform(num_vectors: int, num_dimensions: int):
     seed_everything(seed=0)
 
-    space = LatentSpace(
+    space = Space(
         vector_source=torch.randn(num_vectors, num_dimensions, dtype=torch.double),
     )
     index1 = space.to_index(metric_fn=SearchMetric.COSINE)
@@ -150,7 +150,7 @@ def test_transform(num_vectors: int, num_dimensions: int):
 
     vectors = torch.randn(num_vectors, num_dimensions, dtype=torch.float32)
 
-    space = LatentSpace(
+    space = Space(
         vector_source=vectors,
     )
     index = space.to_index(metric_fn=SearchMetric.COSINE)
@@ -186,7 +186,7 @@ def test_range_search(num_vectors: int, num_dimensions: int, search_metric2radiu
     seed_everything(seed=0)
 
     vectors = torch.randn(num_vectors, num_dimensions, dtype=torch.double) * 10
-    space = LatentSpace(
+    space = Space(
         vector_source=vectors,
     )
 
@@ -206,7 +206,7 @@ def test_keys(
 ):
     seed_everything(seed=0)
 
-    space = LatentSpace(
+    space = Space(
         vector_source=torch.randn(num_vectors, 100, dtype=torch.float32),
     )
 
@@ -251,7 +251,7 @@ def test_get_vectors(num_vectors: int, num_dimensions: int):
         index.get_vector(query_key="impossible_key")
 
     vectors = torch.randn(num_vectors, num_dimensions, dtype=torch.float32)
-    space = LatentSpace(
+    space = Space(
         vector_source=vectors,
     )
 

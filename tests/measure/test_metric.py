@@ -15,7 +15,7 @@ from latentis.measure.svcca import SVCCA
 from latentis.space import LatentSpace
 
 if TYPE_CHECKING:
-    from latentis.types import Space
+    from latentis.types import LatentisSpace
 
 
 TOL = 1e-3
@@ -31,7 +31,7 @@ SVCCA_TOLERANCE = 1e-3
         (lambda x, y: torch.trace(torch.matmul(x, y.t()))),
     ],
 )
-def test_metric(metric_fn: Callable[[Space, Space], torch.Tensor], same_shape_spaces):
+def test_metric(metric_fn: Callable[[LatentisSpace, LatentisSpace], torch.Tensor], same_shape_spaces):
     space1, space2 = same_shape_spaces
     fn_result = metric_fn(
         space1 if isinstance(space1, torch.Tensor) else space1.vectors,

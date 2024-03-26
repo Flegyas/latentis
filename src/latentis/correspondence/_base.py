@@ -8,7 +8,7 @@ import torch
 
 from latentis.data import DATA_DIR
 from latentis.serialize.io_utils import IndexableMixin, load_json, save_json
-from latentis.space import LatentSpace
+from latentis.space import Space
 from latentis.types import Properties, StrEnum
 
 _CORRESPONDENCE_DIR = DATA_DIR / "correspondences"
@@ -64,7 +64,7 @@ class Correspondence(IndexableMixin):
     def split(self):
         pass
 
-    def add_noise(self, x: LatentSpace, y: LatentSpace):
+    def add_noise(self, x: Space, y: Space):
         pass
 
     # def random_subset(self, factor: Union[int, float], seed: int):
