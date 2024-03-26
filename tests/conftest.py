@@ -6,17 +6,17 @@ import pytest
 import torch
 from torch import Tensor
 
-from latentis.space import LatentSpace
+from latentis.space import Space
 from latentis.utils import seed_everything
 
 if TYPE_CHECKING:
-    from latentis.types import Space
+    from latentis.types import LatentisSpace
 
 
 class Space1Params(object):
     seed_everything(42)
     instances = [
-        LatentSpace(
+        Space(
             vector_source=torch.randn(1000, 128, dtype=torch.double),
         ),
         torch.randn(1000, 128, dtype=torch.double),
@@ -24,14 +24,14 @@ class Space1Params(object):
 
 
 @pytest.fixture(params=Space1Params().instances, scope="session")
-def space1(request) -> Space:
+def space1(request) -> LatentisSpace:
     return request.param
 
 
 class Space2Params(object):
     seed_everything(42)
     instances = [
-        LatentSpace(
+        Space(
             vector_source=torch.randn(53, 250, dtype=torch.double),
         ),
         torch.randn(53, 250, dtype=torch.double),
@@ -39,17 +39,17 @@ class Space2Params(object):
 
 
 @pytest.fixture(params=Space2Params().instances, scope="session")
-def space2(request) -> Space:
+def space2(request) -> LatentisSpace:
     return request.param
 
 
 class ParallelSpaces(object):
     instances = [
         (
-            LatentSpace(
+            Space(
                 vector_source=torch.randn(space1_n, space_1_dim, dtype=torch.double),
             ),
-            LatentSpace(
+            Space(
                 vector_source=torch.randn(space2_n, space2_dim, dtype=torch.double),
             ),
         )
@@ -76,7 +76,7 @@ class ParallelSpaces(object):
 
 
 @pytest.fixture(params=ParallelSpaces().instances)
-def parallel_spaces(request) -> Tuple[Space, Space]:
+def parallel_spaces(request) -> Tuple[LatentisSpace, LatentisSpace]:
     return request.param
 
 

@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from latentis.pipeline.flow import Flow, NNPipeline
-from latentis.space import LatentSpace
+from latentis.space import Space
 from latentis.transform import Identity, XTransformSequence
 from latentis.transform.base import Centering, MeanLPNorm, StandardScaling, STDScaling
 from latentis.transform.dim_matcher import ZeroPadding
@@ -18,7 +18,7 @@ from latentis.transform.translate.functional import lstsq_align_state, lstsq_ort
 from latentis.utils import seed_everything
 
 if TYPE_CHECKING:
-    from latentis.types import Space
+    from latentis.types import LatentisSpace
 
 
 def manual_svd_translation(A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
@@ -218,7 +218,7 @@ _RANDOM_SEED = 0
     ],
 )
 def test_manual_translation(
-    parallel_spaces: Tuple[Space, Space],
+    parallel_spaces: Tuple[LatentisSpace, LatentisSpace],
     manual_method,
     aligner_factory,
     manual_centering,
@@ -265,8 +265,8 @@ def test_manual_translation(
     )
 
     A, B = parallel_spaces
-    A = A.vectors if isinstance(A, LatentSpace) else A
-    B = B.vectors if isinstance(B, LatentSpace) else B
+    A = A.vectors if isinstance(A, Space) else A
+    B = B.vectors if isinstance(B, Space) else B
     manual_translator.fit(A, B)
     translator.run(flow="fit", fit_source=A, fit_target=B)
 
@@ -275,10 +275,10 @@ def test_manual_translation(
 
     assert torch.allclose(
         manual_output,
-        latentis_output.vectors if isinstance(latentis_output, LatentSpace) else latentis_output["translated_x"],
+        latentis_output.vectors if isinstance(latentis_output, Space) else latentis_output["translated_x"],
     )
 
-    if isinstance(A, LatentSpace):
+    if isinstance(A, Space):
         assert torch.allclose(
             manual_output,
             A.translate(translator=translator).vectors,
@@ -286,11 +286,11 @@ def test_manual_translation(
 
 
 def test_procrustes(
-    parallel_spaces: Tuple[Space, Space],
+    parallel_spaces: Tuple[LatentisSpace, LatentisSpace],
 ):
     x, y = parallel_spaces
-    x = x.vectors if isinstance(x, LatentSpace) else x
-    y = y.vectors if isinstance(y, LatentSpace) else y
+    x = x.vectors if isinstance(x, Space) else x
+    y = y.vectors if isinstance(y, Space) else y
 
     procrustes = NNPipeline(
         name="procrustes",

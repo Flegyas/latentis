@@ -1,3 +1,3 @@
-from ._base import LatentSpace
+from ._base import Space
 
-__all__ = ["LatentSpace"]
+__all__ = ["Space"]

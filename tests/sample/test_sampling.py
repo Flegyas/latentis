@@ -7,10 +7,10 @@ import pytest
 from latentis.sample import Uniform
 
 if TYPE_CHECKING:
-    from latentis.types import Space
+    from latentis.types import LatentisSpace
 
 
-def test_uniform_sampler(space1: Space, space2: Space):
+def test_uniform_sampler(space1: LatentisSpace, space2: LatentisSpace):
     # Test invalid inputs
     uniform = Uniform()
     with pytest.raises(AssertionError):
@@ -25,7 +25,7 @@ def test_uniform_sampler(space1: Space, space2: Space):
     # Test suffix
     uniform = Uniform(random_seed=0, suffix="_custom")
     subspace1 = uniform(space1, n=10)
-    # if isinstance(space1, LatentSpace):
+    # if isinstance(space1, Space):
     # assert subspace1.name.startswith(space1._name)
     # assert subspace1.name.endswith("_custom")
     # assert subspace1.name == space1._name + "_custom"
@@ -38,7 +38,7 @@ def test_uniform_sampler(space1: Space, space2: Space):
     assert len(subspace1) == 10 == len(subspace2)
 
     # Test sampling ids are present but different
-    # if isinstance(space1, LatentSpace) and isinstance(space2, LatentSpace):
+    # if isinstance(space1, Space) and isinstance(space2, Space):
     #     assert not torch.all(
     #         subspace1.features[SpaceProperty.SAMPLING_IDS] == subspace2.features[SpaceProperty.SAMPLING_IDS]
     #     )
@@ -51,7 +51,7 @@ def test_uniform_sampler(space1: Space, space2: Space):
     assert len(subspace1) == 5 == len(space1_2)
 
     # Test sampling ids are present and the same
-    # if isinstance(space1, LatentSpace) and isinstance(space2, LatentSpace):
+    # if isinstance(space1, Space) and isinstance(space2, Space):
     #     assert torch.all(
     #         subspace1.features[SpaceProperty.SAMPLING_IDS] == space1_2.features[SpaceProperty.SAMPLING_IDS]
     #     ).item()
@@ -62,7 +62,7 @@ def test_uniform_sampler(space1: Space, space2: Space):
     assert len(subspace1) == 10 == len(space1_2)
 
     # Test sampling ids are present and the same
-    # if isinstance(space1, LatentSpace) and isinstance(space2, LatentSpace):
+    # if isinstance(space1, Space) and isinstance(space2, Space):
     #     assert torch.all(
     #         subspace1.features[SpaceProperty.SAMPLING_IDS] == space1_2.features[SpaceProperty.SAMPLING_IDS]
     #     )

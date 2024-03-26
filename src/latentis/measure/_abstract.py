@@ -7,10 +7,10 @@ import torch
 from torch import nn
 
 from latentis.serialize.io_utils import IndexableMixin
-from latentis.space import LatentSpace
+from latentis.space import Space
 
 if TYPE_CHECKING:
-    from latentis.types import Space
+    from latentis.types import LatentisSpace
 
 
 class Metric(nn.Module, IndexableMixin):
@@ -26,7 +26,7 @@ class Metric(nn.Module, IndexableMixin):
         return self._name
 
     @abstractmethod
-    def forward(self, *spaces: Space) -> Mapping[Tuple[str], Mapping[str, Any]]:
+    def forward(self, *spaces: LatentisSpace) -> Mapping[Tuple[str], Mapping[str, Any]]:
         raise NotImplementedError
 
 
@@ -35,21 +35,21 @@ class PairwiseMetric(Metric):
         super().__init__(name=name)
 
     @abstractmethod
-    def forward(self, x: Space, y: Space) -> Mapping[str, Any]:
+    def forward(self, x: LatentisSpace, y: LatentisSpace) -> Mapping[str, Any]:
         raise NotImplementedError
 
 
 class MetricFn(PairwiseMetric):
-    def __init__(self, key: str, fn: Callable([Space, Space], torch.Tensor)) -> None:
+    def __init__(self, key: str, fn: Callable[[LatentisSpace, LatentisSpace], torch.Tensor]) -> None:
         super().__init__(fn.__name__ if hasattr(fn, "__name__") else key)
         self.key = key
         self.fn = fn
 
-    def forward(self, x: Space, y: Space) -> Mapping[str, Any]:
-        if isinstance(x, LatentSpace):
+    def forward(self, x: LatentisSpace, y: LatentisSpace) -> Mapping[str, Any]:
+        if isinstance(x, Space):
             x = x.vectors
 
-        if isinstance(y, LatentSpace):
+        if isinstance(y, Space):
             y = y.vectors
 
         return {self.key: self.fn(x, y)}

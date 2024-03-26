@@ -15,7 +15,6 @@ from pathlib import Path
 
 import git
 
-# from .space import LatentSpace
 from .utils import load_envs
 
 logger = logging.getLogger(__name__)
@@ -30,4 +29,4 @@ except git.exc.InvalidGitRepositoryError:
 logger.debug(f"Inferred project root: {PROJECT_ROOT}")
 os.environ["PROJECT_ROOT"] = str(PROJECT_ROOT)
 
-__all__ = ["LatentSpace", "__version__"]
+__all__ = ["Space", "__version__"]
