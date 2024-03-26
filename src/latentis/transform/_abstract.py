@@ -11,7 +11,7 @@ from latentis.transform.functional import InverseFn, State, StateFn, TransformFn
 from latentis.types import Properties
 
 if TYPE_CHECKING:
-    from latentis.types import Space
+    from latentis.types import LatentisSpace
 
 
 class Transform(nn.Module, IndexableMixin):
@@ -160,7 +160,7 @@ class Identity(Transform):
     def inverse_transform(self, **kwargs) -> torch.Tensor:
         return tuple(kwargs.values())
 
-    def fit(self, x: Space) -> "Identity":
+    def fit(self, x: LatentisSpace) -> "Identity":
         return self
 
     def fit_transform(self, **kwargs) -> torch.Tensor:
@@ -172,13 +172,13 @@ class XTransformSequence(Transform):
         super().__init__()
         self.transforms = transforms
 
-    def fit(self, x: Space) -> "XTransformSequence":
+    def fit(self, x: LatentisSpace) -> "XTransformSequence":
         for transform in self.transforms:
             x = transform.fit_transform(x=x)
 
         return self
 
-    def transform(self, x: Space) -> torch.Tensor:
+    def transform(self, x: LatentisSpace) -> torch.Tensor:
         for transform in self.transforms:
             x = transform.transform(x=x)
 
@@ -188,7 +188,7 @@ class XTransformSequence(Transform):
     def invertible(self) -> bool:
         return all(transform.invertible for transform in self.transforms)
 
-    def inverse_transform(self, x: Space) -> torch.Tensor:
+    def inverse_transform(self, x: LatentisSpace) -> torch.Tensor:
         assert self.invertible, "Not all transforms in the sequence are invertible."
         for transform in reversed(self.transforms):
             x = transform.inverse_transform(x=x)

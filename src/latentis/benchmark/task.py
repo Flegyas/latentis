@@ -11,10 +11,10 @@ from torch import nn
 
 from latentis.benchmark.correspondence import Correspondence, IdentityCorrespondence
 from latentis.data import DATA_DIR
-from latentis.data.dataset import LatentisDataset
+from latentis.data.dataset import DatasetView
 from latentis.measure import PairwiseMetric
 from latentis.nn import LatentisModule
-from latentis.space import LatentSpace
+from latentis.space import Space
 from latentis.transform import Estimator
 from latentis.transform.translate.aligner import MatrixAligner
 from latentis.transform.translate.functional import svd_align_state
@@ -140,14 +140,14 @@ class Experiment(IndexableMixin):
 
     def __init__(
         self,
-        x_fit: LatentSpace,
-        y_fit: LatentSpace,
+        x_fit: Space,
+        y_fit: Space,
         fit_correspondence: Correspondence,
         #
         estimator: Estimator,
         #
-        x_test: LatentSpace,
-        y_test: LatentSpace,
+        x_test: Space,
+        y_test: Space,
         test_correspondence: Correspondence,
         #
         latent_metrics: Sequence[PairwiseMetric],
@@ -271,7 +271,7 @@ class Experiment(IndexableMixin):
 
 
 if __name__ == "__main__":
-    dataset: LatentisDataset = LatentisDataset.load_from_disk(DATA_DIR / "trec")
+    dataset: DatasetView = DatasetView.load_from_disk(DATA_DIR / "trec")
 
     print(dataset)
     # correspondence_index = CorrespondenceIndex.load_from_disk(DATA_DIR / "correspondence")

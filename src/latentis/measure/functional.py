@@ -2,8 +2,9 @@ import functools
 import math
 
 import torch
+from torch.nn import functional as F
 
-from latentis.space import LatentSpace
+from latentis.space import Space
 
 
 def linear_cka(x: torch.Tensor, y: torch.Tensor):
@@ -15,10 +16,10 @@ def rbf_cka(x: torch.Tensor, y: torch.Tensor, *, sigma: float = None):
 
 
 def cka(x: torch.Tensor, y: torch.Tensor, *, hsic: callable, tolerance=1e-6):
-    if isinstance(x, LatentSpace):
+    if isinstance(x, Space):
         x = x.vectors
 
-    if isinstance(y, LatentSpace):
+    if isinstance(y, Space):
         y = y.vectors
 
     assert x.shape[0] == y.shape[0], "X and Y must have the same number of samples."
@@ -112,3 +113,33 @@ def rbf(x: torch.Tensor, *, sigma=None):
     KX = torch.exp(KX)
 
     return KX
+
+
+def mrr(x: torch.Tensor, y: torch.Tensor, metric: str = "cosine"):
+    """Compute the mean reciprocal rank (MRR) between two sets of vectors.
+
+    Args:
+        x: shape (N, D), first embedding matrix.
+        y: shape (N, D), second embedding matrix.
+
+    Returns:
+        The computed MRR value.
+    """
+    assert x.shape[0] == y.shape[0], "X and Y must have the same number of samples."
+
+    # Compute the cosine similarity matrix
+    if metric == "cosine":
+        x = F.normalize(x, p=2, dim=1)
+        y = F.normalize(y, p=2, dim=1)
+        similarity_matrix = x @ y.T
+    elif metric == "euclidean":
+        similarity_matrix = -torch.cdist(x, y, p=2)
+
+    # Compute the rank of the true pair for each sample
+    ranks = torch.argsort(-similarity_matrix, dim=1, descending=True)
+
+    # Compute the reciprocal rank for each sample
+    reciprocal_ranks = 1 / (ranks[:, 0] + 1)
+
+    # Compute the mean reciprocal rank
+    return reciprocal_ranks.mean()

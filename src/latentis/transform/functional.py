@@ -44,7 +44,7 @@ InverseFn = Callable[..., torch.Tensor]
 State = Mapping[str, torch.Tensor]
 StateFn = Callable[..., State]
 
-# TODO: add LatentSpace support? (Space)
+# TODO: add Space support? (Space)
 # def transform_fn(
 #     name: Optional[str] = None, inverse_fn: Optional[inverseFn] = None, state: Optional[Sequence[str]] = None
 # ):

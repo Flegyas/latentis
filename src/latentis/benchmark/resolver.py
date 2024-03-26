@@ -9,7 +9,7 @@ from omegaconf import OmegaConf
 
 from latentis.benchmark import BENCHMARK_DIR
 from latentis.data import DATA_DIR
-from latentis.data.dataset import LatentisDataset
+from latentis.data.dataset import DatasetView
 from latentis.nexus import correspondences_index
 
 BENCHMARK_DIR.mkdir(parents=True, exist_ok=True)
@@ -36,8 +36,8 @@ def resolve_benchmark(benchmark_name: str) -> list[dict]:
             y_dataset_fit_name = fit_corr_properties["y_dataset"]
 
             # TODO: how to access spaces properties without dataset loading?
-            x_dataset_fit = LatentisDataset.load_from_disk(data_dir / x_dataset_fit_name, load_hf_dataset=False)
-            y_dataset_fit = LatentisDataset.load_from_disk(data_dir / y_dataset_fit_name, load_hf_dataset=False)
+            x_dataset_fit = DatasetView.load_from_disk(data_dir / x_dataset_fit_name, load_hf_dataset=False)
+            y_dataset_fit = DatasetView.load_from_disk(data_dir / y_dataset_fit_name, load_hf_dataset=False)
 
             x_spaces_fit = x_dataset_fit.encodings.get_items(
                 dataset=x_dataset_fit_name,
@@ -72,10 +72,10 @@ def resolve_benchmark(benchmark_name: str) -> list[dict]:
                         y_dataset_test_name = test_corr_properties["y_dataset"]
 
                         # TODO: how to access spaces properties without dataset loading?
-                        x_dataset_test = LatentisDataset.load_from_disk(
+                        x_dataset_test = DatasetView.load_from_disk(
                             data_dir / x_dataset_test_name, load_hf_dataset=False
                         )
-                        y_dataset_test = LatentisDataset.load_from_disk(
+                        y_dataset_test = DatasetView.load_from_disk(
                             data_dir / y_dataset_test_name, load_hf_dataset=False
                         )
 

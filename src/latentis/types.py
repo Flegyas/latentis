@@ -11,9 +11,9 @@ except ImportError:
 from typing import TYPE_CHECKING, Any, Mapping, Union
 
 if TYPE_CHECKING:
-    from latentis.space import LatentSpace
+    from latentis.space import Space
 
-    Space = Union[LatentSpace, torch.Tensor]
+    LatentisSpace = Union[Space, torch.Tensor]
 
 StrEnum = PythonStrEnum
 

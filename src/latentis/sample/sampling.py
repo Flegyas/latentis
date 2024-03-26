@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING, Optional, Sequence, Union
 import torch
 from torch import nn
 
-from latentis.space import LatentSpace
+from latentis.space import Space
 
 if TYPE_CHECKING:
-    from latentis.types import Space
+    from latentis.types import LatentisSpace
 
 
 class Sampler(nn.Module):
@@ -31,15 +31,15 @@ class Uniform(Sampler):
             suffix = ""
         self.suffix = suffix
 
-    def forward(self, *spaces: Space, n: int) -> Union[Sequence[Space], Space]:
+    def forward(self, *spaces: LatentisSpace, n: int) -> Union[Sequence[LatentisSpace], LatentisSpace]:
         """Samples n vectors uniformly at random from each space.
 
         Args:
-            spaces (LatentSpace): The spaces to sample from.
+            spaces (Space): The spaces to sample from.
             n (int): The number of vectors to sample from each space.
 
         Returns:
-            Union[Sequence[LatentSpace], LatentSpace]: The sampled spaces.
+            Union[Sequence[Space], Space]: The sampled spaces.
         """
         assert len(spaces) > 0, "At least one space must be provided"
         assert len(set(len(space) for space in spaces)) == 1, "All spaces must have the same number of samples"
@@ -49,9 +49,9 @@ class Uniform(Sampler):
 
         ids = torch.randperm(len(spaces[0]), generator=self.generator)[:n]
 
-        if isinstance(spaces[0], LatentSpace):
+        if isinstance(spaces[0], Space):
             out = tuple(
-                LatentSpace(
+                Space(
                     vector_source=space.vectors[ids],
                     # features={
                     #     SpaceProperty.SAMPLING_IDS: ids,
@@ -66,7 +66,7 @@ class Uniform(Sampler):
         return out[0] if len(out) == 1 else out
 
 
-# # def fps_sampling(x: torch.Tensor, num_anchors: int, seed: int) -> LatentSpace:
+# # def fps_sampling(x: torch.Tensor, num_anchors: int, seed: int) -> Space:
 # #     anchor_fps = F.normalize(x, p=2, dim=-1)
 # #     anchor_fps = fps(anchor_fps, random_start=True, ratio=num_anchors / x.size(0))
 
@@ -78,7 +78,7 @@ class Uniform(Sampler):
 #         pass
 
 
-# def kmeans_sampling(x: torch.Tensor, num_anchors: int, seed: int) -> LatentSpace:
+# def kmeans_sampling(x: torch.Tensor, num_anchors: int, seed: int) -> Space:
 #     vectors = F.normalize(x, p=2, dim=-1)
 #     clustered = KMeans(n_clusters=num_anchors, random_state=seed).fit_predict(vectors.cpu().numpy())
 
@@ -99,7 +99,7 @@ class Uniform(Sampler):
 
 
 # class AnchorSampler:
-#     def __init__(self, name: str, sampling_func: Callable[[torch.Tensor], LatentSpace]) -> None:
+#     def __init__(self, name: str, sampling_func: Callable[[torch.Tensor], Space]) -> None:
 #         self._name: str = name
 #         self.sampling_func: Callable[[torch.Tensor], Tuple[torch.Tensor, torch.Tensor]] = sampling_func
 
@@ -107,5 +107,5 @@ class Uniform(Sampler):
 #     def name(self) -> str:
 #         return self._name
 
-#     def sample(self, x: torch.Tensor, num_anchors: int, seed: int) -> LatentSpace:
+#     def sample(self, x: torch.Tensor, num_anchors: int, seed: int) -> Space:
 #         return self.sampling_func(x=x, num_anchors=num_anchors, seed=seed)

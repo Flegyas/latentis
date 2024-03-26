@@ -10,7 +10,7 @@ from scipy.stats import ortho_group
 from tests.project.conftest import LATENT_DIM
 
 from latentis.pipeline.flow import Flow, NNPipeline
-from latentis.space import LatentSpace
+from latentis.space import Space
 from latentis.transform import Identity, Transform
 from latentis.transform.base import Centering
 from latentis.transform.projection import (
@@ -25,7 +25,7 @@ from latentis.transform.projection import (
 )
 
 if TYPE_CHECKING:
-    from latentis.types import Space
+    from latentis.types import LatentisSpace
 
 from latentis.utils import seed_everything
 
@@ -202,15 +202,21 @@ def test_pointwise_wrapper(projection_fn, unsqueeze: bool, tensor_space_with_ref
     ],
 )
 def test_invariances(
-    projection_fn, x: Space, x_anchors, invariance, invariant, abs_transform: Transform, rel_transform: Transform
+    projection_fn,
+    x: LatentisSpace,
+    x_anchors,
+    invariance,
+    invariant,
+    abs_transform: Transform,
+    rel_transform: Transform,
 ):
     y = invariance(x) if isinstance(x, torch.Tensor) else x.transform(invariance)
     y_anchors = invariance(x_anchors if isinstance(x_anchors, torch.Tensor) else x_anchors.vectors)
 
-    if isinstance(x, LatentSpace):
-        y = LatentSpace.like(x, vector_source=y)
+    if isinstance(x, Space):
+        y = Space.like(x, vector_source=y)
 
-    if isinstance(x_anchors, LatentSpace):
+    if isinstance(x_anchors, Space):
         x_anchors = x_anchors.vectors
 
     abs_transform = abs_transform if abs_transform else Identity()
@@ -235,15 +241,15 @@ def test_invariances(
         projection=RelativeProjection(projection_fn=projection_fn),
         rel_transform=rel_transform,
     )
-    pipeline.run(flow="fit", anchors=x_anchors.vectors if isinstance(x_anchors, LatentSpace) else x_anchors)
+    pipeline.run(flow="fit", anchors=x_anchors.vectors if isinstance(x_anchors, Space) else x_anchors)
     x_projected = pipeline.run(flow="transform", x=x if isinstance(x, torch.Tensor) else x.vectors)
 
-    pipeline.run(flow="fit", anchors=y_anchors.vectors if isinstance(y_anchors, LatentSpace) else y_anchors)
+    pipeline.run(flow="fit", anchors=y_anchors.vectors if isinstance(y_anchors, Space) else y_anchors)
     y_projected = pipeline.run(flow="transform", x=y if isinstance(y, torch.Tensor) else y.vectors)
 
     assert not invariant or torch.allclose(x_projected["rel_x"], y_projected["rel_x"])
 
-    if isinstance(x, LatentSpace):
-        pytest.skip("LatentSpace does not support relative projections.")
+    if isinstance(x, Space):
+        pytest.skip("Space does not support relative projections.")
         # space_relative = x.to_relative(projection=projection, anchors=x_anchors)
         # assert torch.allclose(space_relative.vectors, x_projected)
