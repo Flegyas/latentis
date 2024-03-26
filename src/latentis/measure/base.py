@@ -5,7 +5,7 @@ import torch
 
 from latentis.measure._abstract import PairwiseMetric
 from latentis.measure.functional import cka, kernel_hsic, linear_hsic
-from latentis.space import LatentSpace
+from latentis.space import Space
 from latentis.types import StrEnum
 
 
@@ -68,9 +68,9 @@ class CKA(PairwiseMetric):
         if isinstance(x, torch.Tensor) and isinstance(y, torch.Tensor):
             x = x.to(self.device)
             y = y.to(self.device)
-        if isinstance(x, LatentSpace) and isinstance(y, LatentSpace):
-            x = LatentSpace.like(x, vector_source=x.vectors.to(self.device))
-            y = LatentSpace.like(y, vector_source=y.vectors.to(self.device))
+        if isinstance(x, Space) and isinstance(y, Space):
+            x = Space.like(x, vector_source=x.vectors.to(self.device))
+            y = Space.like(y, vector_source=y.vectors.to(self.device))
 
         return cka(x=x, y=y, hsic=self.hsic, tolerance=self.tolerance)
 

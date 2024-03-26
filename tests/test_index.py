@@ -5,20 +5,20 @@ import pytest
 import torch
 
 from latentis.serialize.disk_index import DiskIndex
-from latentis.space import LatentSpace
+from latentis.space import Space
 from latentis.utils import seed_everything
 
 
 def test_index(tmp_path: Path):
     seed_everything(42)
 
-    index = DiskIndex(tmp_path / "test_index", item_class=LatentSpace)
+    index = DiskIndex(tmp_path / "test_index", item_class=Space)
     n_items: int = 10
 
     random_properties = [{"p1": str(torch.randn(1, 1).item()), "p2": "value2"} for _ in range(n_items)]
 
     for x, properties in zip(range(n_items), random_properties):
-        fake_item = LatentSpace(
+        fake_item = Space(
             torch.randn(1, 1),
             properties=properties,
         )
@@ -30,17 +30,17 @@ def test_index(tmp_path: Path):
     assert len(index) == n_items == len(items)
 
     # add item with same key
-    new_item_key = index.add_item(item=LatentSpace(torch.randn(1, 2), properties={"a": 1, "b": 2}))
+    new_item_key = index.add_item(item=Space(torch.randn(1, 2), properties={"a": 1, "b": 2}))
     assert len(index) == n_items + 1
 
     with pytest.raises(FileExistsError):
-        index.add_item(item=LatentSpace(torch.randn(1, 2), properties=properties))
+        index.add_item(item=Space(torch.randn(1, 2), properties=properties))
 
     index.remove_item(item_key=new_item_key)
     assert len(index) == n_items
 
     index.remove_item(**properties)
-    new_item_key = index.add_item(item=LatentSpace(torch.randn(1, 2), properties=properties))
+    new_item_key = index.add_item(item=Space(torch.randn(1, 2), properties=properties))
     assert len(index) == n_items
 
     # get item by key
@@ -53,7 +53,7 @@ def test_index(tmp_path: Path):
 
     # get item by properties
     item = index.load_item(p1=random_properties[1]["p1"])
-    assert isinstance(item, LatentSpace)
+    assert isinstance(item, Space)
 
     # get item by properties with multiple matches
     with pytest.raises(ValueError):
@@ -83,7 +83,7 @@ def test_index(tmp_path: Path):
     assert len(list(tmp_path.iterdir())) == 1
 
     # but it works indeed
-    index.add_item(item=LatentSpace(torch.randn(1, 2), properties=properties))
+    index.add_item(item=Space(torch.randn(1, 2), properties=properties))
     index.clear()
     assert len(index) == 0
     assert len(list(tmp_path.iterdir())) == 1

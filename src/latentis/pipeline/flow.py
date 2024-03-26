@@ -3,6 +3,7 @@ import re
 from collections import defaultdict
 from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
+import gin
 import networkx as nx
 from torch import nn
 
@@ -25,7 +26,9 @@ def parseIOMappings(mappings: Sequence[str]) -> Mapping[str, str]:
 
 
 class Step:
-    def __init__(self, block: str, method: str, input_mappings: Mapping[str, Sequence[str]], outputs: IOSpec) -> None:
+    def __init__(
+        self, block: str, input_mappings: Mapping[str, Sequence[str]], outputs: IOSpec, method: str = "__call__"
+    ) -> None:
         self._input_mappings: Mapping[str, Sequence[str]] = input_mappings
         self._outputs: IOSpec = [outputs] if isinstance(outputs, str) else outputs
         self._method: str = method
@@ -52,7 +55,7 @@ class Step:
 
     @property
     def name(self) -> str:
-        return f"{self._block}.{self._method}"
+        return self._block + (f".{self._method}" if self._method != "__call__" else "")
 
     def run(self, block: Block, **kwargs) -> Mapping[str, Any]:
         method = getattr(block, self._method)
@@ -62,8 +65,8 @@ class Step:
         except TypeError as e:
             raise TypeError(f"Error when calling {block}.{self._method} with inputs {kwargs.keys()}.") from e
 
-        if isinstance(block_out, dict):
-            raise NotImplementedError
+        # if isinstance(block_out, dict):
+        #     raise NotImplementedError
 
         if not isinstance(block_out, tuple):
             # TODO: implement a better way to handle single outputs
@@ -90,24 +93,28 @@ class FlowInput(Step):
 
 
 class Flow:
-    def __init__(self, name: str, inputs: Sequence[str], outputs: Sequence[str]) -> None:
+    def __init__(self, name: str = "default", inputs: Sequence[str] = None, outputs: Sequence[str] = None) -> None:
         super().__init__()
         self.name: str = name
         inputs = [inputs] if isinstance(inputs, str) else inputs
         outputs = [outputs] if isinstance(outputs, str) else outputs
-        # TODO: we could also have dynamic inputs and outputs... Do we prefer this fixed structure?
-        self.inputs = [FlowInput(name=input_var) for input_var in inputs]
-        self.outputs = outputs
 
         self.dag = nx.MultiDiGraph()
 
-        for flow_input in self.inputs:
-            self._add_step(step=flow_input)
+        self.inputs: Optional[Sequence[FlowInput]] = None
+        self.outputs = outputs
+        # TODO: we could also have dynamic inputs and outputs... Do we prefer this fixed structure?
+        if inputs is not None:
+            self.inputs = [FlowInput(name=input_var) for input_var in inputs]
+            for flow_input in self.inputs:
+                self._add_step(step=flow_input)
 
-    def to_pydot(self):
+    def to_pydot(self, label: str = ""):
         import graphviz
 
-        graph = graphviz.Digraph()
+        graph = graphviz.Digraph(graph_attr={"rankdir": "LR"})
+        # add graph label
+        graph.attr(label=label)
 
         node_padding = "4"
         edge_padding = "2"
@@ -120,14 +127,24 @@ class Flow:
             else:
                 node_shape = "ellipse"
                 color = "black"
+
             node_label = f'<<table border="0" cellborder="0" cellspacing="0" cellpadding="{node_padding}"><tr><td>{step.name}</td></tr></table>>'
-            graph.node(node, label=node_label, shape=node_shape, block=step.block, method=step._method, color=color)
+            graph.node(node, label=node_label, shape=node_shape, color=color)
 
         for edge in self.dag.edges:
             edge_label = self.dag.edges[edge]["mappings"]
-            edge_label = ", ".join([f"{k}:{','.join(v)}" for k, v in edge_label.items()])
+            edge_label = ", ".join(
+                [k if len(v) == 1 and k == v[0] else f"{k}:{','.join(v)}" for k, v in edge_label.items()]
+            )
             edge_label = f'<<table border="0" cellborder="0" cellspacing="0" cellpadding="{edge_padding}"><tr><td>{edge_label}</td></tr></table>>'
             graph.edge(edge[0], edge[1], label=edge_label)
+
+        for step in self.get_leaves():
+            step = self.dag.nodes[step.name]["step"]
+            for output in step.outputs:
+                node_label = f'<<table border="0" cellborder="0" cellspacing="0" cellpadding="{node_padding}"><tr><td>{output}</td></tr></table>>'
+                graph.node(f"out{output}", shape="square", color="red", label=node_label)
+                graph.edge(step.name, f"out{output}")
 
         return graph
 
@@ -152,7 +169,16 @@ class Flow:
         else:
             return None
 
-    def add(self, block: str, method: str, inputs: Sequence[IOSpec], outputs: Sequence[IOSpec] = None) -> "Flow":
+    def add(
+        self,
+        block: str,
+        inputs: Sequence[IOSpec] = None,
+        method: Optional[str] = "__call__",
+        outputs: Sequence[IOSpec] = None,
+    ) -> "Flow":
+        if inputs is None:
+            inputs = []
+
         if outputs is None:
             outputs = []
 
@@ -239,12 +265,17 @@ class Flow:
         return {node.outputs[0]: context[node.outputs[0]] for node in output_nodes}
 
 
+@gin.configurable("pipeline")
 class Pipeline:
     def __init__(
-        self, name: str, blocks: Optional[Mapping[str, Any]] = None, flows: Optional[Mapping[str, Flow]] = None
+        self,
+        name: str,
+        blocks: Optional[Mapping[str, Any]] = None,
+        flows: Optional[Union[Flow, Mapping[str, Flow]]] = None,
     ) -> None:
         self.name = name
         self.blocks = blocks or {}
+        flows = {flows.name: flows} if isinstance(flows, Flow) else flows
         self.flows: Mapping[str, Flow] = flows or {}
 
     # def flow(self, name: str) -> Flow:
@@ -263,9 +294,16 @@ class Pipeline:
     def build(self, **blocks) -> "NNPipeline":
         # now the blocks shouldn't be placeholders anymore
         self.blocks.update(blocks)
+        return self
 
-    def run(self, flow: str, **kwargs):
-        if flow not in self.flows:
+    def run(self, flow: Optional[str] = None, **kwargs):
+        if flow is None:
+            if len(self.flows) != 1:
+                raise ValueError("Multiple flows available. Please specify the flow to run.")
+            else:
+                flow = next(iter(self.flows.keys()))
+
+        if flow is not None and flow not in self.flows:
             raise ValueError(f"Flow {flow} not found in available flows.")
 
         return self.flows[flow].run(blocks=self.blocks, **kwargs)

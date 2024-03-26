@@ -5,11 +5,11 @@ from typing import TYPE_CHECKING
 import pytest
 import torch
 
-from latentis.space import LatentSpace
+from latentis.space import Space
 from latentis.utils import seed_everything
 
 if TYPE_CHECKING:
-    from latentis.types import Space
+    from latentis.types import LatentisSpace
 BATCH_DIM = 4
 LATENT_DIM = 8
 N_CLASSES = 10
@@ -19,7 +19,7 @@ NUM_ANCHORS = 20
 class Anchor1Params(object):
     seed_everything(42)
     instances = [
-        LatentSpace(
+        Space(
             vector_source=torch.randn(NUM_ANCHORS, LATENT_DIM, dtype=torch.double),
         ),
         torch.randn(NUM_ANCHORS, LATENT_DIM, dtype=torch.double),
@@ -27,7 +27,7 @@ class Anchor1Params(object):
 
 
 @pytest.fixture(params=Anchor1Params().instances, scope="session")
-def x_anchors(request) -> Space:
+def x_anchors(request) -> LatentisSpace:
     return request.param
 
 
@@ -44,7 +44,7 @@ def x_anchors(request) -> Space:
 class X1Params(object):
     seed_everything(42)
     instances = [
-        LatentSpace(
+        Space(
             vector_source=torch.randn(BATCH_DIM, LATENT_DIM, dtype=torch.double),
         ),
         torch.randn(BATCH_DIM, LATENT_DIM, dtype=torch.double),

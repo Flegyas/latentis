@@ -5,20 +5,20 @@ from typing import TYPE_CHECKING, Tuple
 import pytest
 import torch
 
-from latentis.measure.cka import CKAMode
+from latentis.measure.base import CKAMode
 from latentis.space import LatentSpace
 
 if TYPE_CHECKING:
-    from latentis.types import Space
+    from latentis.types import LatentisSpace
 
 
 class SameShapeSpaces(object):
     instances = [
         (
-            LatentSpace(
+            Space(
                 vector_source=torch.randn(x_n, x_dim, dtype=torch.double),
             ),
-            LatentSpace(
+            Space(
                 vector_source=torch.randn(y_n, y_dim, dtype=torch.double),
             ),
         )
@@ -41,10 +41,10 @@ class SameShapeSpaces(object):
 class DifferentDimSpaces(object):
     instances = [
         (
-            LatentSpace(
+            Space(
                 vector_source=torch.randn(x_n, space_1_dim, dtype=torch.double),
             ),
-            LatentSpace(
+            Space(
                 vector_source=torch.randn(y_n, y_dim, dtype=torch.double),
             ),
         )
@@ -65,12 +65,12 @@ class DifferentDimSpaces(object):
 
 
 @pytest.fixture(params=SameShapeSpaces().instances)
-def same_shape_spaces(request) -> Tuple[Space, Space]:
+def same_shape_spaces(request) -> Tuple[LatentisSpace, LatentisSpace]:
     return request.param
 
 
 @pytest.fixture(params=DifferentDimSpaces().instances)
-def different_dim_spaces(request) -> Tuple[Space, Space]:
+def different_dim_spaces(request) -> Tuple[LatentisSpace, LatentisSpace]:
     return request.param
 
 

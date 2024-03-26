@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING, Callable
 import torch
 import torch.nn.functional as F
 
-from latentis.space import LatentSpace
+from latentis.space import Space
 from latentis.transform._abstract import Transform
 from latentis.transform.functional import TransformFn
 
 if TYPE_CHECKING:
-    from latentis.types import Space
+    from latentis.types import LatentisSpace
 
 _PROJECTIONS = {}
 
@@ -133,12 +133,12 @@ def pointwise_wrapper(func, unsqueeze: bool = False) -> Callable[..., torch.Tens
 
 
 def relative_projection(
-    x: Space,
-    anchors: Space,
+    x: LatentisSpace,
+    anchors: LatentisSpace,
     projection_fn: TransformFn,
 ):
-    x_vectors = x.vectors if isinstance(x, LatentSpace) else x
-    anchor_vectors = anchors.vectors if isinstance(anchors, LatentSpace) else anchors
+    x_vectors = x.vectors if isinstance(x, Space) else x
+    anchor_vectors = anchors.vectors if isinstance(anchors, Space) else anchors
 
     # absolute normalization/transformation
     transformed_x = x_vectors
@@ -147,8 +147,8 @@ def relative_projection(
     # relative projection of x with respect to the anchors
     rel_x = projection_fn(x=transformed_x, anchors=transformed_anchors)
 
-    if isinstance(x, LatentSpace):
-        return LatentSpace.like(space=x, vector_source=rel_x)
+    if isinstance(x, Space):
+        return Space.like(space=x, vector_source=rel_x)
     else:
         return rel_x
 
@@ -161,11 +161,11 @@ class RelativeProjection(Transform):
         super().__init__()
         self.projection_fn = projection_fn
 
-    def fit(self, anchors: Space) -> "RelativeProjection":
+    def fit(self, anchors: LatentisSpace) -> "RelativeProjection":
         self._register_state(dict(anchors=anchors))
         return self
 
-    def transform(self, x: Space) -> torch.Tensor:
+    def transform(self, x: LatentisSpace) -> torch.Tensor:
         rel_x = relative_projection(x, **self.get_state(), projection_fn=self.projection_fn)
 
         return rel_x
