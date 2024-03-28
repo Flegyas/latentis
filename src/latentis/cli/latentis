@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+
+import typer
+
+from latentis.cli import benchmark, database, encode, process
+
+app = typer.Typer()
+
+app.add_typer(benchmark.app, name="benchmark")
+app.add_typer(database.app, name="database")
+app.add_typer(encode.app, name="encode")
+app.add_typer(process.app, name="process")
+
+if __name__ == "__main__":
+    app()
