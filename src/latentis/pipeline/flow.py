@@ -92,6 +92,30 @@ class FlowInput(Step):
         return {self._outputs[0]: kwargs[self._outputs[0]]}
 
 
+class FlowOutput(Step):
+    def __init__(self, name: str) -> None:
+        super().__init__(input_mappings={name: [name]}, outputs=name, block=None, method=None)
+
+    @property
+    def name(self) -> str:
+        return self._outputs[0]
+
+    def run(self, block: Block, **kwargs) -> Mapping[str, Any]:
+        return {self._outputs[0]: kwargs[self._outputs[0]]}
+
+
+class Passthrough(Step):
+    def __init__(self, name: str) -> None:
+        super().__init__(input_mappings={name: [name]}, outputs=name, block=None, method=None)
+
+    @property
+    def name(self) -> str:
+        return self._outputs[0]
+
+    def run(self, block: Block, **kwargs) -> Mapping[str, Any]:
+        return {self._outputs[0]: kwargs[self._outputs[0]]}
+
+
 class Flow:
     def __init__(self, name: str = "default", inputs: Sequence[str] = None, outputs: Sequence[str] = None) -> None:
         super().__init__()
@@ -103,11 +127,17 @@ class Flow:
 
         self.inputs: Optional[Sequence[FlowInput]] = None
         self.outputs = outputs
+
         # TODO: we could also have dynamic inputs and outputs... Do we prefer this fixed structure?
         if inputs is not None:
             self.inputs = [FlowInput(name=input_var) for input_var in inputs]
             for flow_input in self.inputs:
                 self._add_step(step=flow_input)
+
+        if outputs is not None:
+            self.outputs = [FlowOutput(name=output_var) for output_var in outputs]
+            for flow_output in self.outputs:
+                self._add_step(step=flow_output)
 
     def to_pydot(self, label: str = ""):
         import graphviz
@@ -124,6 +154,9 @@ class Flow:
             if isinstance(step, FlowInput):
                 node_shape = "square"
                 color = "blue"
+            elif isinstance(step, FlowOutput):
+                node_shape = "square"
+                color = "red"
             else:
                 node_shape = "ellipse"
                 color = "black"
@@ -139,13 +172,6 @@ class Flow:
             edge_label = f'<<table border="0" cellborder="0" cellspacing="0" cellpadding="{edge_padding}"><tr><td>{edge_label}</td></tr></table>>'
             graph.edge(edge[0], edge[1], label=edge_label)
 
-        for step in self.get_leaves():
-            step = self.dag.nodes[step.name]["step"]
-            for output in step.outputs:
-                node_label = f'<<table border="0" cellborder="0" cellspacing="0" cellpadding="{node_padding}"><tr><td>{output}</td></tr></table>>'
-                graph.node(f"out{output}", shape="square", color="red", label=node_label)
-                graph.edge(step.name, f"out{output}")
-
         return graph
 
     def get_flow_inputs(self) -> Sequence[Step]:
@@ -160,14 +186,12 @@ class Flow:
     def _add_step(self, step: Step) -> "Flow":
         self.dag.add_node(step.name, step=step)
 
-    def get_leaf_by_output(self, output: str) -> Step:
-        # traverse the graph in reverse topological order to find the leaf that provides the target output
-        for node in nx.topological_sort(self.dag.reverse()):
-            step: Step = self.dag.nodes[node]["step"]
-            if output in step.outputs:
-                return step
-        else:
-            return None
+    def get_by_output(self, output: str) -> Step:
+        # traverse the graph in reverse topological order to find the nodes that provide the target output (excluding FlowOutputs)
+        steps = [self.dag.nodes[node]["step"] for node in nx.topological_sort(self.dag.reverse())]
+        steps = [step for step in steps if output in step.outputs and not isinstance(step, FlowOutput)]
+
+        return steps
 
     def add(
         self,
@@ -197,14 +221,16 @@ class Flow:
 
         step = Step(block=block, method=method, input_mappings=input_mappings, outputs=outputs)
 
-        nodes = self.dag.nodes
+        nodes = list(self.dag.nodes)
 
         # first, identify the step dependencies according to the input mappings
         dependencies: Mapping[str, Step] = {}
         for input_value, _ in step.input_mappings.items():
-            # retrieve the UNIQUE leaf node that provides the input value
+            # retrieve the UNIQUE leaf node that provides the input value excluding the FlowOutputs
             # if it's not found, then it's a new FlowInput
-            dependency = self.get_leaf_by_output(output=input_value)
+            possible_dependencies: Step = self.get_by_output(output=input_value)
+            dependency = possible_dependencies[0] if len(possible_dependencies) > 0 else None
+
             if dependency is None:
                 if self.inputs is not None:
                     raise ValueError(
@@ -220,7 +246,18 @@ class Flow:
         # check the output of the step is not already provided by another step
         for output in step.outputs:
             for node in nodes:
-                if output in self.dag.nodes[node]["step"].outputs and output not in dependencies.keys():
+                other_step: Step = self.dag.nodes[node]["step"]
+                if isinstance(other_step, FlowOutput):
+                    # remove previous incoming edges to the output node
+                    self.dag.remove_edges_from(list(self.dag.in_edges(node)))
+                    # add a new edge from the step to the output/leaf node
+                    self.dag.add_edge(
+                        step.name,
+                        other_step.name,
+                        mappings={}
+                        # mappings={output: output},
+                    )
+                elif output in other_step.outputs and output not in dependencies.keys():
                     raise ValueError(f"Output {output} already provided by step {node}.")
 
         self._add_step(step=step)
@@ -260,9 +297,7 @@ class Flow:
 
             context.update(step_out)
 
-        output_nodes = self.get_leaves()
-
-        return {node.outputs[0]: context[node.outputs[0]] for node in output_nodes}
+        return {flow_output.outputs[0]: context[flow_output.outputs[0]] for flow_output in self.outputs}
 
 
 @gin.configurable("pipeline")
@@ -283,8 +318,8 @@ class Pipeline:
     #         self.flows[name] = Flow(name=name)
     #     return self.flows[name]
 
-    def add(self, flow: Flow) -> "Pipeline":
-        if flow.name in self.flows:
+    def add(self, flow: Flow, force: bool = False) -> "Pipeline":
+        if flow.name in self.flows and not force:
             raise ValueError(f"Flow {flow.name} already exists.")
         else:
             self.flows[flow.name] = flow
