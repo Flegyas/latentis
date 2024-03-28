@@ -185,13 +185,6 @@ class Flow:
             edge_label = f'<<table border="0" cellborder="0" cellspacing="0" cellpadding="{edge_padding}"><tr><td>{edge_label}</td></tr></table>>'
             graph.edge(edge[0], edge[1], label=edge_label)
 
-        for step in self.get_leaves():
-            step = self.dag.nodes[step.name]["step"]
-            for output in step.outputs:
-                node_label = f'<<table border="0" cellborder="0" cellspacing="0" cellpadding="{node_padding}"><tr><td>{output}</td></tr></table>>'
-                graph.node(f"out{output}", shape="square", color="red", label=node_label)
-                graph.edge(step.name, f"out{output}")
-
         return graph
 
     def get_flow_inputs(self) -> Sequence[Step]:
