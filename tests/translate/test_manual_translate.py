@@ -247,7 +247,7 @@ def test_manual_translation(
             .add(block="x_transform", method="fit_transform", inputs="fit_source:x", outputs="x")
             .add(block="y_transform", method="fit_transform", inputs="fit_target:x", outputs="y")
             .add(block="padder", method="fit_transform", inputs=["x", "y"], outputs=["padded_x", "padded_y"])
-            .add(block="aligner", method="fit", inputs=["padded_x:x", "padded_y:y"], outputs=["aligner_state"]),
+            .add(block="aligner", method="fit", inputs=["padded_x:x", "padded_y:y"], outputs=["estimator"]),
             #
             "transform": Flow(name="transform", inputs=["source"], outputs=["translated_x"])
             .add(block="x_transform", method="transform", inputs="source:x", outputs="x")
@@ -299,7 +299,7 @@ def test_procrustes(
             .add(block="x_transform", method="fit_transform", inputs="fit_source:x", outputs="x")
             .add(block="y_transform", method="fit_transform", inputs="fit_target:x", outputs="y")
             .add(block="padder", method="fit_transform", inputs=["x", "y"], outputs=["padded_x", "padded_y"])
-            .add(block="aligner", method="fit", inputs=["padded_x:x", "padded_y:y"], outputs=["aligner_state"]),
+            .add(block="aligner", method="fit", inputs=["padded_x:x", "padded_y:y"], outputs=["estimator"]),
             #
             "transform": Flow(name="transform", inputs=["source"], outputs=["translated_x"])
             .add(block="x_transform", method="transform", inputs="source:x", outputs="x")
