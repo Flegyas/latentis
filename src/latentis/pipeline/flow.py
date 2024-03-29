@@ -1,6 +1,6 @@
 import inspect
 import re
-from collections import defaultdict
+from collections import UserDict, defaultdict
 from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
 import gin
@@ -13,23 +13,30 @@ Block = Union[nn.Module, Callable]
 IOMappingRe = re.compile(r"(\w+):(\w+)")
 
 
-def parseIOMappings(mappings: Sequence[str]) -> Mapping[str, str]:
-    result = defaultdict(list)
+class IOMapping(UserDict):
+    def __init__(self, input_mappings: Mapping[str, Sequence[str]]):
+        mappings = defaultdict(list)
+        for mapping in input_mappings:
+            if match := IOMappingRe.match(mapping):
+                mappings[match.group(1)].append(match.group(2))
+            else:
+                mappings[mapping].append(mapping)
+        super().__init__(mappings)
 
-    for mapping in mappings:
-        if match := IOMappingRe.match(mapping):
-            result[match.group(1)].append(match.group(2))
+    def map(self, item: Union[str, tuple, Mapping[str, Any]]) -> Mapping[str, Any]:
+        if isinstance(item, str):
+            return {item: self[item]}
+        elif isinstance(item, tuple):
+            return {k: item[i] for i, k in enumerate(self)}
+        elif isinstance(item, dict):
+            return {v: item[k] for k, v in self.items()}
         else:
-            result[mapping].append(mapping)
-
-    return result
+            raise ValueError(f"Unsupported type {type(item)}.")
 
 
 class Step:
-    def __init__(
-        self, block: str, input_mappings: Mapping[str, Sequence[str]], outputs: IOSpec, method: str = "__call__"
-    ) -> None:
-        self._input_mappings: Mapping[str, Sequence[str]] = input_mappings
+    def __init__(self, block: str, input_mappings: IOMapping, outputs: IOSpec, method: str = "__call__") -> None:
+        self._input_mappings: IOMapping = input_mappings
         self._outputs: IOSpec = [outputs] if isinstance(outputs, str) else outputs
         self._method: str = method
 
@@ -39,7 +46,7 @@ class Step:
         return hash((self._block, self._method, tuple(self._input_mappings), tuple(self._outputs)))
 
     @property
-    def input_mappings(self) -> Mapping[str, str]:
+    def input_mappings(self) -> IOMapping:
         return self._input_mappings
 
     @property
@@ -209,7 +216,7 @@ class Flow:
         if isinstance(inputs, str):
             inputs = [inputs]
 
-        input_mappings = parseIOMappings(inputs)
+        input_mappings = IOMapping(inputs)
 
         # check the block is a valid one
         # if block not in self.blocks:
@@ -265,7 +272,7 @@ class Flow:
             self.dag.add_edge(
                 dependency.name,
                 step.name,
-                mappings={input_value: step.input_mappings[input_value]},
+                mappings=step.input_mappings.map(input_value),
             )
 
         # if not nx.is_directed_acyclic_graph(self.pipeline):
