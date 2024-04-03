@@ -1,18 +1,7 @@
 import math
-
 import torch
-
 import latentis
-from latentis.measure._metrics import Metric
-import torch
-import math
-from enum import auto
-
-try:
-    # be ready for 3.10 when it drops
-    pass
-except ImportError:
-    pass
+from latentis.measure._metrics import preprocess_latent_space_args
 
 
 def linear_cka(space1: torch.Tensor, space2: torch.Tensor):
@@ -23,13 +12,8 @@ def rbf_cka(space1: torch.Tensor, space2: torch.Tensor, sigma: float = None):
     return cka(space1, space2, hsic=kernel_hsic, sigma=sigma)
 
 
+@preprocess_latent_space_args
 def cka(space1: torch.Tensor, space2: torch.Tensor, hsic: callable, sigma: float = None, tolerance=1e-6):
-
-    if isinstance(space1, latentis.LatentSpace):
-        space1 = space1.vectors
-
-    if isinstance(space2, latentis.LatentSpace):
-        space2 = space2.vectors
 
     assert space1.shape[0] == space2.shape[0], "X and Y must have the same number of samples."
 
@@ -39,8 +23,6 @@ def cka(space1: torch.Tensor, space2: torch.Tensor, hsic: callable, sigma: float
     var2 = torch.sqrt(hsic(space2, space2, sigma))
 
     cka_result = numerator / (var1 * var2)
-
-    assert 0 - tolerance <= cka_result <= 1 + tolerance , "CKA value must be between 0 and 1."
 
     assert 0 - tolerance <= cka_result <= 1 + tolerance, "CKA value must be between 0 and 1."
 
@@ -95,7 +77,6 @@ def center_kernel_matrix(K: torch.Tensor) -> torch.Tensor:
     """
     n = K.shape[0]
     unit = torch.ones([n, n]).type_as(K)
-    unit = torch.ones([n, n]).type_as(K)
     identity_mat = torch.eye(n).type_as(K)
     H = identity_mat - unit / n
 
@@ -121,9 +102,7 @@ def rbf(X: torch.Tensor, sigma=None):
         mdist = torch.median(KX[KX != 0])
         sigma = math.sqrt(mdist)
 
-
     KX *= -0.5 / (sigma * sigma)
     KX = torch.exp(KX)
 
     return KX
-
