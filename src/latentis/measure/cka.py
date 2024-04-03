@@ -1,9 +1,10 @@
 from enum import auto
+from typing import Union
 
 import torch
 
 from latentis.measure._metrics import Metric
-from latentis.measure.functional import cka, kernel_hsic, linear_hsic
+from latentis.measure.functional.cka import cka, kernel_hsic, linear_hsic
 from latentis.space import LatentSpace
 
 try:
@@ -37,9 +38,9 @@ class CKA(Metric):
         device (torch.device): The torch device (e.g., CPU or GPU) to perform calculations on.
     """
 
-    def __init__(self, mode: CKAMode, device: torch.device = None):
+    def __init__(self, mode: CKAMode, device: Union[str, torch.device] = None):
         """Initialize the CKA instance with a specific mode and torch device."""
-        super().__init__(CKA)
+        super().__init__(CKA, device=device)
 
         self.mode = mode
         if self.mode == CKAMode.LINEAR:
@@ -76,7 +77,7 @@ class CKA(Metric):
 
         return cka(space1=space1, space2=space2, hsic=self.hsic, sigma=sigma, tolerance=self.tolerance)
 
-    def to(self, device):
+    def to(self, device: Union[str, torch.device]):
         """Move the CKA instance to a specific torch device.
 
         Args:
