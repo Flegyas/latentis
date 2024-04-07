@@ -250,7 +250,7 @@ class Space(IndexableMixin):
     def __eq__(self, __value: object) -> bool:
         return self.properties == __value.properties and self.vector_source == __value.vector_source
 
-    def add_vectors(self, vectors: torch.Tensor, keys: Optional[Sequence[str]] = None) -> None:
+    def add_vectors(self, vectors: torch.Tensor, keys: Optional[Sequence[str]] = None, **kwargs) -> None:
         """Add vectors to this space.
 
         Args:
@@ -260,7 +260,7 @@ class Space(IndexableMixin):
         Returns:
             Space: The new space.
         """
-        self._vector_source.add_vectors_(vectors=vectors, keys=keys)
+        self._vector_source.add_vectors(vectors=vectors, keys=keys, **kwargs)
 
     def sample(self, sampler: Sampler, n: int) -> "Space":
         """Sample n vectors from this space using the given sampler.
