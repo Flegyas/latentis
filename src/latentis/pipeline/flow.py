@@ -146,12 +146,10 @@ class Flow:
             for flow_output in self.outputs:
                 self._add_step(step=flow_output)
 
-    def to_pydot(self, label: str = ""):
+    def to_pydot(self, **graph_attrs: Mapping[str, Any]):
         import graphviz
 
-        graph = graphviz.Digraph(graph_attr={"rankdir": "LR"})
-        # add graph label
-        graph.attr(label=label)
+        graph = graphviz.Digraph(graph_attr=graph_attrs)
 
         node_padding = "4"
         edge_padding = "2"
@@ -161,17 +159,25 @@ class Flow:
             if isinstance(step, FlowInput):
                 node_shape = "square"
                 color = "blue"
+                # prefix: str = "in"
             elif isinstance(step, FlowOutput):
                 node_shape = "square"
                 color = "red"
+                # prefix: str = "out"
             else:
                 node_shape = "ellipse"
                 color = "black"
+                # prefix: str = ""
 
             node_label = f'<<table border="0" cellborder="0" cellspacing="0" cellpadding="{node_padding}"><tr><td>{step.name}</td></tr></table>>'
-            graph.node(node, label=node_label, shape=node_shape, color=color)
+            graph.node(f"{node}", label=node_label, shape=node_shape, color=color)
 
         for edge in self.dag.edges:
+            # target_step = self.dag.nodes[edge[1]]["step"]
+            # if isinstance(target_step, FlowOutput):
+            #     edge = list(edge)
+            #     edge[1] = f"out{edge[1]}"
+            #     edge = tuple(edge)
             edge_label = self.dag.edges[edge]["mappings"]
             edge_label = ", ".join(
                 [k if len(v) == 1 and k == v[0] else f"{k}:{','.join(v)}" for k, v in edge_label.items()]
@@ -281,7 +287,7 @@ class Flow:
         return self
 
     def run(self, blocks: Mapping[str, Any], **kwargs):
-        input_nodes = self.get_flow_inputs()
+        input_nodes = self.get_flow_inputs() or []
         if set(kwargs.keys()) != set(node.outputs[0] for node in input_nodes):
             raise ValueError(f"Expected inputs {input_nodes}, but got {kwargs.keys()}.")
         context = kwargs.copy()
@@ -349,6 +355,25 @@ class Pipeline:
             raise ValueError(f"Flow {flow} not found in available flows.")
 
         return self.flows[flow].run(blocks=self.blocks, **kwargs)
+
+    def set(self, **params: Mapping[str, Any]) -> "Pipeline":
+        for path, value in params.items():
+            path = path.split(".")
+            block_name = path[0]
+            block = self.blocks[block_name]
+
+            obj = block
+            for attr in path[1:-1]:
+                try:
+                    obj = getattr(obj, attr)
+                except AttributeError as e:
+                    raise AttributeError(
+                        f"Attribute {attr} not found in block {block_name}. The given path is {path}"
+                    ) from e
+
+            setattr(obj, path[-1], value)
+
+        return self
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.name})"

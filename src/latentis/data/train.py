@@ -5,7 +5,7 @@ import torch
 from torch import nn
 
 from latentis.data import DATA_DIR
-from latentis.data.dataset import LatentisDataset
+from latentis.data.dataset import DatasetView
 from latentis.nexus import space_index
 from latentis.nn import LatentisModule
 from latentis.nn.decoders import Classifier
@@ -13,7 +13,7 @@ from latentis.nn.decoders import Classifier
 
 def fit_model(
     model: LatentisModule,
-    dataset: LatentisDataset,
+    dataset: DatasetView,
     train_space_id: str,
     test_space_id: str,
     y_gt_key: str,
@@ -48,7 +48,7 @@ def fit_model(
 
 
 def attach_decoder(
-    dataset: LatentisDataset,
+    dataset: DatasetView,
     train_space_id: str,
     test_space_id: str,
     y_gt_key: str,
@@ -88,7 +88,7 @@ if __name__ == "__main__":
         [("trec", "coarse_label"), ("imdb", "label"), ("ag_news", "label")],
         ["bert-base-cased", "bert-base-uncased", "roberta-base"],
     ):
-        dataset = LatentisDataset.load_from_disk(DATA_DIR / dataset_name)
+        dataset = DatasetView.load_from_disk(DATA_DIR / dataset_name)
 
         res = attach_decoder(
             dataset=dataset,
