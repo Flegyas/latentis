@@ -10,7 +10,6 @@ from typing import Any, Mapping, Optional, Sequence
 from datasets import DatasetDict
 from torch.utils.data import DataLoader
 
-from latentis.data import DATA_DIR
 from latentis.serialize.io_utils import MetadataMixin, SerializableMixin, load_json, save_json
 from latentis.types import StrEnum
 
@@ -87,7 +86,8 @@ class FeatureMapping:
 #     def __len__(self) -> int:
 #         return len(self.data)
 class DatasetView(SerializableMixin, MetadataMixin):
-    pass
+    def save_to_disk(self, parent_dir: Path, *args, **kwargs):
+        raise NotImplementedError
 
 
 class HFDatasetView(DatasetView):
@@ -99,7 +99,7 @@ class HFDatasetView(DatasetView):
         features: Sequence[Feature],
         perc: float = 1,
         properties: Optional[Mapping[str, Any]] = None,
-        parent_dir: Path = DATA_DIR,
+        path: Optional[Path] = None,
     ):
         super().__init__()
         assert isinstance(hf_dataset, DatasetDict), f"Expected {DatasetDict}, got {type(hf_dataset)}"
@@ -119,12 +119,13 @@ class HFDatasetView(DatasetView):
         self._features: Sequence[Feature] = features
         self._perc: float = perc
         self._properties: Mapping[DatasetProperty, Any] = properties or {}
-        self._root_dir: Path = parent_dir / name
+        self._path: Path = path
 
-    def save_to_disk(self):
-        target_path = self._root_dir
+    def save_to_disk(self, parent_dir: Path):
+        target_path = parent_dir / self._name
+
         if target_path.exists():
-            raise FileExistsError(f"Destination {self._root_dir} is not empty!")
+            raise FileExistsError(f"Destination {self._path} is not empty!")
 
         self._hf_dataset.save_to_disk(target_path / "hf_dataset")
 
@@ -149,14 +150,14 @@ class HFDatasetView(DatasetView):
         properties = metadata["properties"]
         features = [Feature(**feature) for feature in metadata["features"]]
 
-        dataset = DatasetView.__new__(cls)
+        dataset = HFDatasetView.__new__(cls)
 
         dataset._name = metadata["name"]
         dataset._hf_dataset = hf_dataset
         dataset._id_column = metadata["id_column"]
-        dataset._features[Feature] = features
+        dataset._features = features
         dataset._perc = metadata["perc"]
-        dataset._root_dir = path
+        dataset._path = path
         dataset._properties = properties
 
         return dataset
@@ -183,11 +184,11 @@ class HFDatasetView(DatasetView):
 
     @property
     def root_dir(self) -> Path:
-        return self._root_dir
+        return self._path
 
     def get_feature(self, col_name: str) -> Optional[Feature]:
         for feature in self._features:
-            if feature.target_name == col_name:
+            if feature.name == col_name:
                 return feature
 
         return None
@@ -215,10 +216,10 @@ class HFDatasetView(DatasetView):
             name=self._name,
             hf_dataset=self._hf_dataset,
             id_column=self._id_column,
-            features=[feature for feature in self._features if feature.target_name in feature_keys],
+            features=[feature for feature in self._features if feature.name in feature_keys],
             perc=self._perc,
             properties=self._properties,
-            parent_dir=self._root_dir,
+            parent_dir=self._path,
         )
 
     def get_dataloader(

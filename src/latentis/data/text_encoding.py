@@ -9,19 +9,25 @@ pylogger = logging.getLogger(__name__)
 
 
 class Pooler(nn.Module):
-    def __init__(self, name: str):
+    def __init__(self, name: str, output_dim: int):
         super().__init__()
         self.name: str = name
+        self._output_dim: int = output_dim
 
     @abstractmethod
     def forward(self, x: torch.Tensor, *args, **kwargs):
         raise NotImplementedError
 
+    @property
+    def output_dim(self):
+        return self._output_dim
+
 
 class HFPooler(Pooler):
-    def __init__(self, pooling_fn: callable, layers: Optional[Sequence[int]] = None):
+    def __init__(self, output_dim: int, pooling_fn: callable, layers: Optional[Sequence[int]] = None):
         assert all(isinstance(layer, int) and layer >= 0 for layer in layers)
-        super().__init__(name=f"{pooling_fn.__name__}_{layers}")
+        super().__init__(name=f"{pooling_fn.__name__}_{layers}", output_dim=output_dim)
+
         self.pooling_fn = pooling_fn
         self.layers = layers
 

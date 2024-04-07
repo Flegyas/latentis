@@ -2,8 +2,9 @@ import logging
 
 from datasets import ClassLabel, Dataset
 
+from latentis import PROJECT_ROOT
 from latentis.data import actions
-from latentis.data.dataset import DatasetView, DataType, Feature, FeatureMapping, FeatureProperty
+from latentis.data.dataset import DatasetView, DataType, Feature, FeatureMapping, FeatureProperty, HFDatasetView
 from latentis.pipeline.flow import Flow, Pipeline
 
 pylogger = logging.getLogger(__name__)
@@ -318,5 +319,12 @@ FashionMNIST = Pipeline(
 
 if __name__ == "__main__":
     data: DatasetView = TREC.build().run()["dataset_view"]
+    data.save_to_disk(
+        parent_dir=PROJECT_ROOT / "data",
+    )
+
+    print(data.hf_dataset)
+
+    data = HFDatasetView.load_from_disk(path=PROJECT_ROOT / "data" / "trec")
 
     print(data.hf_dataset)
