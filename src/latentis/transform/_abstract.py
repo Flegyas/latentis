@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence, Union
 import torch
 from torch import nn
 
-from latentis.serialize.io_utils import IndexableMixin
+from latentis.serialize.io_utils import SerializableMixin
 from latentis.transform.functional import InverseFn, State, StateFn, TransformFn
 from latentis.types import Properties
 
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from latentis.types import LatentisSpace
 
 
-class Transform(nn.Module, IndexableMixin):
+class Transform(nn.Module, SerializableMixin):
     _STATE_PREFIX: str = "latentis_state_"
 
     @property

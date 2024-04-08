@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from abc import abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import auto
@@ -10,7 +11,7 @@ from typing import Any, Mapping, Optional, Sequence
 from datasets import DatasetDict
 from torch.utils.data import DataLoader
 
-from latentis.serialize.io_utils import MetadataMixin, SerializableMixin, load_json, save_json
+from latentis.serialize.io_utils import SerializableMixin, load_json, save_json
 from latentis.types import StrEnum
 
 pylogger = logging.getLogger(__name__)
@@ -85,8 +86,12 @@ class FeatureMapping:
 
 #     def __len__(self) -> int:
 #         return len(self.data)
-class DatasetView(SerializableMixin, MetadataMixin):
+class DatasetView(SerializableMixin):
     def save_to_disk(self, parent_dir: Path, *args, **kwargs):
+        raise NotImplementedError
+
+    @abstractmethod
+    def splits(self):
         raise NotImplementedError
 
 
@@ -120,6 +125,9 @@ class HFDatasetView(DatasetView):
         self._perc: float = perc
         self._properties: Mapping[DatasetProperty, Any] = properties or {}
         self._path: Path = path
+
+    def splits(self):
+        return self._hf_dataset.keys()
 
     def save_to_disk(self, parent_dir: Path):
         target_path = parent_dir / self._name

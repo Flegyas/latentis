@@ -3,13 +3,6 @@ from __future__ import annotations
 import copy
 from abc import abstractmethod
 from enum import auto
-
-try:
-    # be ready for 3.10 when it drops
-    from enum import StrEnum as PythonStrEnum
-except ImportError:
-    from backports.strenum import StrEnum as PythonStrEnum
-
 from pathlib import Path
 from typing import Mapping, Optional, Sequence
 
@@ -17,11 +10,11 @@ from lightning import LightningModule
 from torch import nn
 from torch.utils.data import DataLoader, default_collate
 
-from latentis.serialize.io_utils import IndexableMixin, load_json, load_model, save_json, save_model
-from latentis.types import Properties
+from latentis.serialize.io_utils import SerializableMixin, load_json, load_model, save_json, save_model
+from latentis.types import Properties, StrEnum
 
 
-class _LatentisModuleMetadata(PythonStrEnum):
+class _LatentisModuleMetadata(StrEnum):
     _VERSION = auto()
     _TYPE = auto()
 
@@ -29,7 +22,7 @@ class _LatentisModuleMetadata(PythonStrEnum):
 _PROPERTIES_FILE_NAME = "properties.json"
 
 
-class LatentisModule(LightningModule, IndexableMixin):
+class LatentisModule(LightningModule, SerializableMixin):
     def __init__(self, properties: Optional[Properties] = None):
         super().__init__()
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Sequence, Tuple
+
 import torch
 from torch._tensor import Tensor
 
@@ -39,6 +41,8 @@ class IdentityCorrespondence(Correspondence):
     def get_y_ids(self) -> Tensor:
         return torch.arange(self.n_samples)
 
-
-if __name__ == "__main__":
-    pass
+    def align(self, x_keys: Sequence[str], y_keys: Sequence[str]) -> Tuple[Tensor, Tensor]:
+        # all_ids, counts = torch.cat([x_keys, y_keys]).unique(return_counts=True)
+        # intersection = all_ids[torch.where(counts.gt(1))]
+        intersection = set(x_keys) & set(y_keys)
+        return (intersection, intersection)
