@@ -100,10 +100,10 @@ def _run(
             for pooler in self.poolers:
                 encoding2pooler_properties = pooler(**raw_encoding)
 
-                for encoding, pooler_properties in encoding2pooler_properties:
-                    pooler2space[pooler].add_vectors(
-                        vectors=encoding, keys=batch[dataset._id_column].cpu().tolist(), write=True
-                    )
+                    for encoding, pooler_properties in encoding2pooler_properties:
+                        pooler2space[pooler].add_vectors(
+                            vectors=encoding, keys=batch[dataset._id_column].cpu().tolist(), write=True
+                        )
 
         split2pooler2space[split] = pooler2space
 
