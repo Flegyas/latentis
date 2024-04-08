@@ -1,7 +1,9 @@
 import functools
 import itertools
 import logging
-from typing import Sequence
+from collections import defaultdict
+from dataclasses import dataclass
+from typing import Optional
 
 import torch
 from torch import nn
@@ -54,10 +56,72 @@ class IdentityPooling(Pooler):
         return [(x, {})]
 
 
+def _run(
+    self,
+):
+    pylogger.info(f"Encoding {self.feature} for dataset {dataset._name}")
+
+    model = self.model.to(self.device)
+
+    split2pooler2space = defaultdict(dict)
+    for split, split_data in dataset.hf_dataset.items():
+        pooler2space = {
+            pooler: Space(
+                vector_source=HDF5Source(
+                    num_elements=len(split_data),
+                    dimension=pooler.output_dim,
+                    root_dir=DATA_DIR / dataset.name / "encodings" / split / self.feature.name / pooler.name,
+                ),
+                properties={
+                    **{f"model/{key}": value for key, value in model.properties.items()},
+                    "feature": self.feature.name,
+                    "split": split,
+                    "dataset": dataset.name,
+                    "pooler": pooler.__class__.__name__,
+                },
+            )
+            for pooler in self.poolers
+        }
+
+        loader = DataLoader(
+            split_data,
+            batch_size=self.encoding_batch_size,
+            pin_memory=self.device != torch.device("cpu"),
+            shuffle=False,
+            num_workers=self.num_workers,
+            collate_fn=functools.partial(self.collate_fn, model=model, feature=self.feature.name),
+        )
+
+        for batch in tqdm(
+            loader, desc=f"Encoding `{split}` samples for feature {self.feature.name} using {model.item_id[:8]}"
+        ):
+            raw_encoding = model.encode(batch.to(self.device))
+
+            for pooler in self.poolers:
+                encoding2pooler_properties = pooler(**raw_encoding)
+
+                for encoding, pooler_properties in encoding2pooler_properties:
+                    pooler2space[pooler].add_vectors(
+                        vectors=encoding, keys=batch[dataset._id_column].cpu().tolist(), write=True
+                    )
+
+        split2pooler2space[split] = pooler2space
+
+    model.cpu()
+
+    return split2pooler2space
+
+
+@dataclass(frozen=True)
+class EncodeResult:
+    space: Space
+
+
 class EncodeTask(Task):
     def __init__(
         self,
         dataset: DatasetView,
+        split: str,
         feature: str,
         model: LatentisModule,
         collate_fn: callable,
@@ -65,103 +129,117 @@ class EncodeTask(Task):
         num_workers: int,
         device: torch.device,
         save_source_model: bool = False,
-        poolers: Sequence[nn.Module] = None,
+        pooler: Optional[nn.Module] = None,
     ):
         super().__init__()
+        if split not in dataset.hf_dataset:
+            raise ValueError(f"Split `{split}` not found in dataset `{dataset.name}`")
+
         self.dataset = dataset
         self.feature: Feature = dataset.get_feature(feature)
-
+        self.split = split
         self.model = model
         self.collate_fn = collate_fn
         self.encoding_batch_size = encoding_batch_size
         self.num_workers = num_workers
         self.device = device
         self.save_source_model = save_source_model
+        self.pooler = pooler or IdentityPooling(output_dim=self.model.output_dim)
 
-        if poolers is None or len(poolers) == 0:
-            poolers = [IdentityPooling(output_dim=self.model.output_dim)]
-        self.poolers = poolers
+    def properties(self):
+        return {
+            "dataset": self.dataset.name,
+            "split": self.split,
+            "feature": self.feature.name,
+            "model": self.model.hash,
+            "collate_fn": self.collate_fn.__name__,
+            "save_source_model": self.save_source_model,
+            "pooler": self.pooler.__class__.__name__,
+        }
 
     def _run(
         self,
-    ):
-        """Encode the dataset using the specified encoders.
+    ) -> Space:
+        pylogger.info(f"Encoding {self.feature} for dataset {self.dataset._name}")
 
-        Args:
-            dataset (LatentisDataset): Dataset to encode
-            feature (str): Name of the feature to encode
-            model (LatentisModule): Model to use for encoding
-            collate_fn (callable): Collate function to use for the dataset
-            encoding_batch_size (int): Batch size for encoding
-            store_every (int): Store encodings every `store_every` batches
-            num_workers (int): Number of workers to use for encoding
-            device (torch.device): Device to use for encoding
-            save_source_model (bool, optional): Save the source model. Defaults to False.
-            poolers (Sequence[nn.Module], optional): Poolers to use for encoding. Defaults to None.
+        space_path = DATA_DIR / self.dataset.name / "encodings" / self.hash
+        if space_path.exists():
+            pylogger.info(f"Loading existing encodings from {space_path}")
+            space = Space.load_from_disk(space_path, load_source_model=self.save_source_model)
+            return EncodeResult(space=space)
 
-        """
-        pylogger.info(f"Encoding {self.feature} for dataset {dataset._name}")
+        model_device = self.model.device
 
         model = self.model.to(self.device)
 
-        for split, split_data in dataset.hf_dataset.items():
-            pooler2space = {
-                pooler: Space(
-                    vector_source=HDF5Source(
-                        num_elements=len(split_data),
-                        dimension=pooler.output_dim,
-                        root_dir=DATA_DIR / dataset.name / "encodings" / split / self.feature.name / pooler.name,
-                    ),
-                    properties={
-                        **{f"model/{key}": value for key, value in model.properties.items()},
-                        "feature": self.feature.name,
-                        "split": split,
-                        "dataset": dataset.name,
-                        "pooler": pooler.__class__.__name__,
-                    },
+        split_data = self.dataset.hf_dataset[self.split]
+
+        space = Space(
+            vector_source=HDF5Source(
+                num_elements=len(split_data),
+                dimension=self.pooler.output_dim,
+                root_dir=space_path,
+            ),
+            properties={
+                **{f"model/{key}": value for key, value in model.properties.items()},
+                "feature": self.feature.name,
+                "split": self.split,
+                "dataset": self.dataset.name,
+                "pooler": self.pooler.__class__.__name__,
+            },
+        )
+
+        loader = DataLoader(
+            split_data,
+            batch_size=self.encoding_batch_size,
+            pin_memory=self.device != torch.device("cpu"),
+            shuffle=False,
+            num_workers=self.num_workers,
+            collate_fn=functools.partial(self.collate_fn, model=model, feature=self.feature.name),
+        )
+
+        for batch in tqdm(
+            loader, desc=f"Encoding `{self.split}` samples for feature {self.feature.name} using {model.hash}"
+        ):
+            raw_encoding = model.encode(batch.to(self.device))
+
+            encoding2pooler_properties = self.pooler(**raw_encoding)
+            if len(encoding2pooler_properties) > 1:
+                raise ValueError(
+                    f"Multiple encodings returned by pooler `{self.pooler}`. Expected only one encoding per batch."
                 )
-                for pooler in self.poolers
-            }
 
-            loader = DataLoader(
-                split_data,
-                batch_size=self.encoding_batch_size,
-                pin_memory=self.device != torch.device("cpu"),
-                shuffle=False,
-                num_workers=self.num_workers,
-                collate_fn=functools.partial(self.collate_fn, model=model, feature=self.feature.name),
-            )
+            for encoding, pooler_properties in encoding2pooler_properties:
+                space.add_vectors(vectors=encoding, keys=batch[self.dataset._id_column].cpu().tolist(), write=True)
 
-            for batch in tqdm(
-                loader, desc=f"Encoding `{split}` samples for feature {self.feature.name} using {model.item_id[:8]}"
-            ):
-                raw_encoding = model.encode(batch.to(self.device))
+        space.save_to_disk(
+            target_path=space_path,
+            save_vector_source=True,
+            save_properties=True,
+            save_source_model=self.save_source_model,
+        )
+        model.to(model_device)
 
-                for pooler in self.poolers:
-                    encoding2pooler_properties = pooler(**raw_encoding)
-
-                    for encoding, pooler_properties in encoding2pooler_properties:
-                        pooler2space[pooler].add_vectors(
-                            vectors=encoding, keys=batch[dataset._id_column].cpu().tolist(), write=True
-                        )
-
-        model.cpu()
+        return EncodeResult(space=space)
 
 
 if __name__ == "__main__":
     for dataset_name, hf_encoder in itertools.product(["trec"], ["bert-base-cased"]):
         dataset = HFDatasetView.load_from_disk(DATA_DIR / dataset_name)
 
-        space = EncodeTask(
-            dataset=dataset,
-            feature="text",
-            model=TextHFEncoder(hf_encoder),
-            collate_fn=default_collate,
-            encoding_batch_size=256,
-            num_workers=2,
-            save_source_model=False,
-            poolers=[
-                HFPooler(layers=[12], pooling_fn=cls_pool, output_dim=768),
-            ],
-            device=torch.device("cpu"),
-        ).run()
+        for split in dataset.splits():
+            split = "test"
+            task = EncodeTask(
+                dataset=dataset,
+                split=split,
+                feature="text",
+                model=TextHFEncoder(hf_encoder),
+                collate_fn=default_collate,
+                encoding_batch_size=256,
+                num_workers=0,
+                save_source_model=False,
+                pooler=HFPooler(layers=[12], pooling_fn=cls_pool, output_dim=768),
+                device=torch.device("cpu"),
+            )
+            print(task.properties())
+            print(split, task.run().space)
