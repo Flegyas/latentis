@@ -1,8 +1,10 @@
 from abc import abstractmethod
 from typing import Any
 
+from latentis.serialize.io_utils import SerializableMixin
 
-class Task:
+
+class Task(SerializableMixin):
     def __init__(self) -> None:
         self._result = None
 
