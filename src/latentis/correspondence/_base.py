@@ -3,11 +3,12 @@ from __future__ import annotations
 from abc import abstractmethod
 from enum import auto
 from pathlib import Path
+from typing import Tuple
 
 import torch
 
 from latentis.data import DATA_DIR
-from latentis.serialize.io_utils import IndexableMixin, load_json, save_json
+from latentis.serialize.io_utils import SerializableMixin, load_json, save_json
 from latentis.space import Space
 from latentis.types import Properties, StrEnum
 
@@ -20,7 +21,7 @@ class _CorrespondenceMetadata(StrEnum):
     _TYPE = auto()
 
 
-class Correspondence(IndexableMixin):
+class Correspondence(SerializableMixin):
     def __init__(self, **properties):
         properties = properties or {}
         properties[_CorrespondenceMetadata._VERSION] = self.version
@@ -54,11 +55,8 @@ class Correspondence(IndexableMixin):
         return correspondence
 
     @abstractmethod
-    def get_x_ids(self) -> torch.Tensor:
-        return self.x2y[:, 0]
-
-    def get_y_ids(self) -> torch.Tensor:
-        return self.x2y[:, 1]
+    def align(self, x_keys: torch.LongTensor, y_keys: torch.LongTensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        raise NotImplementedError
 
     @abstractmethod
     def split(self):

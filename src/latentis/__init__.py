@@ -29,4 +29,4 @@ except git.exc.InvalidGitRepositoryError:
 logger.debug(f"Inferred project root: {PROJECT_ROOT}")
 os.environ["PROJECT_ROOT"] = str(PROJECT_ROOT)
 
-__all__ = ["Space", "__version__"]
+__all__ = ["__version__"]

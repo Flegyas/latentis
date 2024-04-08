@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import importlib
 import logging
 from enum import auto
 from pathlib import Path
@@ -8,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequen
 
 from latentis.nn import LatentisModule
 from latentis.serialize.disk_index import DiskIndex
-from latentis.serialize.io_utils import IndexableMixin, load_json, load_model, save_json, save_model
+from latentis.serialize.io_utils import SerializableMixin, load_json, load_model, save_json, save_model
 from latentis.space.search import SearchIndex, SearchMetric
 from latentis.space.vector_source import TensorSource, VectorSource
 from latentis.transform import Transform
@@ -34,7 +35,7 @@ class _SpaceMetadata(StrEnum):
 _PROPERTIES_FILE_NAME = "properties.json"
 
 
-class Space(IndexableMixin):
+class Space(SerializableMixin):
     def __init__(
         self,
         vector_source: Optional[Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]],
@@ -73,10 +74,11 @@ class Space(IndexableMixin):
         # metadata[SpaceMetadata._NAME] = self._name
         properties[_SpaceMetadata._VERSION] = self.version
 
-        # TODO: store also the module to use for deserialization,
         # removing this properties from the index
-        properties[_SpaceMetadata._TYPE] = Space.__name__
-        properties[_SpaceMetadata._VECTOR_SOURCE] = type(self._vector_source).__name__
+        properties[_SpaceMetadata._TYPE] = self.__class__.__module__ + "." + self.__class__.__name__
+        properties[_SpaceMetadata._VECTOR_SOURCE] = (
+            self._vector_source.__class__.__module__ + "." + self._vector_source.__class__.__name__
+        )
 
         self._properties = properties.copy()
 
@@ -145,11 +147,15 @@ class Space(IndexableMixin):
 
     @classmethod
     def load_from_disk(cls, path: Path, load_source_model: bool = False) -> Space:
-        # load VectorSource
-        vector_source = TensorSource.load_from_disk(path / "vectors")
-
         # load metadata
         properties = cls.load_properties(path)
+
+        # load correct VectorSource
+        vector_source_cls = properties[_SpaceMetadata._VECTOR_SOURCE]
+        vector_source_pkg, vector_source_cls = vector_source_cls.rsplit(".", 1)
+        vector_source_cls = getattr(importlib.import_module(vector_source_pkg), vector_source_cls)
+
+        vector_source = vector_source_cls.load_from_disk(path / "vectors")
 
         # load model
         model_path = path
@@ -249,6 +255,9 @@ class Space(IndexableMixin):
 
     def __eq__(self, __value: object) -> bool:
         return self.properties == __value.properties and self.vector_source == __value.vector_source
+
+    def get_vectors_by_key(self, keys: Sequence[str]) -> torch.Tensor:
+        return self._vector_source.get_vectors_by_key(keys=keys)
 
     def add_vectors(self, vectors: torch.Tensor, keys: Optional[Sequence[str]] = None, **kwargs) -> None:
         """Add vectors to this space.

@@ -71,6 +71,9 @@ class VectorSource(metaclass=VectorSourceMeta):
     def add_vectors(self, vectors: torch.Tensor, keys: Optional[Sequence[str]] = None) -> VectorSource:
         raise NotImplementedError
 
+    def get_vectors_by_key(self, keys: Sequence[str]) -> torch.Tensor:
+        return torch.stack([self.get_vector_by_key(key) for key in keys], dim=0)
+
 
 class TensorSource(VectorSource, SerializableMixin):
     def __init__(self, vectors: torch.Tensor, keys: Optional[Sequence[str]] = None):
@@ -99,12 +102,12 @@ class TensorSource(VectorSource, SerializableMixin):
         return self._vectors
 
     def save_to_disk(self, parent_dir: Path):
-        torch.save(self._vectors, parent_dir / "vectors.pt")
+        torch.save(self._vectors, parent_dir / "data.pt")
         self._keys2offset.save_to_disk(parent_dir / "mapping.tsv")
 
     @classmethod
     def load_from_disk(cls, path: Path) -> TensorSource:
-        vectors = torch.load(path / "vectors.pt")
+        vectors = torch.load(path / "data.pt")
         keys = BiMap.load_from_disk(path / "mapping.tsv")
         result = cls(vectors=vectors)
         result._keys2offset = keys  # TODO: ugly
@@ -141,7 +144,9 @@ class HDF5Source(VectorSource):
         super().__init__()
         root_dir.mkdir(parents=True, exist_ok=True)
         self.root_dir = root_dir
-        self.h5_file = h5py.File(root_dir / "data.h5", mode="w")
+        data_path = root_dir / "vectors" / "data.h5"
+        data_path.parent.mkdir(parents=True, exist_ok=True)
+        self.h5_file = h5py.File(data_path, mode="w")
         self.data: h5py.Dataset = self.h5_file.create_dataset(
             "data",
             shape=(num_elements, dimension),
@@ -153,6 +158,10 @@ class HDF5Source(VectorSource):
         self._keys2offset = BiMap(x=[], y=[])
 
     @property
+    def keys(self) -> Sequence[str]:
+        return self._keys2offset.x
+
+    @property
     def shape(self) -> torch.Size:
         return self.data.shape
 
@@ -161,7 +170,10 @@ class HDF5Source(VectorSource):
         return torch.dtype(self.data.dtype)
 
     def __getitem__(self, index: Union[int, Sequence[int], slice]) -> torch.Tensor:
-        return torch.as_tensor(self.data[index])
+        if isinstance(index, int):
+            return torch.as_tensor(self.data[index])
+        sort_idx = np.argsort(index)
+        return torch.as_tensor(self.data[index[sort_idx]][sort_idx])
 
     def __len__(self) -> int:
         return self.data.shape[0]
@@ -196,14 +208,14 @@ class HDF5Source(VectorSource):
         return self
 
     def _save_mapping(self):
-        self._keys2offset.save_to_disk(self.root_dir / "mapping.tsv")
+        self._keys2offset.save_to_disk(self.root_dir / "vectors" / "mapping.tsv")
 
     def to_tensor_source(self) -> TensorSource:
         return TensorSource(vectors=self.as_tensor(), keys=self.keys)
 
-    # def save_to_disk(self, parent_dir: Path):
-    #     self.h5_file.close()
-    #     self._save_mapping()
+    def save_to_disk(self, parent_dir: Path):
+        self.h5_file.flush()
+        self._save_mapping()
 
     @classmethod
     def load_from_disk(cls, path: Path) -> HDF5Source:
@@ -216,3 +228,10 @@ class HDF5Source(VectorSource):
         result._keys2offset = BiMap.load_from_disk(path / "mapping.tsv")
 
         return result
+
+    def get_vector_by_key(self, key: str) -> torch.Tensor:
+        assert len(self._keys2offset) > 0, "This source does not have keys enabled"
+        try:
+            return self[self._keys2offset.get_y(key)]
+        except KeyError:
+            raise KeyError(f"Key {key} not found in {self._keys2offset}")
