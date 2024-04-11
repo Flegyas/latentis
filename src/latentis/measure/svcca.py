@@ -1,4 +1,3 @@
-from enum import auto
 from typing import Union
 
 import torch
@@ -7,15 +6,10 @@ from latentis.measure._metrics import Metric
 from latentis.measure.functional.svcca import robust_svcca, svcca
 from latentis.space import LatentSpace
 
-try:
-    # be ready for 3.10 when it drops
-    from enum import StrEnum
-except ImportError:
-    from backports.strenum import StrEnum
-
 
 class SVCCA(Metric):
     """A class for computing the Singular Vector Canonical Correlation Analysis (MCCA) between two matrices.
+
     Paper: https://arxiv.org/abs/1706.05806
 
     Attributes:
@@ -50,6 +44,7 @@ class SVCCA(Metric):
             space2: shape (N, D'), second embedding matrix.
 
         Returns:
+            float: The SVCCA similarity between space1 and space2.
         """
         if isinstance(space1, torch.Tensor) and isinstance(space2, torch.Tensor):
             space1 = space1.to(self.device)

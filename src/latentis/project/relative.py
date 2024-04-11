@@ -90,18 +90,24 @@ class RelativeProjector(nn.Module):
         self._name: str = (
             name
             if name is not None
-            else f"relative_{projection_fn.__name__}" if hasattr(projection_fn, "__name__") else "relative_projection"
+            else f"relative_{projection_fn.__name__}"
+            if hasattr(projection_fn, "__name__")
+            else "relative_projection"
         )
 
         self.abs_transforms = nn.ModuleList(
             abs_transforms
             if isinstance(abs_transforms, Sequence)
-            else [] if abs_transforms is None else [abs_transforms]
+            else []
+            if abs_transforms is None
+            else [abs_transforms]
         )
         self.rel_transforms = nn.ModuleList(
             rel_transforms
             if isinstance(rel_transforms, Sequence)
-            else [] if rel_transforms is None else [rel_transforms]
+            else []
+            if rel_transforms is None
+            else [rel_transforms]
         )
 
     @property

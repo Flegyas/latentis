@@ -1,7 +1,9 @@
 # Code in this file is adapted from https://github.com/google/svcca/blob/master/cca_core.py
 from typing import Dict, Tuple, Union
-import torch
+
 import numpy as np
+import torch
+
 from latentis.measure._metrics import preprocess_latent_space_args
 
 
@@ -28,7 +30,6 @@ def robust_svcca(
     Returns:
         svcca_similarity: float quantifying the SVCCA similarity between X and Y.
     """
-
     result = None
     for _ in range(num_trials):
 
@@ -54,7 +55,8 @@ def svcca(
     tolerance: float = 1e-4,
     epsilon: float = 1e-6,
 ) -> float:
-    """
+    """Computes the SVCCA similarity between two spaces.
+
     Args:
         space1: tensor of shape (N, D) containing D-dimensional embeddings for N samples.
         space2: tensor of shape (N, D'), containing D'-dimensional embeddings for N samples.
@@ -64,9 +66,7 @@ def svcca(
 
     Returns:
         svcca_similarity: float quantifying the SVCCA similarity between X and Y.
-
     """
-
     assert space1.shape[0] == space2.shape[0], "space1 and space2 must have the same number of samples."
 
     space1, space2 = space1.T, space2.T
@@ -101,8 +101,7 @@ def svcca(
 
 
 def _decompose_and_normalize_covariance_matrix(covariance: torch.Tensor, n_x: int, n_y: int) -> Dict[str, torch.Tensor]:
-    """
-    Decomposes and normalizes the covariance matrix.
+    """Decomposes and normalizes the covariance matrix.
 
     The function first decomposes the covariance matrix between X and Y as cov(X, X), cov(Y, Y) and cross-cov(X, Y), cross-cov(Y, X) and then
     properly normalizes each one to prevent numerical instability in the subsequent computations.
@@ -115,7 +114,6 @@ def _decompose_and_normalize_covariance_matrix(covariance: torch.Tensor, n_x: in
     Returns:
         Dict containing each of the normalized components of the covariance matrix.
     """
-
     cov_xx, cov_yy = covariance[:n_x, :n_x], covariance[n_x:, n_x:]
     cov_xy, cov_yx = covariance[:n_x, n_x:], covariance[n_x:, :n_x]
 
@@ -148,7 +146,6 @@ def _compute_ccas(covariances: Dict[str, torch.Tensor], epsilon: float):
         svd_results: Singular Value Decomposition of sqrt(inv(cov_XX)) @ cov_XY @ sqrt(inv(cov_YY))
         kept_indices: indices of dimensions to keep
     """
-
     ref_tensor = covariances["xy"]
 
     pruned_covariances, kept_indices = _prune_small_covariances(covariances, epsilon)
@@ -207,7 +204,6 @@ def _prune_small_covariances(
         pruned_covariances: dict containing pruned cov_xx, cov_yy, cross-cov_xy and cross-cov_yx.
         kept_indices: indices of dimensions that were not pruned.
     """
-
     x_diag, y_diag = torch.abs(torch.diagonal(covariances["xx"])), torch.abs(torch.diagonal(covariances["yy"]))
 
     x_idxs, y_idxs = x_diag >= epsilon, y_diag >= epsilon
