@@ -1,6 +1,7 @@
 import math
+
 import torch
-import latentis
+
 from latentis.measure._metrics import preprocess_latent_space_args
 
 

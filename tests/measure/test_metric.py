@@ -1,10 +1,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable
-from typing import Callable
-
-from latentis.measure.svcca import SVCCA
-from latentis.measure.functional.svcca import robust_svcca as svcca_fn
 
 import pytest
 import torch
@@ -14,12 +10,12 @@ from latentis.measure import MetricFn
 from latentis.measure.cka import CKA, CKAMode
 from latentis.measure.functional import cka as cka_fn
 from latentis.measure.functional import kernel_hsic, linear_hsic
+from latentis.measure.functional.svcca import robust_svcca as svcca_fn
+from latentis.measure.svcca import SVCCA
 
 if TYPE_CHECKING:
     from latentis.types import Space
-from latentis.measure.functional.cka import cka as cka_fn
-from latentis.measure.functional.cka import kernel_hsic, linear_hsic
-from latentis.types import Space
+
 
 TOL = 1e-4
 
@@ -53,7 +49,6 @@ def test_metric(metric_fn: Callable[[Space, Space], torch.Tensor], same_shape_sp
     ],
 )
 def test_cka(mode: CKAMode, same_shape_spaces, different_dim_spaces, precomputed_cka):
-
     # test object-oriented interface
     space1, space2 = same_shape_spaces[0], same_shape_spaces[1]
 
