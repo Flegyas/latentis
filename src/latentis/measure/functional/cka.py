@@ -1,32 +1,27 @@
-import functools
 import math
 
 import torch
 
-from latentis.space import LatentSpace
+from latentis.measure._metrics import preprocess_latent_space_args
 
 
-def linear_cka(x: torch.Tensor, y: torch.Tensor):
-    return cka(x, y, hsic=linear_hsic)
+def linear_cka(space1: torch.Tensor, space2: torch.Tensor):
+    return cka(space1, space2, hsic=linear_hsic)
 
 
-def rbf_cka(x: torch.Tensor, y: torch.Tensor, *, sigma: float = None):
-    return cka(x, y, hsic=functools.partial(kernel_hsic, sigma=sigma))
+def rbf_cka(space1: torch.Tensor, space2: torch.Tensor, sigma: float = None):
+    return cka(space1, space2, hsic=kernel_hsic, sigma=sigma)
 
 
-def cka(x: torch.Tensor, y: torch.Tensor, *, hsic: callable, tolerance=1e-6):
-    if isinstance(x, LatentSpace):
-        x = x.vectors
+@preprocess_latent_space_args
+def cka(space1: torch.Tensor, space2: torch.Tensor, hsic: callable, sigma: float = None, tolerance=1e-6):
 
-    if isinstance(y, LatentSpace):
-        y = y.vectors
+    assert space1.shape[0] == space2.shape[0], "X and Y must have the same number of samples."
 
-    assert x.shape[0] == y.shape[0], "X and Y must have the same number of samples."
+    numerator = hsic(space1, space2, sigma)
 
-    numerator = hsic(x, y)
-
-    var1 = torch.sqrt(hsic(x, x))
-    var2 = torch.sqrt(hsic(y, y))
+    var1 = torch.sqrt(hsic(space1, space1, sigma))
+    var2 = torch.sqrt(hsic(space2, space2, sigma))
 
     cka_result = numerator / (var1 * var2)
 
@@ -35,7 +30,7 @@ def cka(x: torch.Tensor, y: torch.Tensor, *, hsic: callable, tolerance=1e-6):
     return cka_result
 
 
-def linear_hsic(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+def linear_hsic(X: torch.Tensor, Y: torch.Tensor, *args, **kwargs) -> torch.Tensor:
     """Compute HSIC for linear kernels.
 
     This method is used in the computation of linear CKA.
@@ -48,13 +43,13 @@ def linear_hsic(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         The computed HSIC value.
     """
     # inter-sample similarity matrices for both spaces ~(N, N)
-    L_X = x @ x.T
-    L_Y = y @ y.T
+    L_X = X @ X.T
+    L_Y = Y @ Y.T
 
     return torch.sum(center_kernel_matrix(L_X) * center_kernel_matrix(L_Y))
 
 
-def kernel_hsic(x: torch.Tensor, y: torch.Tensor, *, sigma):
+def kernel_hsic(X: torch.Tensor, Y: torch.Tensor, sigma):
     """Compute HSIC (Hilbert-Schmidt Independence Criterion) for RBF kernels.
 
     This is used in the computation of kernel CKA.
@@ -67,10 +62,10 @@ def kernel_hsic(x: torch.Tensor, y: torch.Tensor, *, sigma):
     Returns:
         The computed HSIC value.
     """
-    return torch.sum(center_kernel_matrix(rbf(x, sigma=sigma)) * center_kernel_matrix(rbf(y, sigma=sigma)))
+    return torch.sum(center_kernel_matrix(rbf(X, sigma)) * center_kernel_matrix(rbf(Y, sigma)))
 
 
-def center_kernel_matrix(k: torch.Tensor) -> torch.Tensor:
+def center_kernel_matrix(K: torch.Tensor) -> torch.Tensor:
     """Center the kernel matrix K using the centering matrix H = I_n - (1/n) 1 * 1^T. (Eq. 3 in the paper).
 
     This method is used in the calculation of HSIC.
@@ -81,15 +76,15 @@ def center_kernel_matrix(k: torch.Tensor) -> torch.Tensor:
     Returns:
         The centered kernel matrix.
     """
-    n = k.shape[0]
-    unit = torch.ones([n, n]).type_as(k)
-    identity_mat = torch.eye(n).type_as(k)
+    n = K.shape[0]
+    unit = torch.ones([n, n]).type_as(K)
+    identity_mat = torch.eye(n).type_as(K)
     H = identity_mat - unit / n
 
-    return H @ k @ H
+    return H @ K @ H
 
 
-def rbf(x: torch.Tensor, *, sigma=None):
+def rbf(X: torch.Tensor, sigma=None):
     """Compute the RBF (Radial Basis Function) kernel for a matrix X.
 
     If sigma is not provided, it is computed based on the median distance.
@@ -101,8 +96,8 @@ def rbf(x: torch.Tensor, *, sigma=None):
     Returns:
         The RBF kernel matrix.
     """
-    GX = x @ x.T
-    KX = torch.diag(GX).type_as(x) - GX + (torch.diag(GX) - GX).T
+    GX = X @ X.T
+    KX = torch.diag(GX).type_as(X) - GX + (torch.diag(GX) - GX).T
 
     if sigma is None:
         mdist = torch.median(KX[KX != 0])

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Tuple
 import pytest
 import torch
 
-from latentis.measure.base import CKAMode
+from latentis.measure.cka import CKAMode
 from latentis.space import LatentSpace
 
 if TYPE_CHECKING:
@@ -117,3 +117,46 @@ def precomputed_cka():
     cka_instance = PrecomputedCKA()
 
     return cka_instance.params
+
+
+class PrecomputedSVCCA:
+    stored_space1 = torch.tensor(
+        [
+            [0.0, 1.0, 2.0, 3.0],
+            [4.0, 5.0, 6.0, 7.0],
+            [8.0, 9.0, 10.0, 11.0],
+            [12.0, 13.0, 14.0, 15.0],
+            [16.0, 17.0, 18.0, 19.0],
+            [20.0, 21.0, 22.0, 23.0],
+            [24.0, 25.0, 26.0, 27.0],
+            [28.0, 29.0, 30.0, 31.0],
+        ]
+    )
+
+    stored_space2 = torch.tensor(
+        [
+            [1.0, 2.0, 27.0, 22.0],
+            [0.0, 28.0, 15.0, 18.0],
+            [12.0, 9.0, 14.0, 8.0],
+            [11.0, 19.0, 16.0, 13.0],
+            [31.0, 20.0, 10.0, 3.0],
+            [24.0, 5.0, 7.0, 29.0],
+            [4.0, 30.0, 21.0, 6.0],
+            [26.0, 17.0, 23.0, 25.0],
+        ]
+    )
+
+    stored_svcca_result = 0.8125
+
+    params = {
+        "stored_space1": stored_space1,
+        "stored_space2": stored_space2,
+        "result": stored_svcca_result,
+    }
+
+
+@pytest.fixture
+def precomputed_svcca():
+    svcca_instance = PrecomputedSVCCA()
+
+    return svcca_instance.params
