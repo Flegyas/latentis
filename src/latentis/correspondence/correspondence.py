@@ -23,23 +23,16 @@ class TensorCorrespondence(Correspondence):
 
         self.x2y: torch.Tensor = x2y
 
-    def get_x_ids(self) -> torch.Tensor:
-        return self.x2y[:, 0]
+    # def get_x_ids(self) -> torch.Tensor:
+    #     return self.x2y[:, 0]
 
-    def get_y_ids(self) -> torch.Tensor:
-        return self.x2y[:, 1]
+    # def get_y_ids(self) -> torch.Tensor:
+    #     return self.x2y[:, 1]
 
 
 class IdentityCorrespondence(Correspondence):
-    def __init__(self, n_samples: int):
+    def __init__(self):
         super().__init__()
-        self.n_samples: int = n_samples
-
-    def get_x_ids(self) -> Tensor:
-        return torch.arange(self.n_samples)
-
-    def get_y_ids(self) -> Tensor:
-        return torch.arange(self.n_samples)
 
     def align(self, x_keys: Sequence[str], y_keys: Sequence[str]) -> Tuple[Tensor, Tensor]:
         # all_ids, counts = torch.cat([x_keys, y_keys]).unique(return_counts=True)
