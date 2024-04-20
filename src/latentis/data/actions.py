@@ -133,7 +133,7 @@ class ClassLabelCast:
         )
 
 
-class ToView:
+class ToHFView:
     def __init__(self, name: str, id_column: str, features: Sequence[Feature]):
         self.name = name
         self.id_column = id_column
