@@ -3,6 +3,7 @@ import logging
 from datasets import ClassLabel, Dataset
 
 from latentis import PROJECT_ROOT
+from latentis.benchmark.task import Task
 from latentis.data import actions
 from latentis.data.dataset import DatasetView, DataType, Feature, FeatureMapping, FeatureProperty, HFDatasetView
 from latentis.pipeline.flow import Flow, Pipeline
@@ -12,6 +13,15 @@ pylogger = logging.getLogger(__name__)
 
 _RANDOM_SEED: int = 42
 _ID_COLUMN: str = "sample_id"
+
+
+class BuildDatasetTask(Task):
+    def __init__(self, pipeline: Pipeline) -> None:
+        super().__init__()
+        self.pipeline = pipeline
+
+    def _run(self) -> DatasetView:
+        return self.pipeline.run()["dataset_view"]
 
 
 class FeatureProcessor:
