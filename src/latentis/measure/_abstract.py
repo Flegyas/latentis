@@ -6,14 +6,14 @@ from typing import TYPE_CHECKING, Any, Callable, Mapping, Tuple
 import torch
 from torch import nn
 
-from latentis.serialize.io_utils import IndexableMixin
+from latentis.serialize.io_utils import SerializableMixin
 from latentis.space import Space
 
 if TYPE_CHECKING:
     from latentis.types import LatentisSpace
 
 
-class Metric(nn.Module, IndexableMixin):
+class Metric(nn.Module, SerializableMixin):
     def __init__(self, name: str) -> None:
         super().__init__()
         self._name: str = name

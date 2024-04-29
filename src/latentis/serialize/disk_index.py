@@ -38,7 +38,7 @@ class DiskIndex(SerializableMixin):
         for item_dir in item_dirs:
             item_key = item_dir.name
             index[item_key] = item_class.load_properties(item_dir)
-            assert item_key == item_class.id_from_properties(index[item_key])
+            assert item_key == item_class.hash_properties(index[item_key])
 
         return index
 
@@ -88,7 +88,7 @@ class DiskIndex(SerializableMixin):
         item: SerializableMixin,
         save_args: Mapping[str, Any] = None,
     ) -> str:
-        item_key = item.item_id
+        item_key = item.hash
 
         if item_key in self._index:
             raise FileExistsError(f"Key {item_key} already exists in index: {self._index[item_key]}")

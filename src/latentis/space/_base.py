@@ -195,6 +195,19 @@ class Space(SerializableMixin):
             vector_source=self.as_tensor(),
         )
 
+    def like_(
+        self,
+        vector_source: Optional[Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]] = None,
+        properties: Optional[Mapping[str, Any]] = None,
+        deepcopy: bool = False,
+    ):
+        return type(self).like(
+            space=self,
+            vector_source=vector_source,
+            properties=properties,
+            deepcopy=deepcopy,
+        )
+
     @classmethod
     def like(
         cls,

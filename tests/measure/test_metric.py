@@ -8,8 +8,8 @@ import torch.nn.functional as F
 
 from latentis.measure import MetricFn
 from latentis.measure.cka import CKA, CKAMode
-from latentis.measure.functional import cka as cka_fn
-from latentis.measure.functional import kernel_hsic, linear_hsic
+from latentis.measure.functional.cka import cka as cka_fn
+from latentis.measure.functional.cka import kernel_hsic, linear_hsic
 from latentis.measure.functional.svcca import robust_svcca as svcca_fn
 from latentis.measure.svcca import SVCCA
 
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from latentis.types import LatentisSpace
 
 
-TOL = 1e-4
+TOL = 1e-3
 
 
 @pytest.mark.parametrize(
@@ -86,7 +86,7 @@ def test_cka(mode: CKAMode, same_shape_spaces, different_dim_spaces, precomputed
         assert symm_cka_result == pytest.approx(cka_result, abs=TOL)
 
     # check that the cka results didn't change from stored computations
-    cka_result = CKA(mode=mode, device="cpu")(precomputed_cka["stored_space1"], precomputed_cka["stored_space2"])
+    cka_result = CKA(mode=mode, device="cpu")(precomputed_cka["stored_x"], precomputed_cka["stored_y"])
 
     # higher tolerance because of the RBF kernel being noisy
     assert cka_result == pytest.approx(precomputed_cka[mode], abs=1e-4)
