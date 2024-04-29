@@ -314,9 +314,9 @@ class LatentSpace(IndexableMixin):
             transform=transform,
         )
 
-        index.add_items(
+        index.add_vectors(
             vectors=self.vectors.cpu(),
-            keys=keys,
+            keys=keys or self.keys,
         )
 
         return index
