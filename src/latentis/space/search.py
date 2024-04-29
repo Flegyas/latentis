@@ -190,7 +190,7 @@ class SearchIndex:
     ) -> Sequence[int]:
         assert vectors.ndim == 2, "vectors must be 2-dimensional"
         assert vectors.shape[1] == self.num_dimensions, f"Vectors must have {self.num_dimensions} dimensions"
-        assert keys is None or len(keys) == vectors.shape[0], "Must provide a key for each vector"
+        assert keys is None or len(keys) == 0 or len(keys) == vectors.shape[0], "Must provide a key for each vector"
 
         start_id = self.num_elements
 
