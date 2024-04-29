@@ -4,7 +4,7 @@ from enum import auto
 import torch
 
 from latentis.measure._abstract import PairwiseMetric
-from latentis.measure.functional import cka, kernel_hsic, linear_hsic
+from latentis.measure.functional.cka import cka, kernel_hsic, linear_hsic
 from latentis.space import Space
 from latentis.types import StrEnum
 
