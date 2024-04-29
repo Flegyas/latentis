@@ -161,7 +161,7 @@ class SearchIndex:
     # def storage_data_type(self) -> DataType:
     #     return _BACKEND2LATENTIS_DATA_TYPE[self.index.storage_data_type]
 
-    def add_item(
+    def add_vector(
         self,
         vector: torch.Tensor,
         key: Optional[str] = None,
@@ -179,16 +179,18 @@ class SearchIndex:
         if key is not None:
             self._add_mapping(key=key, offset=self.num_elements)
 
-        return self.backend_index.add(vector.numpy())
+        self.backend_index.add(vector.numpy())
 
-    def add_items(
+        return self.num_elements - 1
+
+    def add_vectors(
         self,
         vectors: torch.Tensor,
         keys: Optional[Sequence[str]] = None,
-    ):
+    ) -> Sequence[int]:
         assert vectors.ndim == 2, "vectors must be 2-dimensional"
         assert vectors.shape[1] == self.num_dimensions, f"Vectors must have {self.num_dimensions} dimensions"
-        assert keys is None or len(keys) == vectors.shape[0], "Must provide a key for each vector"
+        assert keys is None or len(keys) == 0 or len(keys) == vectors.shape[0], "Must provide a key for each vector"
 
         start_id = self.num_elements
 
@@ -202,6 +204,8 @@ class SearchIndex:
         if keys is not None:
             for key, offset in zip(keys, range(start_id, start_id + vectors.shape[0])):
                 self._add_mapping(key=key, offset=offset)
+
+        return list(range(start_id, start_id + vectors.shape[0]))
 
     # def get_distance(
     #     self,
@@ -315,7 +319,32 @@ class SearchIndex:
         elif query_keys is not None:
             return self._search_by_keys_range(query_keys=query_keys, radius=radius, return_keys=return_keys, sort=sort)
 
-    def get_vector(self, offset: int, return_tensors: bool = False) -> Union[np.ndarray, torch.Tensor]:
+    # def get_vector(self, offset: int, return_tensors: bool = False) -> Union[np.ndarray, torch.Tensor]:
+    #     if isinstance(offset, np.int64):
+    #         offset = int(offset)
+    #     assert offset < self.num_elements, f"offset {offset} does not exist"
+    #     result = self.backend_index.reconstruct(offset)
+    #     if return_tensors:
+    #         result = torch.as_tensor(result)
+    #     return result
+
+    def get_vector(
+        self,
+        query_offset: Optional[int] = None,
+        query_key: Optional[str] = None,
+        return_tensors: bool = False,
+    ) -> Union[np.ndarray, torch.Tensor]:
+        assert (
+            sum(x is not None for x in [query_offset, query_key]) == 1
+        ), "Must provide exactly one of query_offset, or query_key"
+
+        if query_offset is not None:
+            return self._get_vector_by_offset(offset=query_offset, return_tensors=return_tensors)
+
+        elif query_key is not None:
+            return self._get_vector_by_key(key=query_key, return_tensors=return_tensors)
+
+    def _get_vector_by_offset(self, offset: int, return_tensors: bool = False) -> Union[np.ndarray, torch.Tensor]:
         if isinstance(offset, np.int64):
             offset = int(offset)
         assert offset < self.num_elements, f"offset {offset} does not exist"
@@ -324,12 +353,39 @@ class SearchIndex:
             result = torch.as_tensor(result)
         return result
 
-    def get_vector_by_key(self, key: str, return_tensors: bool = False) -> Union[np.ndarray, torch.Tensor]:
+    def _get_vector_by_key(self, key: str, return_tensors: bool = False) -> Union[np.ndarray, torch.Tensor]:
         assert self._key2offset, "No keys have been added to this index"
         offset = self._key2offset[key]
-        return self.get_vector(offset=offset, return_tensors=return_tensors)
+        return self._get_vector_by_offset(offset=offset, return_tensors=return_tensors)
 
-    def get_vectors(self, offsets: Sequence[int], return_tensors: bool = False) -> Union[np.ndarray, torch.Tensor]:
+    # def get_vectors(self, offsets: Sequence[int], return_tensors: bool = False) -> Union[np.ndarray, torch.Tensor]:
+    #     assert all(offset < self.num_elements for offset in offsets), f"Some of these offsets do not exist: {offsets}"
+    #     result = self.backend_index.reconstruct_batch(offsets)
+
+    #     if return_tensors:
+    #         result = torch.as_tensor(result)
+
+    #     return result
+
+    def get_vectors(
+        self,
+        query_offsets: Optional[Sequence[int]] = None,
+        query_keys: Optional[Sequence[str]] = None,
+        return_tensors: bool = False,
+    ) -> Union[np.ndarray, torch.Tensor]:
+        assert (
+            sum(x is not None for x in [query_offsets, query_keys]) == 1
+        ), "Must provide exactly one of query_offsets, or query_keys"
+
+        if query_offsets is not None:
+            return self._get_vectors_by_offsets(offsets=query_offsets, return_tensors=return_tensors)
+
+        elif query_keys is not None:
+            return self._get_vectors_by_keys(keys=query_keys, return_tensors=return_tensors)
+
+    def _get_vectors_by_offsets(
+        self, offsets: Sequence[int], return_tensors: bool = False
+    ) -> Union[np.ndarray, torch.Tensor]:
         assert all(offset < self.num_elements for offset in offsets), f"Some of these offsets do not exist: {offsets}"
         result = self.backend_index.reconstruct_batch(offsets)
 
@@ -338,19 +394,21 @@ class SearchIndex:
 
         return result
 
-    def get_vectors_by_keys(self, keys: Sequence[str], return_tensors: bool = False) -> Union[np.ndarray, torch.Tensor]:
+    def _get_vectors_by_keys(
+        self, keys: Sequence[str], return_tensors: bool = False
+    ) -> Union[np.ndarray, torch.Tensor]:
         offsets = [self._key2offset[key] for key in keys]
-        return self.get_vectors(offsets, return_tensors=return_tensors)
+        return self._get_vectors_by_offsets(offsets=offsets, return_tensors=return_tensors)
 
     def _search_by_keys(self, query_keys: List[str], k, return_keys: bool = False) -> SearchResult:
-        query_vectors = self.get_vectors_by_keys(query_keys, return_tensors=False)
+        query_vectors = self._get_vectors_by_keys(keys=query_keys, return_tensors=False)
 
         return self._search_by_vectors(query_vectors, k=k, return_keys=return_keys)
 
     def _search_by_keys_range(
         self, query_keys: List[str], radius: float, return_keys: bool = False, sort: bool = True
     ) -> SearchResult:
-        query_vectors = self.get_vectors_by_keys(query_keys, return_tensors=False)
+        query_vectors = self._get_vectors_by_keys(query_keys, return_tensors=False)
 
         return self._search_by_vectors_range(query_vectors, radius=radius, return_keys=return_keys, sort=sort)
 
@@ -435,11 +493,11 @@ class SearchIndex:
         )
 
     def _search_by_offsets(self, query_offsets: Sequence[int], k: int) -> SearchResult:
-        query_vectors = self.get_vectors(offsets=query_offsets, return_tensors=False)
+        query_vectors = self.get_vectors(query_offsets=query_offsets, return_tensors=False)
         return self._search_by_vectors(query_vectors=query_vectors, k=k, transform=False)
 
     def _search_by_offsets_range(self, query_offsets: Sequence[int], radius: float, sort: bool = True) -> SearchResult:
-        query_vectors = self.get_vectors(offsets=query_offsets, return_tensors=False)
+        query_vectors = self.get_vectors(query_offsets=query_offsets, return_tensors=False)
         return self._search_by_vectors_range(query_vectors=query_vectors, radius=radius, transform=False, sort=sort)
 
     # TODO: query for farthest neighbors https://gist.github.com/mdouze/c7653aaa8c3549b28bad75bd67543d34#file-demo_farthest_l2-ipynb

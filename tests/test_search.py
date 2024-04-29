@@ -15,11 +15,11 @@ def _assert_index_eq(index1: SearchIndex, index2: SearchIndex):
     # assert sorted(index1.keys) == sorted(index2.keys)
     assert len(index1) == len(index2)
     assert np.allclose(
-        a=index1.get_vectors(offsets=list(range(len(index1)))),
-        b=index2.get_vectors(offsets=list(range(len(index1)))),
+        a=index1.get_vectors(query_offsets=list(range(len(index1)))),
+        b=index2.get_vectors(query_offsets=list(range(len(index1)))),
     )
     # assert index1.key2offset == index2.key2offset
-    assert np.allclose(a=index1.get_vector(offset=0), b=index2.get_vector(offset=0))
+    assert np.allclose(a=index1.get_vector(query_offset=0), b=index2.get_vector(query_offset=0))
 
 
 @pytest.mark.parametrize("num_vectors", [2, 1_000])
@@ -87,14 +87,14 @@ def test_index(
         num_dimensions=num_dimensions,
     )
     for x in space.vectors:
-        new_index.add_item(vector=x)
+        new_index.add_vector(vector=x)
     _assert_index_eq(index1=index, index2=new_index)
 
     new_index: SearchIndex = SearchIndex.create(
         metric_fn=metric_fn,
         num_dimensions=num_dimensions,
     )
-    new_index.add_items(vectors=space.vectors)
+    new_index.add_vectors(vectors=space.vectors)
     _assert_index_eq(index1=index, index2=new_index)
 
     # Test distance function
@@ -115,10 +115,10 @@ def test_index(
     # with pytest.raises(expected_exception=RuntimeError):
     #     index_loaded.mark_deleted(id=0)
     # with pytest.raises(expected_exception=RuntimeError):
-    #     index_loaded.get_vector_by_key(key=str(0))
+    #     index_loaded._get_vector_by_key(key=str(0))
     # index_loaded.unmark_deleted(id=0)
-    a = index_loaded.get_vector(offset=0)
-    assert a is not None and len(a) == num_dimensions and np.allclose(a=a, b=index.get_vector(offset=0))
+    a = index_loaded.get_vector(query_offset=0)
+    assert a is not None and len(a) == num_dimensions and np.allclose(a=a, b=index.get_vector(query_offset=0))
 
     # Test resize
     # index.max_elements
@@ -161,7 +161,7 @@ def test_transform(num_vectors: int, num_dimensions: int):
     assert np.allclose(
         index.search_knn(query_vectors=vectors, k=10, transform=True).offsets,
         index.search_knn(
-            query_vectors=index.get_vectors(offsets=list(range(vectors.size(0)))), k=10, transform=False
+            query_vectors=index.get_vectors(query_offsets=list(range(vectors.size(0)))), k=10, transform=False
         ).offsets,
     )
 
@@ -213,11 +213,11 @@ def test_keys(
     index: SearchIndex = space.to_index(metric_fn=SearchMetric.EUCLIDEAN, keys=keys)
 
     single_vector = torch.randn(100, dtype=torch.float32)
-    index.add_item(vector=single_vector, key="single_additional_one")
+    index.add_vector(vector=single_vector, key="single_additional_one")
 
     assert len(index) == num_vectors + 1
     assert index.num_elements == num_vectors + 1
-    assert torch.allclose(single_vector, index.get_vector_by_key(key="single_additional_one", return_tensors=True))
+    assert torch.allclose(single_vector, index.get_vector(query_key="single_additional_one", return_tensors=True))
 
     for i in range(num_vectors):
         result = index.search_knn(query_keys=[keys[i]], k=1, return_keys=True)
@@ -243,7 +243,7 @@ def test_get_vectors(num_vectors: int, num_dimensions: int):
     )
 
     with pytest.raises(expected_exception=AssertionError):
-        index.get_vector_by_key(key="impossible_key")
+        index.get_vector(query_key="impossible_key")
 
     vectors = torch.randn(num_vectors, num_dimensions, dtype=torch.float32)
     space = LatentSpace(
@@ -251,6 +251,11 @@ def test_get_vectors(num_vectors: int, num_dimensions: int):
     )
 
     index = space.to_index(metric_fn=SearchMetric.EUCLIDEAN)
-    retrieved_vectors = index.get_vectors(offsets=list(range(vectors.size(0))), return_tensors=True)
+    retrieved_vectors = index.get_vectors(query_offsets=list(range(vectors.size(0))), return_tensors=True)
 
     assert torch.allclose(vectors, retrieved_vectors)
+
+    index = space.to_index(metric_fn=SearchMetric.EUCLIDEAN, keys=[str(i) for i in range(num_vectors)])
+    retrieved_vectors_by_keys = index.get_vectors(query_keys=[str(i) for i in range(num_vectors)], return_tensors=True)
+
+    assert torch.allclose(vectors, retrieved_vectors_by_keys)
