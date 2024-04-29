@@ -4,7 +4,7 @@ import torch
 
 from latentis.measure._metrics import Metric
 from latentis.measure.functional.svcca import robust_svcca, svcca
-from latentis.space import LatentSpace
+from latentis.space import Space
 
 
 class SVCCA(Metric):
@@ -50,9 +50,9 @@ class SVCCA(Metric):
             space1 = space1.to(self.device)
             space2 = space2.to(self.device)
 
-        if isinstance(space1, LatentSpace) and isinstance(space2, LatentSpace):
-            space1 = LatentSpace.like(space1, vector_source=space1.vectors.to(self.device))
-            space2 = LatentSpace.like(space2, vector_source=space2.vectors.to(self.device))
+        if isinstance(space1, Space) and isinstance(space2, Space):
+            space1 = space1.like_(vector_source=space1.vectors.to(self.device))
+            space2 = space2.like_(vector_source=space2.vectors.to(self.device))
 
         svcca_fn = robust_svcca if self.robust else svcca
 

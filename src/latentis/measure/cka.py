@@ -5,13 +5,8 @@ import torch
 
 from latentis.measure._metrics import Metric
 from latentis.measure.functional.cka import cka, kernel_hsic, linear_hsic
-from latentis.space import LatentSpace
-
-try:
-    # be ready for 3.10 when it drops
-    from enum import StrEnum
-except ImportError:
-    from backports.strenum import StrEnum
+from latentis.space import Space
+from latentis.types import StrEnum
 
 
 class CKAMode(StrEnum):
@@ -71,9 +66,9 @@ class CKA(Metric):
         if isinstance(space1, torch.Tensor) and isinstance(space2, torch.Tensor):
             space1 = space1.to(self.device)
             space2 = space2.to(self.device)
-        if isinstance(space1, LatentSpace) and isinstance(space2, LatentSpace):
-            space1 = LatentSpace.like(space1, vector_source=space1.vectors.to(self.device))
-            space2 = LatentSpace.like(space2, vector_source=space2.vectors.to(self.device))
+        if isinstance(space1, Space) and isinstance(space2, Space):
+            space1 = space1.like_(vector_source=space1.vectors.to(self.device))
+            space2 = space2.like_(vector_source=space2.vectors.to(self.device))
 
         return cka(space1=space1, space2=space2, hsic=self.hsic, sigma=sigma, tolerance=self.tolerance)
 
