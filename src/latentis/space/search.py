@@ -50,7 +50,7 @@ class SearchResult:
         if self.keys is not None:
             items.append(self.keys)
 
-        return iter(items)
+        return iter(zip(*items))
 
     def asdict(self) -> Dict[str, Any]:
         return {
@@ -267,7 +267,7 @@ class SearchIndex:
         ), "Must provide exactly one of query_offsets, query_vectors, or query_keys"
 
         if query_offsets is not None:
-            return self._search_by_offsets(query_offsets=query_offsets, k=k)
+            return self._search_by_offsets(query_offsets=query_offsets, k=k, return_keys=return_keys)
         elif query_vectors is not None:
             return self._search_by_vectors(
                 query_vectors=query_vectors, k=k, transform=transform, return_keys=return_keys
@@ -438,7 +438,9 @@ class SearchIndex:
         return SearchResult(
             distances=distances,
             offsets=offsets,
-            keys=[self._offset2key[offset] for offset in offsets] if return_keys else None,
+            keys=[[self._offset2key[offset] for offset in item_offsets] for item_offsets in offsets]
+            if return_keys
+            else None,
         )
 
     def _search_by_vectors_range(
@@ -489,12 +491,14 @@ class SearchIndex:
         return SearchResult(
             distances=split_distances,
             offsets=split_offsets,
-            keys=[self._offset2key[offset] for offset in offsets] if return_keys else None,
+            keys=[[self._offset2key[offset] for offset in item_offsets] for item_offsets in offsets]
+            if return_keys
+            else None,
         )
 
-    def _search_by_offsets(self, query_offsets: Sequence[int], k: int) -> SearchResult:
+    def _search_by_offsets(self, query_offsets: Sequence[int], k: int, return_keys: bool = False) -> SearchResult:
         query_vectors = self.get_vectors(query_offsets=query_offsets, return_tensors=False)
-        return self._search_by_vectors(query_vectors=query_vectors, k=k, transform=False)
+        return self._search_by_vectors(query_vectors=query_vectors, k=k, transform=False, return_keys=return_keys)
 
     def _search_by_offsets_range(self, query_offsets: Sequence[int], radius: float, sort: bool = True) -> SearchResult:
         query_vectors = self.get_vectors(query_offsets=query_offsets, return_tensors=False)
