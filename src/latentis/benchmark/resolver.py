@@ -103,6 +103,12 @@ def resolve_benchmark(benchmark_name: str) -> list[dict]:
                                     for metric_name in metrics:
                                         experiments.append(
                                             {
+                                                "test_decoder_y": test_pairing_policy.test_decoder_y,
+                                                "y_test_gt": {
+                                                    "dataset": y_dataset_test_name,
+                                                    "split": test_split,
+                                                    "y_label": test_pairing_policy.y_gt_label,
+                                                },
                                                 "fit_correspondence": {
                                                     "__id": fit_corr_id,
                                                     **fit_corr_properties,

@@ -1,5 +1,11 @@
 [
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -79,6 +85,12 @@
         "metric_type": "latent"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -158,6 +170,12 @@
         "metric_type": "latent"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -237,6 +255,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -316,6 +340,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -395,6 +425,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -474,6 +510,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -553,6 +595,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -632,6 +680,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -711,6 +765,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -790,6 +850,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -869,6 +935,12 @@
         "metric_type": "latent"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -948,6 +1020,12 @@
         "metric_type": "latent"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -1027,6 +1105,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -1106,6 +1190,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -1185,6 +1275,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -1264,6 +1360,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -1343,6 +1445,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -1422,6 +1530,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -1501,6 +1615,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -1580,6 +1700,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -1659,6 +1785,12 @@
         "metric_type": "latent"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -1738,6 +1870,12 @@
         "metric_type": "latent"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -1817,6 +1955,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -1896,6 +2040,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -1975,6 +2125,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -2054,6 +2210,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -2133,6 +2295,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -2212,6 +2380,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -2291,6 +2465,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -2370,6 +2550,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -2449,6 +2635,12 @@
         "metric_type": "latent"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -2528,6 +2720,12 @@
         "metric_type": "latent"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -2607,6 +2805,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -2686,6 +2890,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -2765,6 +2975,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -2844,6 +3060,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -2923,6 +3145,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -3002,6 +3230,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -3081,6 +3315,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "train",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -3160,6 +3400,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -3239,6 +3485,12 @@
         "metric_type": "latent"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -3318,6 +3570,12 @@
         "metric_type": "latent"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -3397,6 +3655,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -3476,6 +3740,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -3555,6 +3825,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -3634,6 +3910,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -3713,6 +3995,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -3792,6 +4080,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -3871,6 +4165,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -3950,6 +4250,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -4029,6 +4335,12 @@
         "metric_type": "latent"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -4108,6 +4420,12 @@
         "metric_type": "latent"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -4187,6 +4505,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -4266,6 +4590,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -4345,6 +4675,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -4424,6 +4760,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -4503,6 +4845,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -4582,6 +4930,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -4661,6 +5015,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -4740,6 +5100,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -4819,6 +5185,12 @@
         "metric_type": "latent"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -4898,6 +5270,12 @@
         "metric_type": "latent"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -4977,6 +5355,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -5056,6 +5440,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -5135,6 +5525,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -5214,6 +5610,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -5293,6 +5695,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -5372,6 +5780,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -5451,6 +5865,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -5530,6 +5950,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -5609,6 +6035,12 @@
         "metric_type": "latent"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -5688,6 +6120,12 @@
         "metric_type": "latent"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -5767,6 +6205,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -5846,6 +6290,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -5925,6 +6375,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -6004,6 +6460,12 @@
         "metric_type": "downstream"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -6083,6 +6545,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -6162,6 +6630,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
@@ -6241,6 +6715,12 @@
         "metric_type": "agreement"
     },
     {
+        "test_decoder_y": true,
+        "y_test_gt": {
+            "dataset": "imdb",
+            "split": "test",
+            "y_label": "label"
+        },
         "fit_correspondence": {
             "__id": "40747931e14e4c2903a0de863c0d7ad629d9bddd9b2aa367316d2b277bf83337",
             "_type": "Correspondence",
