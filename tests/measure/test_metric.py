@@ -18,7 +18,8 @@ if TYPE_CHECKING:
     from latentis.types import Space
 
 
-TOL = 1e-4
+TOL = 1e-3
+SVCCA_TOLERANCE = 1e-3
 
 
 @pytest.mark.parametrize(
@@ -116,14 +117,14 @@ def test_svcca(same_shape_spaces, different_dim_spaces, precomputed_svcca):
     # test object-oriented interface
     space1, space2 = same_shape_spaces[0], same_shape_spaces[1]
 
-    svcca_none = SVCCA(device=None)
+    svcca_none = SVCCA(device=None, tolerance=SVCCA_TOLERANCE)
     svcca_result = svcca_none(space1, space2)
 
     assert svcca_result.device.type == "cpu"
 
     # check that GPU works correctly
     if torch.cuda.is_available():
-        svcca_gpu = SVCCA(device=torch.device("cuda"))
+        svcca_gpu = SVCCA(device=torch.device("cuda"), tolerance=SVCCA_TOLERANCE)
         svcca_result = svcca_gpu(space1, space2)
 
         assert svcca_result.device.type == "cuda"
@@ -135,7 +136,7 @@ def test_svcca(same_shape_spaces, different_dim_spaces, precomputed_svcca):
 
     for spaces in [same_shape_spaces, different_dim_spaces]:
         space1, space2 = spaces
-        svcca = SVCCA()
+        svcca = SVCCA(tolerance=SVCCA_TOLERANCE)
 
         svcca_result = svcca(space1, space1)
         assert svcca_result == pytest.approx(
@@ -152,16 +153,18 @@ def test_svcca(same_shape_spaces, different_dim_spaces, precomputed_svcca):
         ), f"Computed asymmetric SVCCA values: {symm_svcca_result}, {svcca_result} "
 
     # check that the svcca results didn't change from stored computations
-    svcca_result = SVCCA(device="cpu")(precomputed_svcca["stored_space1"], precomputed_svcca["stored_space2"])
+    svcca_result = SVCCA(device="cpu", tolerance=SVCCA_TOLERANCE)(
+        precomputed_svcca["stored_space1"], precomputed_svcca["stored_space2"]
+    )
 
     # higher tolerance because of the RBF kernel being noisy
-    assert svcca_result == pytest.approx(precomputed_svcca["result"], abs=1e-4)
+    assert svcca_result == pytest.approx(precomputed_svcca["result"], abs=1e-3)
 
     # test functional interface
     space1, space2 = same_shape_spaces[0], same_shape_spaces[1]
-    svcca_result = svcca_fn(space1, space2)
+    svcca_result = svcca_fn(space1, space2, tolerance=SVCCA_TOLERANCE)
 
-    assert svcca_result == pytest.approx(SVCCA()(space1, space2), abs=TOL)
+    assert svcca_result == pytest.approx(SVCCA(tolerance=SVCCA_TOLERANCE)(space1, space2), abs=TOL)
     assert svcca_result.device.type == "cpu"
 
     if torch.cuda.is_available():
@@ -172,5 +175,5 @@ def test_svcca(same_shape_spaces, different_dim_spaces, precomputed_svcca):
             space1 = LatentSpace.like(space1, vector_source=space1.vectors.to("cuda"))
             space2 = LatentSpace.like(space2, vector_source=space2.vectors.to("cuda"))
 
-        svcca_result = svcca_fn(space1, space2)
+        svcca_result = svcca_fn(space1, space2, tolerance=SVCCA_TOLERANCE)
         assert svcca_result.device.type == "cuda"

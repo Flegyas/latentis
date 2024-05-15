@@ -57,5 +57,8 @@ class SVCCA(Metric):
         svcca_fn = robust_svcca if self.robust else svcca
 
         return svcca_fn(
-            space1=space1, space2=space2, variance_percentage=self.variance_percentage, epsilon=self.epsilon
+            space1=space1,
+            space2=space2,
+            variance_percentage=self.variance_percentage,
+            epsilon=self.epsilon,
         )
