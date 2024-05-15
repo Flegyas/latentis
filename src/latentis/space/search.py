@@ -46,6 +46,7 @@ class SearchResult:
     keys: Optional[Sequence[Sequence[str]]] = None
 
     def __iter__(self):
+        # TODO (Luca): understand if we want to iterate over tuples or not
         items = [self.offsets, self.distances]
         if self.keys is not None:
             items.append(self.keys)
@@ -434,14 +435,22 @@ class SearchIndex:
             assert offsets.shape[0] == 1
             distances = np.squeeze(distances, axis=0)
             offsets = np.squeeze(offsets, axis=0)
+            return SearchResult(
+                distances=distances,
+                offsets=offsets,
+                keys=([self._offset2key[offset] for offset in offsets] if return_keys else None),
+            )
 
-        return SearchResult(
-            distances=distances,
-            offsets=offsets,
-            keys=[[self._offset2key[offset] for offset in item_offsets] for item_offsets in offsets]
-            if return_keys
-            else None,
-        )
+        else:
+            return SearchResult(
+                distances=distances,
+                offsets=offsets,
+                keys=(
+                    [[self._offset2key[offset] for offset in item_offsets] for item_offsets in offsets]
+                    if return_keys
+                    else None
+                ),
+            )
 
     def _search_by_vectors_range(
         self,
@@ -488,13 +497,22 @@ class SearchIndex:
             split_distances = split_distances[0]
             split_offsets = split_offsets[0]
 
-        return SearchResult(
-            distances=split_distances,
-            offsets=split_offsets,
-            keys=[[self._offset2key[offset] for offset in item_offsets] for item_offsets in offsets]
-            if return_keys
-            else None,
-        )
+            return SearchResult(
+                distances=split_distances,
+                offsets=split_offsets,
+                keys=([self._offset2key[offset] for offset in split_offsets] if return_keys else None),
+            )
+
+        else:
+            return SearchResult(
+                distances=split_distances,
+                offsets=split_offsets,
+                keys=(
+                    [[self._offset2key[offset] for offset in item_offsets] for item_offsets in offsets]
+                    if return_keys
+                    else None
+                ),
+            )
 
     def _search_by_offsets(self, query_offsets: Sequence[int], k: int, return_keys: bool = False) -> SearchResult:
         query_vectors = self.get_vectors(query_offsets=query_offsets, return_tensors=False)

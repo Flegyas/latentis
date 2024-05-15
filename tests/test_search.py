@@ -57,7 +57,8 @@ def test_index(
     q = index.get_vector(0)
     assert torch.equal(torch.as_tensor(q), index.get_vector(0, return_tensors=True))
 
-    neighbor_ids, distances = index.search_knn(query_vectors=q, k=num_vectors)
+    search_result_0 = index.search_knn(query_vectors=q, k=num_vectors)
+    neighbor_ids, distances = search_result_0.offsets, search_result_0.distances
     search_result = index.search_knn(query_offsets=[0], k=num_vectors)
     assert np.allclose(a=search_result.distances, b=distances)
     assert np.allclose(search_result.offsets, neighbor_ids)
@@ -77,7 +78,8 @@ def test_index(
     assert isinstance(q_tensor, torch.Tensor)
     assert torch.allclose(q, q_tensor)
 
-    neighbor_ids, distances = index.search_knn(query_vectors=q, k=num_vectors)
+    search_result_0 = index.search_knn(query_vectors=q, k=num_vectors)
+    neighbor_ids, distances = search_result_0.offsets, search_result_0.distances
     result = index.get_vector(neighbor_ids[0])
     assert np.allclose(a=q, b=result, atol=1e-5, rtol=1e-5)
 
@@ -221,13 +223,16 @@ def test_keys(
 
     for i in range(num_vectors):
         result = index.search_knn(query_keys=[keys[i]], k=1, return_keys=True)
-        (
-            result_range_offsets,
-            result_range_distances,
-            result_range_keys,
-        ) = index.search_range(query_keys=[keys[i]], radius=0.99, return_keys=True)
+
+        search_result_range = index.search_range(query_keys=[keys[i]], radius=0.99, return_keys=True)
+        (result_range_offsets, result_range_distances, result_range_keys) = (
+            search_result_range.offsets,
+            search_result_range.distances,
+            search_result_range.keys,
+        )
         assert result.offsets[0] == i
         assert result.keys[0] == keys[i]
+        assert np.allclose(result.distances, result_range_distances)
         assert result_range_offsets[0] == i
         assert result_range_keys[0] == keys[i]
 
