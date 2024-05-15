@@ -61,4 +61,5 @@ class SVCCA(Metric):
             space2=space2,
             variance_percentage=self.variance_percentage,
             epsilon=self.epsilon,
+            tolerance=self.tolerance,
         )
