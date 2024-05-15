@@ -105,8 +105,8 @@ class PrecomputedCKA(object):
     stored_rbf_cka_res = 0.3945
 
     params = {
-        "stored_x": stored_x,
-        "stored_y": stored_y,
+        "stored_space1": stored_x,
+        "stored_space2": stored_y,
         CKAMode.LINEAR: stored_linear_cka_res,
         CKAMode.RBF: stored_rbf_cka_res,
     }

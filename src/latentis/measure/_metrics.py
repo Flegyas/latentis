@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from torch import nn
 
-import latentis
+from latentis.space import LatentSpace
 
 if TYPE_CHECKING:
     from latentis.types import Space
@@ -55,10 +55,10 @@ class MetricFn(Metric):
         self.fn = fn
 
     def _forward(self, space1: Space, space2: Space) -> Mapping[str, Any]:
-        if isinstance(space1, latentis.LatentSpace):
+        if isinstance(space1, LatentSpace):
             space1 = space1.vectors
 
-        if isinstance(space2, latentis.LatentSpace):
+        if isinstance(space2, LatentSpace):
             space2 = space2.vectors
 
         return {self.key: self.fn(space1, space2)}
@@ -67,9 +67,9 @@ class MetricFn(Metric):
 def preprocess_latent_space_args(func):
     def wrapper(*args, **kwargs):
         if "space1" in kwargs and "space2" in kwargs:
-            if isinstance(kwargs["space1"], latentis.LatentSpace):
+            if isinstance(kwargs["space1"], LatentSpace):
                 kwargs["space1"] = kwargs["space1"].vectors
-            if isinstance(kwargs["space2"], latentis.LatentSpace):
+            if isinstance(kwargs["space2"], LatentSpace):
                 kwargs["space2"] = kwargs["space2"].vectors
 
             if isinstance(kwargs["space1"], np.ndarray):
@@ -79,9 +79,9 @@ def preprocess_latent_space_args(func):
 
         args = list(args)
         if len(args) >= 2:
-            if isinstance(args[0], latentis.LatentSpace):
+            if isinstance(args[0], LatentSpace):
                 args[0] = args[0].vectors
-            if isinstance(args[1], latentis.LatentSpace):
+            if isinstance(args[1], LatentSpace):
                 args[1] = args[1].vectors
             if isinstance(args[0], np.ndarray):
                 args[0] = torch.tensor(args[0])

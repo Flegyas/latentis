@@ -8,10 +8,11 @@ import torch.nn.functional as F
 
 from latentis.measure import MetricFn
 from latentis.measure.cka import CKA, CKAMode
-from latentis.measure.functional import cka as cka_fn
-from latentis.measure.functional import kernel_hsic, linear_hsic
+from latentis.measure.functional.cka import cka as cka_fn
+from latentis.measure.functional.cka import kernel_hsic, linear_hsic
 from latentis.measure.functional.svcca import robust_svcca as svcca_fn
 from latentis.measure.svcca import SVCCA
+from latentis.space import LatentSpace
 
 if TYPE_CHECKING:
     from latentis.types import Space
@@ -104,8 +105,8 @@ def test_cka(mode: CKAMode, same_shape_spaces, different_dim_spaces, precomputed
             space1 = space1.to("cuda")
             space2 = space2.to("cuda")
         else:
-            space1.vectors = space1.vectors.to("cuda")
-            space2.vectors = space2.vectors.to("cuda")
+            space1 = LatentSpace.like(space1, vector_source=space1.vectors.to("cuda"))
+            space2 = LatentSpace.like(space2, vector_source=space2.vectors.to("cuda"))
 
         cka_result = cka_fn(space1, space2, hsic=hsic)
         assert cka_result.device.type == "cuda"
@@ -168,8 +169,8 @@ def test_svcca(same_shape_spaces, different_dim_spaces, precomputed_svcca):
             space1 = space1.to("cuda")
             space2 = space2.to("cuda")
         else:
-            space1.vectors = space1.vectors.to("cuda")
-            space2.vectors = space2.vectors.to("cuda")
+            space1 = LatentSpace.like(space1, vector_source=space1.vectors.to("cuda"))
+            space2 = LatentSpace.like(space2, vector_source=space2.vectors.to("cuda"))
 
         svcca_result = svcca_fn(space1, space2)
         assert svcca_result.device.type == "cuda"
