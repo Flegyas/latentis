@@ -1,0 +1,65 @@
+name: "EstimatorBenchmark"
+
+data_root: null
+
+estimators:
+  - svd
+  - pca
+  - relative
+  - cca
+
+pairing_policy:
+  - estimators: ${estimators}
+    correspondence_constraints:
+      quality: 1
+    space_constraints:
+      pool: "cls"
+      layer: 12
+    fit:
+      split: "train"
+      correspondence_constraints:
+        x_dataset: "imdb"
+        y_dataset: "imdb"
+        quality: 0
+
+      x_space_constraints:
+        model/hf_name: "bert-base-uncased"
+
+      y_space_constraints:
+        model/hf_name: "bert-base-uncased"
+
+    tests:
+      - split: "train"
+        correspondence_constraints:
+          x_dataset: "imdb"
+          y_dataset: "imdb"
+          quality: 0
+
+        x_space_constraints:
+          model/hf_name: "bert-base-uncased"
+
+        y_space_constraints:
+          model/hf_name: "bert-base-uncased"
+
+      - split: "test"
+        correspondence_constraints:
+          x_dataset: "imdb"
+          y_dataset: "imdb"
+          quality: 0
+
+        x_space_constraints:
+          model/hf_name: "bert-base-uncased"
+
+        y_space_constraints:
+          model/hf_name: "bert-base-uncased"
+
+
+metrics:
+  latent: ["l2", "cosine"]
+  downstream: ["accuracy", "f1", "precision", "recall"]
+  agreement: ["accuracy", "f1", "precision", "spearman"]
+
+# metrics:
+  # latent: ["l2",]
+  # downstream: []
+  # agreement: []

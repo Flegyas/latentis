@@ -1,23 +1,23 @@
-from typing import Tuple
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Tuple
 
 import pytest
 import torch
 from torch import Tensor
 
-from latentis import LatentSpace
-from latentis.types import Space
+from latentis.space import LatentSpace
 from latentis.utils import seed_everything
+
+if TYPE_CHECKING:
+    from latentis.types import Space
 
 
 class Space1Params(object):
     seed_everything(42)
     instances = [
         LatentSpace(
-            vectors=torch.randn(1000, 128, dtype=torch.double),
-            name="space1",
-            features={
-                "label": torch.rand(1000) > 0.5,
-            },
+            vector_source=torch.randn(1000, 128, dtype=torch.double),
         ),
         torch.randn(1000, 128, dtype=torch.double),
     ]
@@ -32,11 +32,7 @@ class Space2Params(object):
     seed_everything(42)
     instances = [
         LatentSpace(
-            vectors=torch.randn(53, 250, dtype=torch.double),
-            name="space2",
-            features={
-                "label": torch.rand(53) > 0.5,
-            },
+            vector_source=torch.randn(53, 250, dtype=torch.double),
         ),
         torch.randn(53, 250, dtype=torch.double),
     ]
@@ -51,12 +47,10 @@ class ParallelSpaces(object):
     instances = [
         (
             LatentSpace(
-                vectors=torch.randn(space1_n, space_1_dim, dtype=torch.double),
-                name="space1",
+                vector_source=torch.randn(space1_n, space_1_dim, dtype=torch.double),
             ),
             LatentSpace(
-                vectors=torch.randn(space2_n, space2_dim, dtype=torch.double),
-                name="space2",
+                vector_source=torch.randn(space2_n, space2_dim, dtype=torch.double),
             ),
         )
         for (space1_n, space_1_dim), (space2_n, space2_dim) in [
@@ -90,10 +84,10 @@ class TensorSpaceWithRef(object):
     seed_everything(42)
     instances = [
         (
-            torch.randn(space1_n, space_1_dim, dtype=torch.double),
+            torch.randn(space1_n, space1_dim, dtype=torch.double),
             torch.randn(space2_n, space2_dim, dtype=torch.double),
         )
-        for (space1_n, space_1_dim), (space2_n, space2_dim) in [
+        for (space1_n, space1_dim), (space2_n, space2_dim) in [
             ((10, 250), (100, 250)),
             ((300, 300), (20, 300)),
             ((100, 700), (42, 700)),
