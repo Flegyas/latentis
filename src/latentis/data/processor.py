@@ -116,7 +116,7 @@ DBPedia14 = Pipeline(
             FeatureMapping(source_col="label", target_col="y"),
         ),
         "prune_columns": actions.PruneColumns(keep=["x", "y"]),
-        "to_view": actions.ToView(
+        "to_view": actions.ToHFView(
             name="dbpedia14",
             id_column="sample_id",
             features=[
@@ -138,7 +138,7 @@ TREC = Pipeline(
     blocks={
         "load_dataset": actions.LoadHFDataset(path="trec"),
         "subset": actions.Subset(perc=1, seed=42),
-        "to_view": actions.ToView(
+        "to_view": actions.ToHFView(
             name="trec",
             id_column="sample_id",
             features=[
@@ -163,7 +163,7 @@ AGNews = Pipeline(
     blocks={
         "load_dataset": actions.LoadHFDataset(path="ag_news"),
         "cast_label": actions.ClassLabelCast(column_name="label"),
-        "to_view": actions.ToView(
+        "to_view": actions.ToHFView(
             name="ag_news",
             id_column="sample_id",
             features=[
@@ -190,7 +190,7 @@ IMDB = Pipeline(
         "imdb_process": actions.imdb_process,
         "subset": actions.Subset(perc=1, seed=42),
         "cast_label": actions.ClassLabelCast(column_name="label"),
-        "to_view": actions.ToView(
+        "to_view": actions.ToHFView(
             name="imdb",
             id_column="sample_id",
             features=[
@@ -224,7 +224,7 @@ MNIST = Pipeline(
             FeatureMapping(source_col="image", target_col="x"),
         ),
         "cast_label": actions.ClassLabelCast(column_name="label"),
-        "to_view": actions.ToView(
+        "to_view": actions.ToHFView(
             name="mnist",
             id_column="sample_id",
             features=[
@@ -260,7 +260,7 @@ CIFAR10 = Pipeline(
             FeatureMapping(source_col="image", target_col="x"),
         ),
         "cast_label": actions.ClassLabelCast(column_name="label"),
-        "to_view": actions.ToView(
+        "to_view": actions.ToHFView(
             name="cifar10",
             id_column="sample_id",
             features=[
@@ -286,18 +286,18 @@ CIFAR100 = Pipeline(
     flows=(
         Flow(outputs=["dataset_view"])
         .add(block="load_dataset", outputs="data")
-        .add(block="map_feature_names", inputs="data", outputs="data")
+        # .add(block="map_feature_names", inputs="data", outputs="data")
         .add(block="cast_label", inputs="data", outputs="data")
         .add(block="to_view", inputs="data", outputs="dataset_view")
     ),
     blocks={
         "load_dataset": actions.LoadHFDataset(path="cifar100"),
         "cast_label": actions.ClassLabelCast(column_name="fine_label"),
-        "to_view": actions.ToView(
+        "to_view": actions.ToHFView(
             name="cifar100",
             id_column="sample_id",
             features=[
-                Feature(name="x", data_type=DataType.IMAGE),
+                Feature(name="img", data_type=DataType.IMAGE),
                 Feature(name="coarse_label", data_type=DataType.LABEL),
                 Feature(name="fine_label", data_type=DataType.LABEL),
             ],

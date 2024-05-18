@@ -86,6 +86,7 @@ class ImageHFEncoder(HFEncoder):
     def __init__(self, hf_name: str, requires_grad: bool = False, properties: Optional[Properties] = None):
         super().__init__(hf_name, requires_grad, properties=properties)
         self.processor = AutoImageProcessor.from_pretrained(self.hf_name)
+        self.output_dim = self.model.config.hidden_size
 
     @torch.no_grad()
     def pre_encode(self, samples: Sequence, feature: str, **kwargs):
@@ -99,4 +100,4 @@ class ImageHFEncoder(HFEncoder):
     def encode(self, x: BatchEncoding):
         x = x["proc_out"]
         outputs = self.model(**x)
-        return outputs.last_hidden_state[:, 0, :]
+        return {"x": outputs.last_hidden_state[:, 0, :]}
