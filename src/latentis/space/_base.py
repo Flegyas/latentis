@@ -82,6 +82,23 @@ class Space(SerializableMixin):
 
         self._properties = properties.copy()
 
+    def partition(self, sizes: Sequence[float], seed: int) -> Sequence["Space"]:
+        """Partition this space into multiple spaces.
+
+        Args:
+            sizes (Sequence[float]): The sizes of the partitions. Either a list of floats that sum to 1, or a list of integers.
+
+        Returns:
+            Sequence[Space]: The partitions.
+        """
+        if sum(sizes) != 1:
+            if sum(sizes) != len(self):
+                raise ValueError("Sizes must sum to 1 or be the same length as the number of vectors.")
+
+            sizes = [size / sum(sizes) for size in sizes]
+
+        return self._vector_source.partition(sizes, seed=seed)
+
     @property
     def properties(self) -> Properties:
         return copy.deepcopy(self._properties)
