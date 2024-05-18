@@ -115,7 +115,7 @@ class HFDatasetView(DatasetView):
         ), f"ID column {id_column} not in all splits of dataset {hf_dataset}"
         assert all(
             feature.name in hf_dataset[split].column_names for feature in features for split in hf_dataset.keys()
-        ), f"Specified features not in all splits of dataset {hf_dataset}"
+        ), f"Specified features ({features}) not in all splits of dataset {hf_dataset}"
         assert 0 < perc <= 1, f"Percentage {perc} not in (0, 1]"
 
         self._name: str = name
@@ -134,7 +134,6 @@ class HFDatasetView(DatasetView):
 
         if target_path.exists():
             raise FileExistsError(f"Destination {self._path} is not empty!")
-
         self._hf_dataset.save_to_disk(target_path / "hf_dataset")
 
         save_json(self.metadata, target_path / self._METADATA_FILE_NAME, indent=4)
