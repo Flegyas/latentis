@@ -74,6 +74,12 @@ class VectorSource(metaclass=VectorSourceMeta):
     def get_vectors_by_key(self, keys: Sequence[str]) -> torch.Tensor:
         return torch.stack([self.get_vector_by_key(key) for key in keys], dim=0)
 
+    def partition(self, sizes: Sequence[float]) -> Sequence[VectorSource]:
+        assert sum(sizes) == 1, "Sizes must sum to 1"
+        sizes = [int(size * len(self)) for size in sizes]
+        sizes[-1] += len(self) - sum(sizes)
+        return [self.__class__(self[i : i + size]) for i, size in enumerate(sizes)]
+
 
 class TensorSource(VectorSource, SerializableMixin):
     def __init__(self, vectors: torch.Tensor, keys: Optional[Sequence[str]] = None):
@@ -179,7 +185,7 @@ class HDF5Source(VectorSource):
         return self.data.shape[0]
 
     def as_tensor(self) -> torch.Tensor:
-        return torch.as_tensor(self.data)
+        return torch.as_tensor(np.asarray(self.data))
 
     def __eq__(self, __value: HDF5Source) -> bool:
         assert isinstance(__value, HDF5Source), f"Expected {HDF5Source}, got {type(__value)}"
@@ -198,7 +204,9 @@ class HDF5Source(VectorSource):
             assert len(keys) == vectors.size(0), "Keys must have the same length as vectors"
             self._keys2offset.add_all(x=keys, y=range(len(self._keys2offset), len(self._keys2offset) + len(keys)))
 
-        self.data[self.h5_file.attrs["last_index"] : self.h5_file.attrs["last_index"] + vectors.size(0)] = vectors
+        self.data[
+            self.h5_file.attrs["last_index"] : self.h5_file.attrs["last_index"] + vectors.size(0)
+        ] = vectors.cpu().numpy()
         self.h5_file.attrs["last_index"] += vectors.size(0)
 
         if write:
