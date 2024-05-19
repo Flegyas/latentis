@@ -67,8 +67,8 @@ class CKA(Metric):
             space1 = space1.to(self.device)
             space2 = space2.to(self.device)
         if isinstance(space1, Space) and isinstance(space2, Space):
-            space1 = space1.like_(vector_source=space1.vectors.to(self.device))
-            space2 = space2.like_(vector_source=space2.vectors.to(self.device))
+            space1 = space1.like_(vector_source=space1.as_tensor().to(self.device))
+            space2 = space2.like_(vector_source=space2.as_tensor().to(self.device))
 
         return cka(space1=space1, space2=space2, hsic=self.hsic, sigma=sigma, tolerance=self.tolerance)
 
