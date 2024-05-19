@@ -51,8 +51,8 @@ class SVCCA(Metric):
             space2 = space2.to(self.device)
 
         if isinstance(space1, Space) and isinstance(space2, Space):
-            space1 = space1.like_(vector_source=space1.vectors.to(self.device))
-            space2 = space2.like_(vector_source=space2.vectors.to(self.device))
+            space1 = space1.like_(vector_source=space1.as_tensor().to(self.device))
+            space2 = space2.like_(vector_source=space2.as_tensor().to(self.device))
 
         svcca_fn = robust_svcca if self.robust else svcca
 
