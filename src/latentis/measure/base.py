@@ -69,8 +69,8 @@ class CKA(PairwiseMetric):
             x = x.to(self.device)
             y = y.to(self.device)
         if isinstance(x, Space) and isinstance(y, Space):
-            x = x.vectors.to(self.device)
-            y = y.vectors.to(self.device)
+            x = x.as_tensor().to(self.device)
+            y = y.as_tensor().to(self.device)
 
         return cka(x=x, y=y, hsic=self.hsic, tolerance=self.tolerance)
 

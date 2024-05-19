@@ -47,9 +47,9 @@ class MetricFn(PairwiseMetric):
 
     def forward(self, x: LatentisSpace, y: LatentisSpace) -> Mapping[str, Any]:
         if isinstance(x, Space):
-            x = x.vectors
+            x = x.as_tensor()
 
         if isinstance(y, Space):
-            y = y.vectors
+            y = y.as_tensor()
 
         return {self.key: self.fn(x, y)}

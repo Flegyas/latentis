@@ -52,7 +52,7 @@ class Uniform(Sampler):
         if isinstance(spaces[0], Space):
             out = tuple(
                 Space(
-                    vector_source=space.vectors[ids],
+                    vector_source=space[ids],
                     # features={
                     #     SpaceProperty.SAMPLING_IDS: ids,
                     #     **{key: values[ids] for key, values in space.features.items()},

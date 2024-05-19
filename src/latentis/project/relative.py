@@ -115,8 +115,8 @@ class RelativeProjector(nn.Module):
         return self._name
 
     def forward(self, x: Space, anchors: Space) -> Space:
-        x_vectors = x.vectors if isinstance(x, LatentSpace) else x
-        anchor_vectors = anchors.vectors if isinstance(anchors, LatentSpace) else anchors
+        x_vectors = x.as_tensor() if isinstance(x, LatentSpace) else x
+        anchor_vectors = anchors.as_tensor() if isinstance(anchors, LatentSpace) else anchors
 
         # absolute normalization/transformation
         transformed_x = x_vectors

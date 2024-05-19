@@ -82,6 +82,9 @@ class Space(SerializableMixin):
 
         self._properties = properties.copy()
 
+    def size(self) -> torch.Size:
+        return self.shape
+
     def partition(self, sizes: Sequence[float], seed: int) -> Sequence["Space"]:
         """Partition this space into multiple spaces.
 
@@ -198,8 +201,7 @@ class Space(SerializableMixin):
     def keys(self) -> Sequence[str]:
         return self._vector_source.keys
 
-    @property
-    def vectors(self) -> torch.Tensor:
+    def as_tensor(self) -> torch.Tensor:
         return self._vector_source.as_tensor()
 
     def to_memory(self) -> "Space":
@@ -281,7 +283,7 @@ class Space(SerializableMixin):
         return len(self._vector_source)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(vectors={self.vectors.shape}, metadata={self.properties})"
+        return f"{self.__class__.__name__}(vectors={self.shape}, metadata={self.properties})"
 
     def __eq__(self, __value: object) -> bool:
         return self.properties == __value.properties and self.vector_source == __value.vector_source
@@ -350,13 +352,13 @@ class Space(SerializableMixin):
         """
         index: SearchIndex = SearchIndex.create(
             metric_fn=metric_fn,
-            num_dimensions=self.vectors.size(dim=1),
+            num_dimensions=self.as_tensor().size(dim=1),
             name=self.name,
             transform=transform,
         )
 
         index.add_vectors(
-            vectors=self.vectors.cpu(),
+            vectors=self.as_tensor().cpu(),
             keys=keys or self.keys,
         )
 
@@ -365,7 +367,7 @@ class Space(SerializableMixin):
     def transform(self, transform: Union[Transform, Translator]) -> "Space":
         return Space.like(
             space=self,
-            vector_source=transform(x=self.vectors),
+            vector_source=transform(x=self.as_tensor()),
         )
 
     def to_hf_dataset(self, name: str) -> Any:
