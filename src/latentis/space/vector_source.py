@@ -74,7 +74,7 @@ class VectorSource(metaclass=VectorSourceMeta):
     def get_vectors_by_key(self, keys: Sequence[str]) -> torch.Tensor:
         return torch.stack([self.get_vector_by_key(key) for key in keys], dim=0)
 
-    def partition(self, sizes: Sequence[float]) -> Sequence[VectorSource]:
+    def partition(self, sizes: Sequence[float], seed: int) -> Sequence[VectorSource]:
         assert sum(sizes) == 1, "Sizes must sum to 1"
         sizes = [int(size * len(self)) for size in sizes]
         sizes[-1] += len(self) - sum(sizes)
@@ -179,7 +179,7 @@ class HDF5Source(VectorSource):
         if isinstance(index, int):
             return torch.as_tensor(self.data[index])
         sort_idx = np.argsort(index)
-        return torch.as_tensor(self.data[index[sort_idx]][sort_idx])
+        return torch.as_tensor(self.data[index[sort_idx]][sort_idx.argsort()])
 
     def __len__(self) -> int:
         return self.data.shape[0]
