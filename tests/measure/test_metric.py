@@ -35,8 +35,8 @@ TOL = 1e-3
 def test_metric(metric_fn: Callable[[LatentisSpace, LatentisSpace], torch.Tensor], same_shape_spaces):
     space1, space2 = same_shape_spaces
     fn_result = metric_fn(
-        space1 if isinstance(space1, torch.Tensor) else space1.vectors,
-        space2 if isinstance(space2, torch.Tensor) else space2.vectors,
+        space1 if isinstance(space1, torch.Tensor) else space1.as_tensor(),
+        space2 if isinstance(space2, torch.Tensor) else space2.as_tensor(),
     )
 
     obj_result = MetricFn(key="test", fn=metric_fn)(space1, space2)["test"]
@@ -103,12 +103,8 @@ def test_cka(mode: CKAMode, same_shape_spaces, different_dim_spaces, precomputed
     assert cka_result.device.type == "cpu"
 
     if torch.cuda.is_available():
-        if isinstance(space1, torch.Tensor):
-            space1 = space1.to("cuda")
-            space2 = space2.to("cuda")
-        else:
-            space1 = LatentSpace.like(space1, vector_source=space1.vectors.to("cuda"))
-            space2 = LatentSpace.like(space2, vector_source=space2.vectors.to("cuda"))
+        space1 = space1.to("cuda")
+        space2 = space2.to("cuda")
 
         cka_result = cka_fn(space1, space2, hsic=hsic)
         assert cka_result.device.type == "cuda"
@@ -169,12 +165,8 @@ def test_svcca(same_shape_spaces, different_dim_spaces, precomputed_svcca):
     assert svcca_result.device.type == "cpu"
 
     if torch.cuda.is_available():
-        if isinstance(space1, torch.Tensor):
-            space1 = space1.to("cuda")
-            space2 = space2.to("cuda")
-        else:
-            space1 = LatentSpace.like(space1, vector_source=space1.vectors.to("cuda"))
-            space2 = LatentSpace.like(space2, vector_source=space2.vectors.to("cuda"))
+        space1 = space1.to("cuda")
+        space2 = space2.to("cuda")
 
         svcca_result = svcca_fn(space1, space2, tolerance=SVCCA_TOLERANCE)
         assert svcca_result.device.type == "cuda"
