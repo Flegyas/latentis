@@ -265,8 +265,8 @@ def test_manual_translation(
     )
 
     A, B = parallel_spaces
-    A = A.vectors if isinstance(A, Space) else A
-    B = B.vectors if isinstance(B, Space) else B
+    A = A.as_tensor() if isinstance(A, Space) else A
+    B = B.as_tensor() if isinstance(B, Space) else B
     manual_translator.fit(A, B)
     translator.run(flow="fit", fit_source=A, fit_target=B)
 
@@ -275,7 +275,7 @@ def test_manual_translation(
 
     assert torch.allclose(
         manual_output,
-        latentis_output.vectors if isinstance(latentis_output, Space) else latentis_output["translated_x"],
+        latentis_output.as_tensor() if isinstance(latentis_output, Space) else latentis_output["translated_x"],
     )
 
     if isinstance(A, Space):
@@ -289,8 +289,8 @@ def test_procrustes(
     parallel_spaces: Tuple[LatentisSpace, LatentisSpace],
 ):
     x, y = parallel_spaces
-    x = x.vectors if isinstance(x, Space) else x
-    y = y.vectors if isinstance(y, Space) else y
+    x = x.as_tensor() if isinstance(x, Space) else x
+    y = y.as_tensor() if isinstance(y, Space) else y
 
     procrustes = NNPipeline(
         name="procrustes",
