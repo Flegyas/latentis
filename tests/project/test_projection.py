@@ -211,7 +211,7 @@ def test_invariances(
     rel_transform: Transform,
 ):
     y = invariance(x) if isinstance(x, torch.Tensor) else x.transform(invariance)
-    y_anchors = invariance(x_anchors if isinstance(x_anchors, torch.Tensor) else x_anchors.vectors)
+    y_anchors = invariance(x_anchors if isinstance(x_anchors, torch.Tensor) else x_anchors.as_tensor())
 
     if isinstance(x, Space):
         y = Space.like(x, vector_source=y)
