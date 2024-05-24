@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 def test_space_len(space1: LatentisSpace):
     if isinstance(space1, Space):
-        assert len(space1) == space1.vectors.shape[0]
+        assert len(space1) == space1.as_tensor().shape[0]
 
 
 def test_space_repr(space1: LatentisSpace):
@@ -21,7 +21,7 @@ def test_space_repr(space1: LatentisSpace):
 def test_space_get(space1: LatentisSpace):
     item = space1[0]
     if isinstance(space1, Space):
-        assert item.shape[0] == space1.vectors.shape[-1]
+        assert item.shape[0] == space1.as_tensor().shape[-1]
 
 
 def test_space_sample_hook(space1: LatentisSpace):

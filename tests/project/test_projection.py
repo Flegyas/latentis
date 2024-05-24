@@ -217,7 +217,7 @@ def test_invariances(
         y = Space.like(x, vector_source=y)
 
     if isinstance(x_anchors, Space):
-        x_anchors = x_anchors.vectors
+        x_anchors = x_anchors.as_tensor()
 
     abs_transform = abs_transform if abs_transform else Identity()
     rel_transform = rel_transform if rel_transform else Identity()
@@ -241,11 +241,11 @@ def test_invariances(
         projection=RelativeProjection(projection_fn=projection_fn),
         rel_transform=rel_transform,
     )
-    pipeline.run(flow="fit", anchors=x_anchors.vectors if isinstance(x_anchors, Space) else x_anchors)
-    x_projected = pipeline.run(flow="transform", x=x if isinstance(x, torch.Tensor) else x.vectors)
+    pipeline.run(flow="fit", anchors=x_anchors.as_tensor() if isinstance(x_anchors, Space) else x_anchors)
+    x_projected = pipeline.run(flow="transform", x=x if isinstance(x, torch.Tensor) else x.as_tensor())
 
-    pipeline.run(flow="fit", anchors=y_anchors.vectors if isinstance(y_anchors, Space) else y_anchors)
-    y_projected = pipeline.run(flow="transform", x=y if isinstance(y, torch.Tensor) else y.vectors)
+    pipeline.run(flow="fit", anchors=y_anchors.as_tensor() if isinstance(y_anchors, Space) else y_anchors)
+    y_projected = pipeline.run(flow="transform", x=y if isinstance(y, torch.Tensor) else y.as_tensor())
 
     assert not invariant or torch.allclose(x_projected["rel_x"], y_projected["rel_x"])
 
