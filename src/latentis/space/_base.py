@@ -82,6 +82,12 @@ class Space(SerializableMixin):
 
         self._properties = properties.copy()
 
+    def to(self, device: Union[str, torch.device]) -> "Space":
+        return Space.like(
+            space=self,
+            vector_source=self._vector_source.to(device),
+        )
+
     def size(self) -> torch.Size:
         return self.shape
 

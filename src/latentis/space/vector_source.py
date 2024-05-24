@@ -80,6 +80,9 @@ class VectorSource(metaclass=VectorSourceMeta):
         sizes[-1] += len(self) - sum(sizes)
         return [self.__class__(self[i : i + size]) for i, size in enumerate(sizes)]
 
+    def to(self, device: Union[str, torch.device]) -> VectorSource:
+        return TensorSource(vectors=self.as_tensor().to(device), keys=self.keys)
+
 
 class TensorSource(VectorSource, SerializableMixin):
     def __init__(self, vectors: torch.Tensor, keys: Optional[Sequence[str]] = None):
