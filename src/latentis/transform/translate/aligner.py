@@ -22,7 +22,7 @@ class Translator(Estimator):
         self.x_transform = x_transform or Identity()
         self.y_transform = y_transform or Identity()
         self.aligner = aligner
-        self.dim_matcher: DimMatcher = dim_matcher or Identity()
+        self.dim_matcher: DimMatcher = dim_matcher
 
         self._fitted = False
 
@@ -30,7 +30,8 @@ class Translator(Estimator):
         x = self.x_transform.fit_transform(x=x)
         y = self.y_transform.fit_transform(x=y)
 
-        x, y = self.dim_matcher.fit_transform(x=x, y=y)
+        if self.dim_matcher is not None:
+            x, y = self.dim_matcher.fit_transform(x=x, y=y)
 
         self.aligner.fit(x=x, y=y)
 
@@ -42,9 +43,11 @@ class Translator(Estimator):
         assert self._fitted, "The transform should be fitted before being applied."
 
         x = self.x_transform.transform(x=x)
-        x = self.dim_matcher.transform(x=x)
+        if self.dim_matcher is not None:
+            x = self.dim_matcher.transform(x=x)[0]
         x = self.aligner.transform(x=x)
-        x = self.dim_matcher.inverse_transform(x=None, y=x)
+        if self.dim_matcher is not None:
+            x = self.dim_matcher.inverse_transform(x=None, y=x)
         x = self.y_transform.inverse_transform(x=x)
 
         return x
