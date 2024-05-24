@@ -29,6 +29,10 @@ class HFEncoder(WrappedModule):
             properties={**(properties or {}), "hf_name": hf_name},
         )
 
+    @property
+    def output_dim(self):
+        raise NotImplementedError
+
 
 class TextHFEncoder(HFEncoder):
     def __init__(
@@ -52,6 +56,15 @@ class TextHFEncoder(HFEncoder):
             "max_length": max_length,
             **kwargs,
         }
+        self._output_dim = self.model.config.hidden_size
+
+    @property
+    def num_layers(self):
+        return self.model.config.num_hidden_layers
+
+    @property
+    def output_dim(self):
+        return self._output_dim
 
     @torch.no_grad()
     def pre_encode(self, samples: Sequence, feature: str) -> BatchEncoding:
