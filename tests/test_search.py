@@ -88,7 +88,7 @@ def test_index(
         metric_fn=metric_fn,
         num_dimensions=num_dimensions,
     )
-    for x in space.vectors:
+    for x in space.as_tensor():
         new_index.add_vector(vector=x)
     _assert_index_eq(index1=index, index2=new_index)
 
@@ -96,7 +96,7 @@ def test_index(
         metric_fn=metric_fn,
         num_dimensions=num_dimensions,
     )
-    new_index.add_vectors(vectors=space.vectors)
+    new_index.add_vectors(vectors=space.as_tensor())
     _assert_index_eq(index1=index, index2=new_index)
 
     # Test distance function
