@@ -137,8 +137,8 @@ def relative_projection(
     anchors: LatentisSpace,
     projection_fn: TransformFn,
 ):
-    x_vectors = x.vectors if isinstance(x, Space) else x
-    anchor_vectors = anchors.vectors if isinstance(anchors, Space) else anchors
+    x_vectors = x.as_tensor() if isinstance(x, Space) else x
+    anchor_vectors = anchors.as_tensor() if isinstance(anchors, Space) else anchors
 
     # absolute normalization/transformation
     transformed_x = x_vectors

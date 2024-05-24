@@ -33,7 +33,7 @@ class StandardScaling(FuncXTransform):
             transform_fn=FL.standard_scaling_transform,
             state_fn=FL.standard_scaling_state,
             inverse_fn=FL.standard_scaling_inverse,
-            name="centering",
+            name="standard_scaling",
         )
 
 
