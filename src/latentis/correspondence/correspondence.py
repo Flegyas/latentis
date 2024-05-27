@@ -30,7 +30,7 @@ class TensorCorrespondence(Correspondence):
     #     return self.x2y[:, 1]
 
 
-class IdentityCorrespondence(Correspondence):
+class SameKeyCorrespondence(Correspondence):
     def __init__(self):
         super().__init__()
 
