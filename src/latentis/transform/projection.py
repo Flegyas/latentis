@@ -157,6 +157,8 @@ class RelativeProjection(Transform):
     def __init__(
         self,
         projection_fn: TransformFn,
+        # abs_transform: Optional[Transform] = None,
+        # rel_transform: Optional[Transform] = None,
     ):
         super().__init__()
         self.projection_fn = projection_fn
