@@ -17,5 +17,4 @@ if TYPE_CHECKING:
 
 StrEnum = PythonStrEnum
 
-
 Properties = Mapping[str, Any]
