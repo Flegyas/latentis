@@ -18,4 +18,4 @@ if TYPE_CHECKING:
 StrEnum = PythonStrEnum
 
 
-Properties = Mapping[str, Any]
+Metadata = Mapping[str, Any]

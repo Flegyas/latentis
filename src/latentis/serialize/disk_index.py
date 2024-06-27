@@ -6,7 +6,7 @@ from typing import Any, Mapping, Optional, Sequence, Type
 import pandas as pd
 
 from latentis.serialize.io_utils import SerializableMixin, load_json, save_json
-from latentis.types import Properties
+from latentis.types import Metadata
 
 
 class DiskIndex(SerializableMixin):
@@ -37,8 +37,8 @@ class DiskIndex(SerializableMixin):
         index = {}
         for item_dir in item_dirs:
             item_key = item_dir.name
-            index[item_key] = item_class.load_properties(item_dir)
-            assert item_key == item_class.hash_properties(index[item_key])
+            index[item_key] = item_class.load_metadata(item_dir)
+            assert item_key == item_class.hash_metadata(index[item_key])
 
         return index
 
@@ -93,11 +93,11 @@ class DiskIndex(SerializableMixin):
         if item_key in self._index:
             raise FileExistsError(f"Key {item_key} already exists in index: {self._index[item_key]}")
 
-        primary_keys = item.properties
+        primary_keys = item.metadata
         if len(primary_keys) == 0:
             raise ValueError("Item does not have any properties")
 
-        self._index[item_key] = item.properties
+        self._index[item_key] = item.metadata
 
         item.save_to_disk(self.root_path / item_key, **(save_args or {}))
         self.save_to_disk()
@@ -110,11 +110,11 @@ class DiskIndex(SerializableMixin):
         if any(item_key in self._index for item_key in item_keys):
             raise FileExistsError("One of the keys already exists in index")
 
-        if any(len(item.properties) == 0 for item in items):
+        if any(len(item.metadata) == 0 for item in items):
             raise ValueError("One of the items does not have any properties")
 
         for item, item_key in zip(items, item_keys):
-            self._index[item_key] = item.properties
+            self._index[item_key] = item.metadata
             item.save_to_disk(self.root_path / item_key, **(save_args or {}))
 
         self.save_to_disk()
@@ -147,11 +147,11 @@ class DiskIndex(SerializableMixin):
         items_to_load = self._resolve_items(item_key=item_key, **properties)
         return {item: self.root_path / item for item in items_to_load}
 
-    def get_item(self, item_key: Optional[str] = None, **properties: Any) -> Mapping[str, Properties]:
+    def get_item(self, item_key: Optional[str] = None, **properties: Any) -> Mapping[str, Metadata]:
         item_to_get = self._resolve_item(item_key=item_key, **properties)
         return {item_to_get: self._index[item_to_get]}
 
-    def get_items(self, item_key: Optional[str] = None, **properties: Any) -> Mapping[str, Properties]:
+    def get_items(self, item_key: Optional[str] = None, **properties: Any) -> Mapping[str, Metadata]:
         items_to_get = self._resolve_items(item_key=item_key, **properties)
         return {item: self._index[item] for item in items_to_get}
 

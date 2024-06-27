@@ -8,17 +8,16 @@ from torch import nn
 
 from latentis.serialize.io_utils import SerializableMixin
 from latentis.transform.functional import InverseFn, State, StateFn, TransformFn
-from latentis.types import Properties
 
 if TYPE_CHECKING:
-    from latentis.types import LatentisSpace
+    from latentis.types import LatentisSpace, Metadata
 
 
 class Transform(nn.Module, SerializableMixin):
     _STATE_PREFIX: str = "latentis_state_"
 
     @property
-    def properties(self) -> Properties:
+    def metadata(self) -> Metadata:
         return {
             "name": self.name,
             # "invertible": self.invertible,
@@ -219,8 +218,8 @@ class Estimator(Transform):
     # def fit_transform(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> torch.Tensor:
     #     return self.fit(x=x, y=y, **kwargs).transform(x=x, **kwargs)
 
-    def set_spaces(self, x_space: torch.Tensor, y_space: torch.Tensor) -> "Estimator":
-        # TODO: decide if we want to keep the shuffling or trust the users
-        self._x_space = x_space[torch.randperm(x_space.shape[0])]
-        self._y_space = y_space
-        return self
+    # def set_spaces(self, x_space: torch.Tensor, y_space: torch.Tensor) -> "Estimator":
+    #     # TODO: decide if we want to keep the shuffling or trust the users
+    #     self._x_space = x_space[torch.randperm(x_space.shape[0])]
+    #     self._y_space = y_space
+    #     return self

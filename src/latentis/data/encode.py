@@ -72,7 +72,7 @@ def _run(
                     dimension=pooler.output_dim,
                     root_dir=DATA_DIR / dataset.name / "encodings" / split / self.feature.name / pooler.name,
                 ),
-                properties={
+                metadata={
                     **{f"model/{key}": value for key, value in model.properties.items()},
                     "feature": self.feature.name,
                     "split": split,
@@ -124,10 +124,10 @@ class EncodeTask(Task):
         split: str,
         feature: str,
         model: LatentisModule,
-        collate_fn: callable,
         encoding_batch_size: int,
         num_workers: int,
         device: torch.device,
+        collate_fn: callable = default_collate,
         save_source_model: bool = False,
         pooler: Optional[nn.Module] = None,
         target_path: Optional[str] = None,
@@ -148,7 +148,7 @@ class EncodeTask(Task):
         self.pooler = pooler or IdentityPooling(output_dim=self.model.output_dim)
         self.target_path = target_path
 
-    def properties(self):
+    def metadata(self):
         return {
             "dataset": self.dataset.name,
             "split": self.split,
@@ -182,8 +182,8 @@ class EncodeTask(Task):
                 dimension=self.pooler.output_dim,
                 root_dir=space_path,
             ),
-            properties={
-                **{f"model/{key}": value for key, value in model.properties.items()},
+            metadata={
+                **{f"model/{key}": value for key, value in model.metadata.items()},
                 "feature": self.feature.name,
                 "split": self.split,
                 "dataset": self.dataset.name,
@@ -217,7 +217,7 @@ class EncodeTask(Task):
         space.save_to_disk(
             target_path=space_path,
             save_vector_source=True,
-            save_properties=True,
+            save_metadata=True,
             save_source_model=self.save_source_model,
         )
         model.to(model_device)
@@ -268,9 +268,9 @@ if __name__ == "__main__":
     for dataset_name, hf_encoder in itertools.product(
         datasets,
         [
-            "FacebookAI/roberta-large",
-            "FacebookAI/roberta-base",
-            "google-bert/bert-base-uncased",
+            # "FacebookAI/roberta-large",
+            # "FacebookAI/roberta-base",
+            # "google-bert/bert-base-uncased",
             "google-bert/bert-base-cased",
         ],
     ):
@@ -288,10 +288,10 @@ if __name__ == "__main__":
                 num_workers=2,
                 save_source_model=False,
                 pooler=HFPooler(layers=[encoder.num_layers - 1], pooling_fn=mean_pool, output_dim=encoder.output_dim),
-                device=torch.device("cuda"),
+                device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
                 target_path=DATA_DIR / dataset_name / "encodings" / hf_encoder.replace("/", "-") / split,
             )
 
-            print(task.properties())
+            print(task.metadata())
             task.run()
             # Space.load_from_disk()

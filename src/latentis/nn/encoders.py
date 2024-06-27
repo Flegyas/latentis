@@ -4,7 +4,7 @@ import torch
 from transformers import AutoImageProcessor, AutoModel, AutoTokenizer, BatchEncoding, PreTrainedModel
 
 from latentis.nn._base import WrappedModule
-from latentis.types import Properties
+from latentis.types import Metadata
 
 
 class HFEncoder(WrappedModule):
@@ -14,7 +14,7 @@ class HFEncoder(WrappedModule):
         requires_grad: bool,
         encode_fn: Optional[str] = None,
         decode_fn: Optional[str] = None,
-        properties: Optional[Properties] = None,
+        metadata: Optional[Metadata] = None,
     ):
         hf_model: PreTrainedModel = (
             AutoModel.from_pretrained(hf_name, output_hidden_states=True, return_dict=True)
@@ -26,7 +26,7 @@ class HFEncoder(WrappedModule):
             model=hf_model,
             encode_fn=encode_fn,
             decode_fn=decode_fn,
-            properties={**(properties or {}), "hf_name": hf_name},
+            metadata={**(metadata or {}), "hf_name": hf_name},
         )
 
     @property
@@ -42,10 +42,10 @@ class TextHFEncoder(HFEncoder):
         truncation: bool = True,
         padding: bool = True,
         max_length: Optional[int] = None,
-        properties: Optional[Properties] = None,
+        metadata: Optional[Metadata] = None,
         **kwargs,
     ):
-        super().__init__(hf_name, requires_grad, encode_fn=None, decode_fn=None, properties=properties)
+        super().__init__(hf_name, requires_grad, encode_fn=None, decode_fn=None, metadata=metadata)
         self.tokenizer = AutoTokenizer.from_pretrained(hf_name)
 
         max_length = max_length or self.model.config.max_length
@@ -96,8 +96,8 @@ class TextHFEncoder(HFEncoder):
 
 
 class ImageHFEncoder(HFEncoder):
-    def __init__(self, hf_name: str, requires_grad: bool = False, properties: Optional[Properties] = None):
-        super().__init__(hf_name, requires_grad, properties=properties)
+    def __init__(self, hf_name: str, requires_grad: bool = False, metadata: Optional[Metadata] = None):
+        super().__init__(hf_name, requires_grad, metadata=metadata)
         self.processor = AutoImageProcessor.from_pretrained(self.hf_name)
         self.output_dim = self.model.config.hidden_size
 
