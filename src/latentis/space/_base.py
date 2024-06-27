@@ -186,7 +186,7 @@ class LatentSpace(IndexableMixin):
 
         return LatentSpace.like(
             space=self,
-            vector_source=self.as_tensor(),
+            vector_source=self._vector_source.as_tensor(),
         )
 
     @classmethod
