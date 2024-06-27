@@ -42,15 +42,10 @@ def load_json(path: Path):
 class SerializableMixin:
     _METADATA_FILE_NAME: str = "metadata.json"
 
-    @property
-    @abstractmethod
-    def properties(self) -> Any:
-        raise NotImplementedError
-
     @classmethod
-    def hash_properties(cls, properties: Mapping[str, Any]) -> str:
+    def hash_metadata(cls, metadata: Mapping[str, Any]) -> str:
         hash_obj = hashlib.sha256(
-            json.dumps(properties, default=lambda o: o.__dict__, sort_keys=True).encode(encoding="utf-8")
+            json.dumps(metadata, default=lambda o: o.__dict__, sort_keys=True).encode(encoding="utf-8")
         )
         return hash_obj.hexdigest()[:10]
 
@@ -73,9 +68,9 @@ class SerializableMixin:
         raise NotImplementedError
 
     def __repr__(self) -> str:
-        public_properties = {k: v for k, v in self.properties.items() if not k.startswith("_")}
-        return f"{self.__class__.__name__}(id={self.item_id[:5]}, properties={public_properties})"
+        # public_properties = {k: v for k, v in self.metadata.items() if not k.startswith("_")}
+        return f"{self.__class__.__name__}(id={self.item_id[:5]}, metadata={self.metadata})"
 
     @property
     def hash(self):
-        return SerializableMixin.hash_properties(self.properties)
+        return SerializableMixin.hash_metadata(self.metadata)

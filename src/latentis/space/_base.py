@@ -5,15 +5,15 @@ import importlib
 import logging
 from enum import auto
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Type, Union
 
 from latentis.nn import LatentisModule
 from latentis.serialize.disk_index import DiskIndex
 from latentis.serialize.io_utils import SerializableMixin, load_json, load_model, save_json, save_model
-from latentis.space.search import SearchIndex, SearchMetric
-from latentis.space.vector_source import TensorSource, VectorSource
+from latentis.space.search import SearchMetric, SearchResult
+from latentis.space.vector_source import SearchSource, TensorSource, VectorSource
 from latentis.transform import Transform
-from latentis.types import Properties, StrEnum
+from latentis.types import Metadata, StrEnum
 
 if TYPE_CHECKING:
     from latentis.sample import Sampler
@@ -32,7 +32,7 @@ class _SpaceMetadata(StrEnum):
     _TYPE = auto()
 
 
-_PROPERTIES_FILE_NAME = "properties.json"
+_METADATA_FILE_NAME = "metadata.json"
 
 
 class Space(SerializableMixin):
@@ -40,7 +40,7 @@ class Space(SerializableMixin):
         self,
         vector_source: Optional[Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]],
         source_model: Optional[LatentisModule] = None,
-        properties: Optional[Properties] = None,
+        metadata: Optional[Metadata] = None,
         root_path: Optional[Path] = None,
     ):
         super().__init__()
@@ -70,17 +70,99 @@ class Space(SerializableMixin):
             )
             self._decoders.save_to_disk()
 
-        properties = properties or {}
+        metadata = metadata or {}
         # metadata[SpaceMetadata._NAME] = self._name
-        properties[_SpaceMetadata._VERSION] = self.version
+        metadata[_SpaceMetadata._VERSION] = self.version
 
-        # removing this properties from the index
-        properties[_SpaceMetadata._TYPE] = self.__class__.__module__ + "." + self.__class__.__name__
-        properties[_SpaceMetadata._VECTOR_SOURCE] = (
+        # removing this metadata from the index
+        metadata[_SpaceMetadata._TYPE] = self.__class__.__module__ + "." + self.__class__.__name__
+        metadata[_SpaceMetadata._VECTOR_SOURCE] = (
             self._vector_source.__class__.__module__ + "." + self._vector_source.__class__.__name__
         )
 
-        self._properties = properties.copy()
+        self._metadata = metadata.copy()
+
+    def search_knn(
+        self,
+        k: int,
+        *,
+        metric_fn: Optional[SearchMetric] = None,
+        query_offsets: Optional[Sequence[int]] = None,
+        query_vectors: Optional[torch.Tensor] = None,
+        query_keys: Optional[Sequence[str]] = None,
+        return_keys: bool = False,
+        **kwargs,
+    ) -> SearchResult:
+        """Performs k-nearest neighbors search based on the provided query.
+
+        Args:
+            k (int): The number of nearest neighbors to retrieve.
+            query_offsets (Optional[Sequence[int]], optional): The offsets of the queries.
+                Exactly one of `query_offsets`, `query_vectors`, or `query_keys` must be provided.
+                Defaults to None.
+            query_vectors (Optional[torch.Tensor], optional): The query vectors.
+                Exactly one of `query_offsets`, `query_vectors`, or `query_keys` must be provided.
+                Defaults to None.
+            query_keys (Optional[Sequence[str]], optional): The keys of the queries.
+                Exactly one of `query_offsets`, `query_vectors`, or `query_keys` must be provided.
+                Defaults to None.
+            return_keys (bool): Whether to return the keys of the nearest neighbors.
+
+        Returns:
+            The nearest neighbors based on the provided query.
+
+        Raises:
+            AssertionError: If none or more than one of query_offsets, query_vectors, or query_keys are provided.
+        """
+        return self._vector_source.search_knn(
+            metric_fn=metric_fn,
+            k=k,
+            query_offsets=query_offsets,
+            query_vectors=query_vectors,
+            query_keys=query_keys,
+            return_keys=return_keys,
+            **kwargs,
+        )
+
+    def search_range(
+        self,
+        radius: float,
+        *,
+        metric_fn: Optional[SearchMetric] = None,
+        query_offsets: Optional[Sequence[int]] = None,
+        query_vectors: Optional[torch.Tensor] = None,
+        query_keys: Optional[Sequence[str]] = None,
+        return_keys: bool = False,
+        **kwargs,
+    ) -> SearchResult:
+        """Perform a range search in the latent space.
+
+        Args:
+            radius (float): The radius of the search range.
+            query_offsets (Optional[Sequence[int]], optional): The offsets of the queries.
+                Exactly one of `query_offsets`, `query_vectors`, or `query_keys` must be provided.
+                Defaults to None.
+            query_vectors (Optional[Union[np.ndarray, torch.Tensor]], optional): The query vectors.
+                Exactly one of `query_offsets`, `query_vectors`, or `query_keys` must be provided.
+                Defaults to None.
+            query_keys (Optional[Sequence[str]], optional): The keys of the queries.
+                Exactly one of `query_offsets`, `query_vectors`, or `query_keys` must be provided.
+                Defaults to None.
+            transform (bool, optional): Whether to transform the query vectors. Defaults to False.
+            return_keys (bool, optional): Whether to return the keys of the search results. Defaults to False.
+
+        Returns:
+            The search results based on the provided query type.
+        """
+        return self._vector_source.search_range(
+            metric_fn=metric_fn,
+            radius=radius,
+            query_offsets=query_offsets,
+            query_vectors=query_vectors,
+            query_keys=query_keys,
+            return_keys=return_keys,
+            **kwargs,
+        )
 
     def to(self, device: Union[str, torch.device]) -> "Space":
         return Space.like(
@@ -109,16 +191,16 @@ class Space(SerializableMixin):
         return self._vector_source.partition(sizes, seed=seed)
 
     @property
-    def properties(self) -> Properties:
-        return copy.deepcopy(self._properties)
+    def metadata(self) -> Metadata:
+        return copy.deepcopy(self._metadata)
 
     @property
     def split(self):
-        return self.properties["split"]
+        return self.metadata["split"]
 
     @property
     def name(self) -> str:
-        return self.properties.get("name", "space")
+        return self.metadata.get("name", "space")
 
     @property
     def decoders(self) -> Dict[str, LatentisModule]:
@@ -134,14 +216,23 @@ class Space(SerializableMixin):
     def source_model(self) -> Optional[LatentisModule]:
         return self._source_model
 
-    def get_vector_by_key(self, key: str) -> torch.Tensor:
-        return self._vector_source.get_vector_by_key(key=key)
+    def get_vector(self, offset: Optional[int] = None, key: Optional[str] = None) -> torch.Tensor:
+        if (offset is not None) and (key is not None):
+            raise ValueError("Only one of offset or key can be provided.")
+
+        if offset is not None:
+            return self._vector_source[offset]
+
+        if key is not None:
+            return self._vector_source.get_vector_by_key(key=key)
+
+        raise ValueError("One of offset or key must be provided.")
 
     def save_to_disk(
         self,
         target_path: Path,
         save_vector_source=True,
-        save_properties=True,
+        save_metadata=True,
         save_source_model=True,
     ):
         target_path.mkdir(parents=True, exist_ok=True)
@@ -153,8 +244,8 @@ class Space(SerializableMixin):
             self._vector_source.save_to_disk(vector_path)
 
         # save metadata
-        if save_properties:
-            save_json(self.properties, target_path / _PROPERTIES_FILE_NAME)
+        if save_metadata:
+            save_json(self.metadata, target_path / _METADATA_FILE_NAME)
 
         # save model
         if save_source_model:
@@ -166,18 +257,18 @@ class Space(SerializableMixin):
             self._decoders.save_to_disk()
 
     @classmethod
-    def load_properties(cls, space_path: Path) -> Dict[str, Any]:
-        metadata = load_json(space_path / _PROPERTIES_FILE_NAME)
+    def load_metadata(cls, space_path: Path) -> Dict[str, Any]:
+        metadata = load_json(space_path / _METADATA_FILE_NAME)
 
         return metadata
 
     @classmethod
     def load_from_disk(cls, path: Path, load_source_model: bool = False) -> Space:
         # load metadata
-        properties = cls.load_properties(path)
+        metadata = cls.load_metadata(path)
 
         # load correct VectorSource
-        vector_source_cls = properties[_SpaceMetadata._VECTOR_SOURCE]
+        vector_source_cls = metadata[_SpaceMetadata._VECTOR_SOURCE]
         vector_source_pkg, vector_source_cls = vector_source_cls.rsplit(".", 1)
         vector_source_cls = getattr(importlib.import_module(vector_source_pkg), vector_source_cls)
 
@@ -186,13 +277,13 @@ class Space(SerializableMixin):
         # load model
         model_path = path
         model = (
-            load_model(model_path, version=properties[_SpaceMetadata._VERSION])
+            load_model(model_path, version=metadata[_SpaceMetadata._VERSION])
             if (model_path.exists() and load_source_model)
             else None
         )
 
         space = Space.__new__(cls)
-        space._properties = properties
+        space._metadata = metadata
         space._vector_source = vector_source
         space._source_model = model
         space.root_path = path
@@ -223,13 +314,13 @@ class Space(SerializableMixin):
     def like_(
         self,
         vector_source: Optional[Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]] = None,
-        properties: Optional[Mapping[str, Any]] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
         deepcopy: bool = False,
     ):
         return type(self).like(
             space=self,
             vector_source=vector_source,
-            properties=properties,
+            metadata=metadata,
             deepcopy=deepcopy,
         )
 
@@ -240,7 +331,7 @@ class Space(SerializableMixin):
         space: Space,
         vector_source: Optional[Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]] = None,
         # decoders: Optional[Dict[str, LatentisModule]] = None,
-        properties: Optional[Mapping[str, Any]] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
         #
         deepcopy: bool = False,
     ):
@@ -265,14 +356,14 @@ class Space(SerializableMixin):
         # if source_model is None:
         #     source_model = space.source_model if not deepcopy else copy.deepcopy(space.source_model)
 
-        if properties is None:
-            properties = space.properties if not deepcopy else copy.deepcopy(space.properties)
+        if metadata is None:
+            metadata = space.metadata if not deepcopy else copy.deepcopy(space.metadata)
 
         # TODO: test deepcopy
         return Space(
             vector_source=vector_source,
             # decoders=decoders,
-            properties=properties,
+            metadata=metadata,
         )
 
     @property
@@ -289,10 +380,10 @@ class Space(SerializableMixin):
         return len(self._vector_source)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(vectors={self.shape}, metadata={self.properties})"
+        return f"{self.__class__.__name__}(vectors={self.shape}, metadata={self.metadata})"
 
     def __eq__(self, __value: object) -> bool:
-        return self.properties == __value.properties and self.vector_source == __value.vector_source
+        return self.metadata == __value.metadata and self.vector_source == __value.vector_source
 
     def get_vectors_by_key(self, keys: Sequence[str]) -> torch.Tensor:
         return self._vector_source.get_vectors_by_key(keys=keys)
@@ -343,32 +434,22 @@ class Space(SerializableMixin):
         metrics_results = {metric_name: metric(self, *others) for metric_name, metric in metrics.items()}
         return metrics_results
 
-    def to_index(
+    def to_source(
         self,
-        metric_fn: SearchMetric,
-        keys: Optional[Sequence[str]] = None,
-        transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
-    ) -> SearchIndex:
+        source_cls: Type[VectorSource],
+        **kwargs,
+    ) -> SearchSource:
         """Create a SearchIndex from this space.
 
         Args:
-            metric_fn (SearchMetric): The metric to use.
-            keys (Optional[Sequence[str]], optional): The keys of the vectors. Defaults to None.
-            transform (Optional[Callable[[torch.Tensor], torch.Tensor]], optional): A transform to apply to the vectors. Defaults to None.
+            source_cls (Type[SearchSource]): The class of the source to create.
         """
-        index: SearchIndex = SearchIndex.create(
-            metric_fn=metric_fn,
-            num_dimensions=self.as_tensor().size(dim=1),
-            name=self.name,
-            transform=transform,
-        )
+        source = source_cls.from_source(source=self._vector_source, **kwargs)
 
-        index.add_vectors(
-            vectors=self.as_tensor().cpu(),
-            keys=keys or self.keys,
+        return self.like(
+            space=self,
+            vector_source=source,
         )
-
-        return index
 
     def transform(self, transform: Union[Transform, Translator]) -> "Space":
         return Space.like(

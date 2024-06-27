@@ -47,7 +47,7 @@ class Classifier(LatentisModule):
         lr: float = 1e-3,
     ):
         super().__init__(
-            properties={
+            metadata={
                 "name": "classifier",
                 "input_dim": input_dim,
                 "num_classes": num_classes,
