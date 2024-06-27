@@ -1,16 +1,11 @@
 from __future__ import annotations
 
-import json
-import tarfile
 from dataclasses import dataclass
 from enum import Enum
-from io import BytesIO
-from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
+from typing import Any, Dict, Optional, Sequence, Union
 
 import faiss as _faiss
 import numpy as np
-import pandas as pd
 import torch
 import torch.nn.functional as F
 
@@ -20,7 +15,7 @@ from latentis.transform._abstract import Transform
 # https://github.com/facebookresearch/faiss/wiki/MetricType-and-distances
 class SearchMetric(Enum):
     EUCLIDEAN = ("euclidean", _faiss.METRIC_L2)
-    COSINE = ("cosine", _faiss.METRIC_INNER_PRODUCT, lambda x: F.normalize(x, p=2, dim=-1))
+    COSINE_SIM = ("cosine", _faiss.METRIC_INNER_PRODUCT, lambda x: F.normalize(x, p=2, dim=-1))
     INNER_PRODUCT = ("inner_product", _faiss.METRIC_INNER_PRODUCT)
     L2 = ("l2", _faiss.METRIC_L2)
 
