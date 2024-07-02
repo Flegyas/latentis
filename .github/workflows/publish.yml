@@ -53,3 +53,10 @@ jobs:
 
       - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Build docs website
+        shell: bash -l {0}
+        run: |
+          git config user.name ci-bot
+          git config user.email ci-bot@ci.com
+          mike deploy --push --rebase --update-aliases ${RELEASE_TAG_VERSION} latest
