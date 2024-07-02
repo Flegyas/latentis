@@ -154,7 +154,12 @@ class Identity(Transform):
         super().__init__(invertible=True)
 
     def transform(self, **kwargs) -> torch.Tensor:
-        return tuple(kwargs.values())
+        result = tuple(kwargs.values())
+
+        if len(result) == 1:
+            return result[0]
+
+        return result
 
     def inverse_transform(self, **kwargs) -> torch.Tensor:
         return tuple(kwargs.values())
