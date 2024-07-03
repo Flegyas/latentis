@@ -35,23 +35,26 @@ def svd_align(x: torch.Tensor, y: torch.Tensor, dim_matcher: Optional[DimMatcher
     return x
 
 
+@torch.enable_grad()
 def sgd_affine_align_state(
     x: torch.Tensor, y: torch.Tensor, num_steps: int = 300, lr: float = 1e-3, random_seed: int = None
 ) -> nn.Module:
-    with torch.random.fork_rng():
+    device = None if x.device.type == "cpu" else x.device.index
+    with torch.random.fork_rng(devices=[device]):
         seed_everything(random_seed)
-        with torch.enable_grad():
-            translation = nn.Linear(x.size(1), y.size(1), device=x.device, dtype=x.dtype, bias=True)
+        translation = nn.Linear(x.size(1), y.size(1), device=x.device, dtype=x.dtype, bias=True)
 
-            optimizer = torch.optim.Adam(translation.parameters(), lr=lr)
+        x = x.detach()
+        y = y.detach()
+        optimizer = torch.optim.Adam(translation.parameters(), lr=lr)
+        for _ in range(num_steps):
+            optimizer.zero_grad()
+            pred = translation(x)
+            loss = F.mse_loss(pred, y)
+            loss.backward()
+            optimizer.step()
 
-            for _ in range(num_steps):
-                optimizer.zero_grad()
-                loss = F.mse_loss(translation(x), y)
-                loss.backward()
-                optimizer.step()
-
-            return dict(translation=translation)
+        return dict(translation=translation)
 
 
 def sgd_affine_align(
