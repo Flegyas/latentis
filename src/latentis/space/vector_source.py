@@ -4,7 +4,7 @@ import json
 import logging
 from abc import abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import faiss as _faiss
 import h5py
@@ -210,12 +210,11 @@ class TensorSource(VectorSource, SerializableMixin):
 class HDF5Source(VectorSource):
     @classmethod
     def from_source(cls, source: VectorSource, root_dir: Path, write: bool = True) -> VectorSource:
-        num_elements, dimension = source.shape
-        return HDF5Source(
-            num_elements=num_elements, dimension=dimension, root_dir=root_dir, dtype=source.dtype
-        ).add_vectors(source.as_tensor(), keys=source.keys, write=write)
+        return HDF5Source(shape=source.shape, root_dir=root_dir, dtype=source.dtype).add_vectors(
+            source.as_tensor(), keys=source.keys, write=write
+        )
 
-    def __init__(self, num_elements: int, dimension: int, root_dir: Path, dtype: torch.dtype = torch.float32) -> None:
+    def __init__(self, shape, root_dir: Path, dtype: torch.dtype = torch.float32) -> None:
         super().__init__()
         root_dir.mkdir(parents=True, exist_ok=True)
         self.root_dir = root_dir
@@ -224,10 +223,10 @@ class HDF5Source(VectorSource):
         self.h5_file = h5py.File(data_path, mode="w")
         self.data: h5py.Dataset = self.h5_file.create_dataset(
             "data",
-            shape=(num_elements, dimension),
+            shape=shape,
             dtype=_torch_dtype_to_numpy(dtype) or np.float32,
             fillvalue=0,
-            maxshape=(num_elements, dimension),
+            maxshape=shape,
         )
         self.h5_file.attrs["last_index"] = 0  # Tracking the last index used
         self._keys2offset = BiMap(x=[], y=[])
@@ -244,11 +243,15 @@ class HDF5Source(VectorSource):
     def dtype(self) -> torch.dtype:
         return torch.dtype(self.data.dtype)
 
-    def __getitem__(self, index: Union[int, Sequence[int], slice]) -> torch.Tensor:
+    def __getitem__(self, index: Union[int, Sequence[int], Tuple[Union[int, slice]]]) -> torch.Tensor:
         if isinstance(index, int):
             return torch.as_tensor(self.data[index])
-        sort_idx = np.argsort(index)
-        return torch.as_tensor(self.data[index[sort_idx]][sort_idx.argsort()])
+
+        if isinstance(index, Sequence) and all(isinstance(i, int) for i in index):
+            sort_idx = np.argsort(index)
+            return torch.as_tensor(self.data[index[sort_idx]][sort_idx.argsort()])
+
+        return torch.as_tensor(self.data[index])
 
     def __len__(self) -> int:
         return self.data.shape[0]
@@ -273,9 +276,9 @@ class HDF5Source(VectorSource):
             assert len(keys) == vectors.size(0), "Keys must have the same length as vectors"
             self._keys2offset.add_all(x=keys, y=range(len(self._keys2offset), len(self._keys2offset) + len(keys)))
 
-        self.data[
-            self.h5_file.attrs["last_index"] : self.h5_file.attrs["last_index"] + vectors.size(0)
-        ] = vectors.cpu().numpy()
+        self.data[self.h5_file.attrs["last_index"] : self.h5_file.attrs["last_index"] + vectors.size(0)] = (
+            vectors.detach().cpu().numpy()
+        )
         self.h5_file.attrs["last_index"] += vectors.size(0)
 
         if write:
