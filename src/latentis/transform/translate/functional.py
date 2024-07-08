@@ -39,8 +39,8 @@ def svd_align(x: torch.Tensor, y: torch.Tensor, dim_matcher: Optional[DimMatcher
 def sgd_affine_align_state(
     x: torch.Tensor, y: torch.Tensor, num_steps: int = 300, lr: float = 1e-3, random_seed: int = None
 ) -> nn.Module:
-    device = None if x.device.type == "cpu" else x.device.index
-    with torch.random.fork_rng(devices=[device]):
+    devices = None if x.device.type == "cpu" else [x.device.index]
+    with torch.random.fork_rng(devices=devices):
         seed_everything(random_seed)
         translation = nn.Linear(x.size(1), y.size(1), device=x.device, dtype=x.dtype, bias=True)
 
