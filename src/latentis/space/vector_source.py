@@ -247,7 +247,13 @@ class HDF5Source(VectorSource):
         if isinstance(index, int):
             return torch.as_tensor(self.data[index])
 
+        if isinstance(index, torch.Tensor):
+            index = index.detach().cpu().numpy()
+
         if isinstance(index, Sequence) and all(isinstance(i, int) for i in index):
+            index = np.array(index)
+
+        if isinstance(index, np.ndarray):
             sort_idx = np.argsort(index)
             return torch.as_tensor(self.data[index[sort_idx]][sort_idx.argsort()])
 
