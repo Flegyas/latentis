@@ -178,8 +178,7 @@ class EncodeTask(Task):
 
         space = Space(
             vector_source=HDF5Source(
-                num_elements=len(split_data),
-                dimension=self.pooler.output_dim,
+                shape=(len(split_data), self.pooler.output_dim),
                 root_dir=space_path,
             ),
             metadata={
@@ -270,7 +269,7 @@ if __name__ == "__main__":
         [
             # "FacebookAI/roberta-large",
             # "FacebookAI/roberta-base",
-            # "google-bert/bert-base-uncased",
+            "google-bert/bert-base-uncased",
             "google-bert/bert-base-cased",
         ],
     ):
