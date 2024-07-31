@@ -133,7 +133,8 @@ class HFDatasetView(DatasetView):
         target_path = parent_dir / self._name
 
         if target_path.exists():
-            raise FileExistsError(f"Destination {self._path} is not empty!")
+            raise FileExistsError(f"Destination {target_path} is not empty!")
+
         self._hf_dataset.save_to_disk(target_path / "hf_dataset")
 
         save_json(self.metadata, target_path / self._METADATA_FILE_NAME, indent=4)
