@@ -18,23 +18,29 @@ def load_hf_dataset(**load_params) -> DatasetDict:
     return datasets.load_dataset(**load_params)
 
 
-def subset(data: DatasetDict, perc: float, seed: int) -> DatasetDict:
+def subset(data: DatasetDict, perc: float, seed: int, stratify_by_column: str = None, **kwargs) -> DatasetDict:
     """Subset a dataset."""
+    if perc == 1:
+        return data
+
     return DatasetDict(
         {
-            split: data[split].shuffle(seed=seed).select(list(range(int(len(data[split]) * perc))))
+            split: data[split].train_test_split(
+                test_size=perc, seed=seed, stratify_by_column=stratify_by_column, **kwargs
+            )["test"]
             for split in data.keys()
         }
     )
 
 
 class Subset:
-    def __init__(self, perc: float, seed: int) -> None:
+    def __init__(self, perc: float, seed: int, **kwargs) -> None:
         self.perc = perc
         self.seed = seed
+        self.kwargs = kwargs
 
     def __call__(self, data: DatasetDict) -> DatasetDict:
-        return subset(data, perc=self.perc, seed=self.seed)
+        return subset(data, perc=self.perc, seed=self.seed, **self.kwargs)
 
 
 def select_columns(data: DatasetDict, columns: Sequence[str]) -> DatasetDict:
@@ -169,3 +175,7 @@ def imdb_process(data: DatasetDict, seed: int = 42):
     )
 
     return data
+
+
+def imagenet_process(data: DatasetDict, seed: int = 42):
+    print(data.keys())
