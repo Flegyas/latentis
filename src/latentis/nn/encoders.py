@@ -98,7 +98,7 @@ class TextHFEncoder(HFEncoder):
 class ImageHFEncoder(HFEncoder):
     def __init__(self, hf_name: str, requires_grad: bool = False, metadata: Optional[Metadata] = None):
         super().__init__(hf_name, requires_grad, metadata=metadata)
-        self.processor = AutoImageProcessor.from_pretrained(self.hf_name, use_fast=True)
+        self.processor = AutoImageProcessor.from_pretrained(self.hf_name)
         self._output_dim = self.model.config.hidden_size
 
     @property

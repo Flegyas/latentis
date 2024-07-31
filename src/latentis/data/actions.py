@@ -140,16 +140,16 @@ class ClassLabelCast:
 
 
 class ToHFView:
-    def __init__(self, name: str, id_column: str, features: Sequence[Feature]):
+    def __init__(self, name: str, id_column: str, features: Sequence[Feature], num_proc: int = 1):
         self.name = name
         self.id_column = id_column
         self.features = features
+        self.num_proc = num_proc
 
     def __call__(self, data: DatasetDict) -> DatasetView:
         if self.id_column not in data.column_names:
             data = data.map(
-                lambda _, index: {self.id_column: index},
-                with_indices=True,
+                lambda _, index: {self.id_column: index}, with_indices=True, batched=True, num_proc=self.num_proc
             )
 
         return HFDatasetView(
@@ -178,4 +178,9 @@ def imdb_process(data: DatasetDict, seed: int = 42):
 
 
 def imagenet_process(data: DatasetDict, seed: int = 42):
-    print(data.keys())
+    del data["test"]
+    train_data = data["train"].train_test_split(train_size=100_000, seed=seed, stratify_by_column="label")["train"]
+    data["train"] = train_data
+    data["test"] = data["validation"]
+    del data["validation"]
+    return data
