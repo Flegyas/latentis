@@ -100,12 +100,13 @@ DBPedia14 = Pipeline(
         .add(block="subset", inputs="data", outputs="data")
         .add(block="map_text", inputs="data", outputs="data")
         .add(block="map_feature_names", inputs="data", outputs="data")
+        .add(block="cast_label", inputs="data", outputs="data")
         .add(block="prune_columns", inputs="data", outputs="data")
         .add(block="to_view", inputs="data", outputs="dataset_view")
     ),
     blocks={
         "load_dataset": actions.LoadHFDataset(path="fancyzhx/dbpedia_14"),
-        "subset": actions.Subset(perc=0.01, seed=42),
+        "subset": actions.Subset(perc=0.1, seed=42, stratify_by_column="label"),
         "map_text": actions.HFMap(
             input_columns=["title", "content"],
             fn=lambda title, content: {
@@ -115,6 +116,7 @@ DBPedia14 = Pipeline(
         "map_feature_names": actions.MapFeatures(
             FeatureMapping(source_col="label", target_col="y"),
         ),
+        "cast_label": actions.ClassLabelCast(column_name="y"),
         "prune_columns": actions.PruneColumns(keep=["x", "y"]),
         "to_view": actions.ToHFView(
             name="dbpedia14",
@@ -215,15 +217,17 @@ MNIST = Pipeline(
         .add(block="load_dataset", outputs="data")
         .add(block="map_feature_names", inputs="data", outputs="data")
         .add(block="cast_label", inputs="data", outputs="data")
+        .add(block="prune_columns", inputs="data", outputs="data")
         .add(block="to_view", inputs="data", outputs="dataset_view")
     ),
     blocks={
-        "load_dataset": actions.LoadHFDataset(path="mnist"),
+        "load_dataset": actions.LoadHFDataset(path="mnist", trust_remote_code=True),
         "map_feature_names": actions.MapFeatures(
             FeatureMapping(source_col="label", target_col="y"),
             FeatureMapping(source_col="image", target_col="x"),
         ),
-        "cast_label": actions.ClassLabelCast(column_name="label"),
+        "cast_label": actions.ClassLabelCast(column_name="y"),
+        "prune_columns": actions.PruneColumns(keep=["x", "y"]),
         "to_view": actions.ToHFView(
             name="mnist",
             id_column="sample_id",
@@ -325,25 +329,6 @@ FashionMNIST = Pipeline(
         "cast_label": actions.ClassLabelCast(column_name="label"),
     },
 )
-FashionMNIST = Pipeline(
-    name="process_fashion_mnist",
-    flows=(
-        Flow(inputs="perc", outputs=["data"])
-        .add(block="load_dataset", outputs="data")
-        .add(block="subset", inputs=["data", "perc"], outputs="data")
-        .add(block="map_feature_names", inputs="data", outputs="data")
-        .add(block="cast_label", inputs="data", outputs="data")
-    ),
-    blocks={
-        "load_dataset": actions.LoadHFDataset(path="fashion_mnist"),
-        "subset": actions.subset,
-        "map_feature_names": actions.MapFeatures(
-            FeatureMapping(source_col="label", target_col="y"),
-            FeatureMapping(source_col="image", target_col="x"),
-        ),
-        "cast_label": actions.ClassLabelCast(column_name="label"),
-    },
-)
 
 CUB = Pipeline(
     name="process_cub",
@@ -373,14 +358,36 @@ CUB = Pipeline(
         ),
     },
 )
+
+ImageNet = Pipeline(
+    name="process_imagenet",
+    flows=(
+        Flow(outputs=["dataset_view", "data"])
+        .add(block="load_dataset", outputs="data")
+        .add(block="process", inputs=["data"], outputs="data")
+        .add(block="to_view", inputs="data", outputs="dataset_view")
+    ),
+    blocks={
+        "load_dataset": actions.LoadHFDataset(path="ILSVRC/imagenet-1k", trust_remote_code=True),
+        "process": actions.imagenet_process,
+        "to_view": actions.ToHFView(
+            name="imagenet",
+            id_column="sample_id",
+            features=[
+                Feature(name="image", data_type=DataType.IMAGE),
+                Feature(name="label", data_type=DataType.LABEL),
+            ],
+        ),
+    },
+)
 if __name__ == "__main__":
-    data: DatasetView = CUB.build().run()["dataset_view"]
+    data: DatasetView = ImageNet.build().run()["dataset_view"]
     data.save_to_disk(
         parent_dir=PROJECT_ROOT / "data",
     )
 
     print(data.hf_dataset)
 
-    data = HFDatasetView.load_from_disk(path=PROJECT_ROOT / "data" / "cub")
+    data = HFDatasetView.load_from_disk(path=PROJECT_ROOT / "data" / "imagenet")
 
     print(data.hf_dataset)
