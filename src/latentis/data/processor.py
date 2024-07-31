@@ -325,16 +325,62 @@ FashionMNIST = Pipeline(
         "cast_label": actions.ClassLabelCast(column_name="label"),
     },
 )
+FashionMNIST = Pipeline(
+    name="process_fashion_mnist",
+    flows=(
+        Flow(inputs="perc", outputs=["data"])
+        .add(block="load_dataset", outputs="data")
+        .add(block="subset", inputs=["data", "perc"], outputs="data")
+        .add(block="map_feature_names", inputs="data", outputs="data")
+        .add(block="cast_label", inputs="data", outputs="data")
+    ),
+    blocks={
+        "load_dataset": actions.LoadHFDataset(path="fashion_mnist"),
+        "subset": actions.subset,
+        "map_feature_names": actions.MapFeatures(
+            FeatureMapping(source_col="label", target_col="y"),
+            FeatureMapping(source_col="image", target_col="x"),
+        ),
+        "cast_label": actions.ClassLabelCast(column_name="label"),
+    },
+)
 
-
+CUB = Pipeline(
+    name="process_cub",
+    flows=(
+        Flow(outputs=["dataset_view", "data"])
+        .add(block="load_dataset", outputs="data")
+        .add(block="subset", inputs=["data"], outputs="data")
+        # .add(block="map_feature_names", inputs="data", outputs="data")
+        # .add(block="cast_label", inputs="data", outputs="data")
+        .add(block="to_view", inputs="data", outputs="dataset_view")
+    ),
+    blocks={
+        "load_dataset": actions.LoadHFDataset(path="efekankavalci/CUB_200_2011"),
+        "subset": actions.Subset(perc=1, seed=42),
+        # "map_feature_names": actions.MapFeatures(
+        #     FeatureMapping(source_col="label", target_col="y"),
+        #     FeatureMapping(source_col="image", target_col="x"),
+        # ),
+        # "cast_label": actions.ClassLabelCast(column_name="label"),
+        "to_view": actions.ToHFView(
+            name="cub",
+            id_column="sample_id",
+            features=[
+                Feature(name="image", data_type=DataType.IMAGE),
+                Feature(name="label", data_type=DataType.LABEL),
+            ],
+        ),
+    },
+)
 if __name__ == "__main__":
-    data: DatasetView = TREC.build().run()["dataset_view"]
+    data: DatasetView = CUB.build().run()["dataset_view"]
     data.save_to_disk(
         parent_dir=PROJECT_ROOT / "data",
     )
 
     print(data.hf_dataset)
 
-    data = HFDatasetView.load_from_disk(path=PROJECT_ROOT / "data" / "trec")
+    data = HFDatasetView.load_from_disk(path=PROJECT_ROOT / "data" / "cub")
 
     print(data.hf_dataset)

@@ -14,10 +14,10 @@ from latentis.benchmark.task import Task
 from latentis.data import DATA_DIR
 from latentis.data.dataset import Feature, HFDatasetView
 from latentis.data.processor import TREC, DatasetView
-from latentis.data.text_encoding import HFPooler, Pooler, mean_pool
+from latentis.data.text_encoding import Pooler
 from latentis.data.utils import default_collate
 from latentis.nn import LatentisModule
-from latentis.nn.encoders import TextHFEncoder
+from latentis.nn.encoders import ImageHFEncoder
 from latentis.space import Space
 from latentis.space.vector_source import HDF5Source
 
@@ -263,30 +263,34 @@ if __name__ == "__main__":
     if False:
         TREC.build().run()["dataset_view"].save_to_disk(DATA_DIR)
 
-    datasets = ["trec"]
+    datasets = ["cub"]
     for dataset_name, hf_encoder in itertools.product(
         datasets,
         [
             # "FacebookAI/roberta-large",
             # "FacebookAI/roberta-base",
-            "google-bert/bert-base-uncased",
-            "google-bert/bert-base-cased",
+            # "google-bert/bert-base-uncased",
+            # "google-bert/bert-base-cased",
+            "WinKawaks/vit-small-patch16-224",
+            "google/vit-base-patch16-224",
+            "google/vit-large-patch16-224",
+            "facebook/dinov2-base",
         ],
     ):
         dataset = HFDatasetView.load_from_disk(DATA_DIR / dataset_name)
 
         for split in dataset.splits():
-            encoder = TextHFEncoder(hf_encoder)
+            encoder = ImageHFEncoder(hf_encoder)
             task = EncodeTask(
                 dataset=dataset,
                 split=split,
-                feature="text",
+                feature="image",
                 model=encoder,
                 collate_fn=default_collate,
                 encoding_batch_size=128,
-                num_workers=2,
+                num_workers=8,
                 save_source_model=False,
-                pooler=HFPooler(layers=[encoder.num_layers - 1], pooling_fn=mean_pool, output_dim=encoder.output_dim),
+                # pooler=HFPooler(layers=[encoder.num_layers - 1], pooling_fn=mean_pool, output_dim=encoder.output_dim),
                 device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
                 target_path=DATA_DIR / dataset_name / "encodings" / hf_encoder.replace("/", "-") / split,
             )
