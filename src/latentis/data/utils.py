@@ -1,5 +1,6 @@
+from collections import UserDict
 from pathlib import Path
-from typing import Dict, Sequence
+from typing import Any, Dict, Sequence, Union
 
 import pandas as pd
 import torch
@@ -7,6 +8,15 @@ from transformers import BatchEncoding
 
 from latentis.nn import LatentisModule
 from latentis.serialize.io_utils import SerializableMixin
+
+
+class Batch(UserDict):
+
+    def __init__(self, data: Dict[str, Union[torch.Tensor, Any]]):
+        super().__init__(data)
+
+    def to(self, device: torch.device):
+        return Batch({k: v.to(device) if hasattr(v, "to") else v for k, v in self.items()})
 
 
 class BiMap(SerializableMixin):
@@ -74,6 +84,6 @@ def default_collate(
 
     id_column = id_column or _ID_COLUMN
     batch = model.pre_encode(samples, feature=feature)
-    batch[id_column] = torch.as_tensor([sample[id_column] for sample in samples])
+    batch[id_column] = [sample[id_column] for sample in samples]
 
-    return BatchEncoding(batch)
+    return Batch(batch)

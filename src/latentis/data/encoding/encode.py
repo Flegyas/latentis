@@ -211,7 +211,7 @@ class EncodeTask(Task):
                 )
 
             for encoding, pooler_properties in encoding2pooler_properties:
-                space.add_vectors(vectors=encoding, keys=batch[self.dataset._id_column].cpu().tolist(), write=True)
+                space.add_vectors(vectors=encoding, keys=batch[self.dataset._id_column], write=True)
 
         space.save_to_disk(
             target_path=space_path,
@@ -287,7 +287,7 @@ if __name__ == "__main__":
                 feature="text",
                 model=encoder,
                 collate_fn=default_collate,
-                encoding_batch_size=128,
+                encoding_batch_size=256,
                 num_workers=8,
                 save_source_model=False,
                 pooler=HFPooler(layers=[encoder.num_layers - 1], pooling_fn=mean_pool, output_dim=encoder.output_dim),
