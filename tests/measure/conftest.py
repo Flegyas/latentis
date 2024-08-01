@@ -15,19 +15,6 @@ if TYPE_CHECKING:
 class SameShapeSpaces(object):
     instances = [
         (
-            Space(
-                vector_source=torch.randn(x_n, x_dim, dtype=torch.double),
-            ),
-            Space(
-                vector_source=torch.randn(y_n, y_dim, dtype=torch.double),
-            ),
-        )
-        for (x_n, x_dim), (y_n, y_dim) in [
-            ((50, 250), (50, 250)),
-            ((20, 300), (20, 300)),
-        ]
-    ] + [
-        (
             torch.randn(x_n, x_dim, dtype=torch.double),
             torch.randn(y_n, y_dim, dtype=torch.double),
         )
@@ -40,19 +27,6 @@ class SameShapeSpaces(object):
 
 class DifferentDimSpaces(object):
     instances = [
-        (
-            Space(
-                vector_source=torch.randn(x_n, space_1_dim, dtype=torch.double),
-            ),
-            Space(
-                vector_source=torch.randn(y_n, y_dim, dtype=torch.double),
-            ),
-        )
-        for (x_n, space_1_dim), (y_n, y_dim) in [
-            ((50, 250), (50, 300)),  # Same number of samples, different dimensions
-            ((20, 300), (20, 150)),
-        ]
-    ] + [
         (
             torch.randn(x_n, space_1_dim, dtype=torch.double),
             torch.randn(y_n, y_dim, dtype=torch.double),

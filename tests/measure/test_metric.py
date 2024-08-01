@@ -55,20 +55,20 @@ def test_cka(mode: CKAMode, same_shape_spaces, different_dim_spaces, precomputed
     # test object-oriented interface
     space1, space2 = same_shape_spaces[0], same_shape_spaces[1]
 
-    cka_none = CKA(mode=mode, device=None)
+    cka_none = CKA(mode=mode)
     cka_result = cka_none(space1, space2)
 
     assert cka_result.device.type == "cpu"
 
     # check that GPU works correctly
     if torch.cuda.is_available():
-        cka_gpu = CKA(mode=mode, device=torch.device("cuda"))
-        cka_result = cka_gpu(space1, space2)
+        device = torch.device("cuda")
+        cka_gpu = CKA(mode=mode)
+        cka_result = cka_gpu(space1.to(device), space2.to(device))
 
         assert cka_result.device.type == "cuda"
 
-        cka_gpu = cka_none.to("cuda")
-        cka_result = cka_gpu(space1, space2)
+        cka_result = cka_gpu(space1.to("cuda"), space2.to("cuda"))
 
         assert cka_result.device.type == "cuda"
 
@@ -89,7 +89,7 @@ def test_cka(mode: CKAMode, same_shape_spaces, different_dim_spaces, precomputed
         assert symm_cka_result == pytest.approx(cka_result, abs=TOL)
 
     # check that the cka results didn't change from stored computations
-    cka_result = CKA(mode=mode, device="cpu")(precomputed_cka["stored_x"], precomputed_cka["stored_y"])
+    cka_result = CKA(mode=mode)(precomputed_cka["stored_x"], precomputed_cka["stored_y"])
 
     # higher tolerance because of the RBF kernel being noisy
     assert cka_result == pytest.approx(precomputed_cka[mode], abs=1e-4)
@@ -126,8 +126,7 @@ def test_svcca(same_shape_spaces, different_dim_spaces, precomputed_svcca):
 
         assert svcca_result.device.type == "cuda"
 
-        svcca_gpu = svcca_none.to("cuda")
-        svcca_result = svcca_gpu(space1, space2)
+        svcca_result = svcca_none(space1.to("cuda"), space2.to("cuda"))
 
         assert svcca_result.device.type == "cuda"
 

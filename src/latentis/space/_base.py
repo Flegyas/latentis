@@ -300,7 +300,10 @@ class Space(SerializableMixin):
 
     @property
     def keys(self) -> Sequence[str]:
-        return self._vector_source.keys
+        return list(self._vector_source.keys)
+
+    def get_keys(self, offsets: Sequence[int]) -> Sequence[str]:
+        return [self.keys[offset] for offset in offsets]
 
     def as_tensor(self, device: torch.device = "cpu") -> torch.Tensor:
         return self._vector_source.as_tensor(device=device)
@@ -387,7 +390,10 @@ class Space(SerializableMixin):
         return f"{self.__class__.__name__}(vectors={self.shape}, metadata={self.metadata})"
 
     def __eq__(self, __value: object) -> bool:
-        return self.metadata == __value.metadata and self.vector_source == __value.vector_source
+        if not isinstance(__value, Space):
+            return False
+
+        return self.metadata == __value.metadata and self._vector_source == __value._vector_source
 
     def get_vectors_by_key(self, keys: Sequence[str]) -> torch.Tensor:
         return self._vector_source.get_vectors_by_key(keys=keys)
@@ -458,7 +464,7 @@ class Space(SerializableMixin):
     def transform(self, transform: Union[Transform, Translator]) -> "Space":
         return Space.like(
             space=self,
-            vector_source=transform(x=self.as_tensor()),
+            vector_source=(transform(x=self.as_tensor()), self.keys),
         )
 
     def to_hf_dataset(self, name: str) -> Any:
