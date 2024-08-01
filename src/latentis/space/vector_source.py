@@ -95,7 +95,7 @@ class VectorSource(metaclass=VectorSourceMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def as_tensor(self) -> torch.Tensor:
+    def as_tensor(self, device: torch.device = "cpu") -> torch.Tensor:
         raise NotImplementedError
 
     @abstractmethod
@@ -125,7 +125,7 @@ class VectorSource(metaclass=VectorSourceMeta):
         return [self.__class__(self[i : i + size]) for i, size in enumerate(sizes)]
 
     def to(self, device: Union[str, torch.device]) -> VectorSource:
-        return TensorSource(vectors=self.as_tensor().to(device), keys=self.keys)
+        return TensorSource(vectors=self.as_tensor(device=device), keys=self.keys)
 
     @abstractmethod
     def save_to_disk(self, target_path: Path):
@@ -164,8 +164,8 @@ class TensorSource(VectorSource, SerializableMixin):
         assert isinstance(__value, TensorSource), f"Expected {TensorSource}, got {type(__value)}"
         return torch.allclose(self._vectors, __value._vectors)
 
-    def as_tensor(self) -> torch.Tensor:
-        return self._vectors
+    def as_tensor(self, device: torch.device = "cpu") -> torch.Tensor:
+        return self._vectors.to(device=device)
 
     def save_to_disk(self, target_path: Path):
         assert target_path.is_dir(), f"Target path {target_path} must be a directory"
@@ -262,8 +262,8 @@ class HDF5Source(VectorSource):
     def __len__(self) -> int:
         return self.data.shape[0]
 
-    def as_tensor(self) -> torch.Tensor:
-        return torch.as_tensor(np.asarray(self.data))
+    def as_tensor(self, device: torch.device = "cpu") -> torch.Tensor:
+        return torch.as_tensor(np.asarray(self.data), device=device)
 
     def __eq__(self, __value: HDF5Source) -> bool:
         assert isinstance(__value, HDF5Source), f"Expected {HDF5Source}, got {type(__value)}"
@@ -296,8 +296,8 @@ class HDF5Source(VectorSource):
     def _save_mapping(self):
         self._keys2offset.save_to_disk(self.root_dir / "vectors" / "mapping.tsv")
 
-    def to_tensor_source(self) -> TensorSource:
-        return TensorSource(vectors=self.as_tensor(), keys=self.keys)
+    def to_tensor_source(self, device: torch.device = "cpu") -> TensorSource:
+        return TensorSource(vectors=self.as_tensor(device=device), keys=self.keys)
 
     def save_to_disk(self, parent_dir: Path):
         self.h5_file.flush()
@@ -374,8 +374,8 @@ class SearchSource(VectorSource):
         else:
             raise NotImplementedError(f"Index type {type(index)} not supported")
 
-    def as_tensor(self) -> torch.Tensor:
-        return self.get_vectors(query_offsets=range(self.num_elements), return_tensors=True)
+    def as_tensor(self, device: torch.device = "cpu") -> torch.Tensor:
+        return self.get_vectors(query_offsets=range(self.num_elements), return_tensors=True).to(device)
 
     def _add_mapping(self, key: str, offset: int):
         assert key not in self._key2offset, f"Vector ID {key} already exists"
