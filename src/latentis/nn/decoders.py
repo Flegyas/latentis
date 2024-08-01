@@ -111,7 +111,7 @@ class Classifier(LatentisModule):
                 "f1": FBetaScore(task="multiclass", num_classes=num_classes),
             }
         )
-        # self.val_metrics = self.train_metrics.clone()
+        self.val_metrics = self.train_metrics.clone()
         self.test_metrics = self.train_metrics.clone()
 
         self.x_feature: str = x_feature
@@ -120,11 +120,11 @@ class Classifier(LatentisModule):
 
     def forward(self, x):
         x = self.class_proj(x)
-        return F.log_softmax(x, dim=1)
+        return F.log_softmax(x, dim=-1)
 
     def _step(self, batch, split: str):
-        x = batch[self.x_feature][0]
-        y = batch[self.y_feature][0]
+        x = batch[self.x_feature]
+        y = batch[self.y_feature]
 
         logits = self(x)
         loss = F.cross_entropy(logits, y)
@@ -139,6 +139,9 @@ class Classifier(LatentisModule):
 
     def training_step(self, batch, batch_idx):
         return self._step(batch=batch, split="train")
+
+    def validation_step(self, batch, batch_idx):
+        return self._step(batch=batch, split="val")
 
     def test_step(self, batch, batch_idx):
         return self._step(batch=batch, split="test")
