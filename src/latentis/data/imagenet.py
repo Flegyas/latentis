@@ -104,7 +104,7 @@ OPENAI_IMAGENET_TEMPLATES = (
 
 def get_template_dataset(test_size: float = 0.15, seed: int = 42) -> Dataset:
     imagenet_data = read_imagenet_labels()
-    data = {"synset_id": [], "class_id": [], "text": [], "template_id": [], "sample_id": []}
+    data = {"synset_id": [], "class_id": [], "lemma": [], "template_id": [], "sample_id": [], "text": []}
 
     for imagenet_synset in imagenet_data.itertuples():
         for template_id, template in enumerate(OPENAI_IMAGENET_TEMPLATES):
@@ -114,6 +114,7 @@ def get_template_dataset(test_size: float = 0.15, seed: int = 42) -> Dataset:
             data["text"].append(sentence)
             data["template_id"].append(template_id)
             data["sample_id"].append(f"{imagenet_synset.synset_id}_{template_id}")
+            data["lemma"].append(imagenet_synset.openai_lemma)
 
     data = Dataset.from_dict(data)
 
@@ -130,3 +131,6 @@ def get_template_dataset(test_size: float = 0.15, seed: int = 42) -> Dataset:
     data = data.cast_column("template_id", template_label)
 
     return data.train_test_split(test_size=test_size, seed=seed, stratify_by_column="class_id")
+
+
+get_template_dataset()
