@@ -14,7 +14,7 @@ from latentis.benchmark.task import Task
 from latentis.data import DATA_DIR
 from latentis.data.dataset import Feature, HFDatasetView
 from latentis.data.processor import TREC, DatasetView
-from latentis.data.text_encoding import Pooler
+from latentis.data.encoding.text_pooling import Pooler
 from latentis.data.utils import default_collate
 from latentis.nn import LatentisModule
 from latentis.nn.encoders import ImageHFEncoder
