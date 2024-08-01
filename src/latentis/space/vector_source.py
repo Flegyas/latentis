@@ -359,6 +359,7 @@ class SearchSource(VectorSource):
         self._key2offset: Mapping[str, int] = key2offset if key2offset is not None else {}
         self._offset2key: Mapping[int, str] = {offset: key for key, offset in self._key2offset.items()}
 
+    @property
     def shape(self) -> torch.Size:
         return torch.Size([self.num_elements, self.num_dimensions])
 
