@@ -6,6 +6,7 @@ from latentis import PROJECT_ROOT
 from latentis.benchmark.task import Task
 from latentis.data import actions
 from latentis.data.dataset import DatasetView, DataType, Feature, FeatureMapping, FeatureProperty, HFDatasetView
+from latentis.data.imagenet import get_template_dataset
 from latentis.pipeline.flow import Flow, Pipeline
 
 pylogger = logging.getLogger(__name__)
@@ -380,14 +381,37 @@ ImageNet = Pipeline(
         ),
     },
 )
+
+ImageNetText = Pipeline(
+    name="process_imagenet_text",
+    flows=(
+        Flow(outputs=["dataset_view", "data"])
+        .add(block="load_dataset", outputs="data")
+        .add(block="to_view", inputs="data", outputs="dataset_view")
+    ),
+    blocks={
+        "load_dataset": get_template_dataset,
+        "to_view": actions.ToHFView(
+            name="imagenet_text",
+            id_column="sample_id",
+            features=[
+                Feature(name="synset_id", data_type=DataType.TEXT),
+                Feature(name="class_id", data_type=DataType.LONG),
+                Feature(name="text", data_type=DataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"}),
+                Feature(name="template_id", data_type=DataType.TEXT),
+            ],
+        ),
+    },
+)
+
 if __name__ == "__main__":
-    data: DatasetView = ImageNet.build().run()["dataset_view"]
+    data: DatasetView = ImageNetText.build().run()["dataset_view"]
     data.save_to_disk(
         parent_dir=PROJECT_ROOT / "data",
     )
 
     print(data.hf_dataset)
 
-    data = HFDatasetView.load_from_disk(path=PROJECT_ROOT / "data" / "imagenet")
+    data = HFDatasetView.load_from_disk(path=PROJECT_ROOT / "data" / "imagenet_text")
 
     print(data.hf_dataset)
