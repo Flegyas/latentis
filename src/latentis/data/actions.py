@@ -147,7 +147,7 @@ class ToHFView:
         self.num_proc = num_proc
 
     def __call__(self, data: DatasetDict) -> DatasetView:
-        if self.id_column not in data.column_names:
+        if not all(self.id_column in split_columns for split_columns in data.column_names.values()):
             data = data.map(
                 lambda _, index: {self.id_column: index}, with_indices=True, batched=True, num_proc=self.num_proc
             )

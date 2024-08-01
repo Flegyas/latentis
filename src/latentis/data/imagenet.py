@@ -13,6 +13,8 @@ def read_imagenet_labels(root_dir: Path = None, file_name: str = "ImageNet_mappi
     data["pos"] = data["synset_id"].str[0]
     data["offset"] = data["synset_id"].str[1:].str.rjust(8, "0")
     data["class_id"] = range(len(data))
+    data["openai_lemma"] = data["openai_lemma"].str.strip()
+
     return data
 
 
