@@ -1,10 +1,7 @@
-from typing import Union
-
 import torch
 
 from latentis.measure._metrics import Metric
 from latentis.measure.functional.svcca import robust_svcca, svcca
-from latentis.space import Space
 
 
 class SVCCA(Metric):

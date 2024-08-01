@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from typing import Sequence, Tuple
+from typing import Sequence, Union
 
 import torch
-from torch._tensor import Tensor
 
 from latentis.correspondence import Correspondence
 
@@ -34,8 +33,42 @@ class SameKeyCorrespondence(Correspondence):
     def __init__(self):
         super().__init__()
 
-    def align(self, x_keys: Sequence[str], y_keys: Sequence[str]) -> Tuple[Tensor, Tensor]:
-        # all_ids, counts = torch.cat([x_keys, y_keys]).unique(return_counts=True)
-        # intersection = all_ids[torch.where(counts.gt(1))]
-        intersection = set(x_keys) & set(y_keys)
-        return (intersection, intersection)
+    def match(self, x_keys: Sequence[str], y_keys: Sequence[str]) -> Union[bool, torch.BoolTensor]:
+        single: bool = isinstance(x_keys, str) and isinstance(y_keys, str)
+
+        if isinstance(x_keys, (str, int)):
+            x_keys = [x_keys]
+        if isinstance(y_keys, (str, int)):
+            y_keys = [y_keys]
+
+        if single:
+            return x_keys[0] == y_keys[0]
+
+        result = torch.zeros(len(x_keys), len(y_keys), dtype=torch.bool)
+        for i, x_key in enumerate(x_keys):
+            for j, y_key in enumerate(y_keys):
+                result[i, j] = x_key == y_key
+
+        return result
+
+
+class ImageNetToTextCorrespondence(Correspondence):
+    def match(self, x_keys: Sequence[str], y_keys: Sequence[str]) -> Union[bool, torch.BoolTensor]:
+        single: bool = isinstance(x_keys, str) and isinstance(y_keys, str)
+
+        if single:
+            x_keys = [x_keys]
+            y_keys = [y_keys]
+
+        x_keys = [key.split("_")[-1] for key in x_keys]
+        y_keys = [key.split("_")[-1] for key in y_keys]
+
+        if single:
+            return x_keys[0] == y_keys[0]
+
+        result = torch.zeros(len(x_keys), len(y_keys), dtype=torch.bool)
+        for i, x_key in enumerate(x_keys):
+            for j, y_key in enumerate(y_keys):
+                result[i, j] = x_key == y_key
+
+        return result

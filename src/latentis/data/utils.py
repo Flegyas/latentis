@@ -11,7 +11,6 @@ from latentis.serialize.io_utils import SerializableMixin
 
 
 class Batch(UserDict):
-
     def __init__(self, data: Dict[str, Union[torch.Tensor, Any]]):
         super().__init__(data)
 

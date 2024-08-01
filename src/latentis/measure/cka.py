@@ -1,11 +1,9 @@
 from enum import auto
-from typing import Union
 
 import torch
 
 from latentis.measure._metrics import Metric
 from latentis.measure.functional.cka import cka, kernel_hsic, linear_hsic
-from latentis.space import Space
 from latentis.types import StrEnum
 
 
