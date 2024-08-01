@@ -14,7 +14,6 @@ class Metric(nn.Module):
     def __init__(self, name: str, device: Union[str, torch.device] = None) -> None:
         super().__init__()
         self._name: str = name
-        self.device = device
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(name={self.name})"
@@ -31,18 +30,6 @@ class Metric(nn.Module):
         result = [self._forward(space1, other) for other in others]
 
         return result[0] if len(result) == 1 else result
-
-    def to(self, device):
-        """Move the mean CCA instance to a specific torch device.
-
-        Args:
-            device: The torch device (e.g., CPU or GPU) to move the instance to.
-
-        Returns:
-            The mean CCA instance on the specified device.
-        """
-        self.device = device
-        return self
 
 
 class MetricFn(Metric):

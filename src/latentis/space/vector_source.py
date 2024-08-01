@@ -417,6 +417,7 @@ class SearchSource(VectorSource):
     def get_vector_by_key(self, key: str) -> torch.Tensor:
         return self.get_vector(query_key=key, return_tensors=True)
 
+    @property
     def keys(self) -> Sequence[str]:
         return list(self._key2offset.keys())
 

@@ -51,7 +51,7 @@ def test_index(
     # assert index.storage_data_type == DataType.FLOAT32
     assert str(space)
 
-    space_keys = space.keys()
+    space_keys = space.keys
     for i in range(num_vectors):
         assert str(i) in space_keys
 

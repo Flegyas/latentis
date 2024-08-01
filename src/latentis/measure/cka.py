@@ -33,9 +33,9 @@ class CKA(Metric):
         device (torch.device): The torch device (e.g., CPU or GPU) to perform calculations on.
     """
 
-    def __init__(self, mode: CKAMode, device: Union[str, torch.device] = None):
+    def __init__(self, mode: CKAMode):
         """Initialize the CKA instance with a specific mode and torch device."""
-        super().__init__(CKA, device=device)
+        super().__init__(CKA)
 
         self.mode = mode
         if self.mode == CKAMode.LINEAR:
@@ -44,8 +44,6 @@ class CKA(Metric):
             self.hsic = kernel_hsic
         else:
             raise NotImplementedError(f"No such mode {self.mode}")
-
-        self.device = device if device else torch.device("cpu")
 
         # to avoid numerical issues in the assertions
         self.tolerance = 1e-6
@@ -63,23 +61,7 @@ class CKA(Metric):
         Returns:
             Computed CKA value.
         """
-        if isinstance(space1, torch.Tensor) and isinstance(space2, torch.Tensor):
-            space1 = space1.to(self.device)
-            space2 = space2.to(self.device)
-        if isinstance(space1, Space) and isinstance(space2, Space):
-            space1 = space1.like_(vector_source=space1.as_tensor().to(self.device))
-            space2 = space2.like_(vector_source=space2.as_tensor().to(self.device))
+        if space1.device != space2.device:
+            raise ValueError(f"space1 and space2 must be on the same device. Found {space1.device} and {space2.device}")
 
         return cka(space1=space1, space2=space2, hsic=self.hsic, sigma=sigma, tolerance=self.tolerance)
-
-    def to(self, device: Union[str, torch.device]):
-        """Move the CKA instance to a specific torch device.
-
-        Args:
-            device: The torch device (e.g., CPU or GPU) to move the instance to.
-
-        Returns:
-            The CKA instance on the specified device.
-        """
-        self.device = device
-        return self
