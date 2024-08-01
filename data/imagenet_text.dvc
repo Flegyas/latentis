@@ -1,0 +1,6 @@
+outs:
+- md5: 57970d79271236755d15c7c8cef38673.dir
+  size: 1078395306
+  nfiles: 32
+  hash: md5
+  path: imagenet_text
