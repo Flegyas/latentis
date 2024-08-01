@@ -45,7 +45,7 @@ def test_index(
     # Test properties
     # assert sorted(index.ids) == sorted(range(num_vectors))
     # assert index.max_elements is not None
-    num_elements, num_dimensions = space.shape()
+    num_elements, num_dimensions = space.shape
     assert len(space) == num_vectors == num_elements
     assert space._vector_source._metric_fn == metric_fn
     # assert index.storage_data_type == DataType.FLOAT32
@@ -219,7 +219,7 @@ def test_keys(
     space.add_vectors(vectors=single_vector, keys=["single_additional_one"])
 
     assert len(space) == num_vectors + 1
-    assert space.shape()[0] == num_vectors + 1
+    assert space.shape[0] == num_vectors + 1
     assert np.allclose(single_vector, space.get_vector(key="single_additional_one"))
 
     for i in range(num_vectors):
