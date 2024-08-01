@@ -36,6 +36,10 @@ _METADATA_FILE_NAME = "metadata.json"
 
 
 class Space(SerializableMixin):
+    @classmethod
+    def from_tensor(cls, tensor: torch.Tensor, **kwargs) -> Space:
+        return cls(vector_source=tensor, **kwargs)
+
     def __init__(
         self,
         vector_source: Optional[Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]],
