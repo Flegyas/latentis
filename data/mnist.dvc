@@ -1,0 +1,6 @@
+outs:
+- md5: 675d64170729e9165b9ab4e7b5aa662b.dir
+  size: 849481043
+  nfiles: 32
+  hash: md5
+  path: mnist

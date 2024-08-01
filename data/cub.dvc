@@ -1,0 +1,6 @@
+outs:
+- md5: 0ad5fde1653fe37a61b10efe60eb339b.dir
+  size: 1291379213
+  nfiles: 34
+  hash: md5
+  path: cub

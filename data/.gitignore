@@ -1,3 +1,5 @@
-*
-
-!.gitignore
+/ag_news
+/cub
+/dbpedia14
+/imagenet
+/mnist
