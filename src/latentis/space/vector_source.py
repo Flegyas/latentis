@@ -250,7 +250,7 @@ class HDF5Source(VectorSource):
         if isinstance(index, torch.Tensor):
             index = index.detach().cpu().numpy()
 
-        if isinstance(index, Sequence) and all(isinstance(i, int) for i in index):
+        if isinstance(index, Sequence) and all(isinstance(i, (int, torch.Tensor)) for i in index):
             index = np.array(index)
 
         if isinstance(index, np.ndarray):
