@@ -1,5 +1,5 @@
 outs:
-- md5: 4d234b5833aca44928065a180db3016a
-  size: 31675
+- md5: da76d5129f38f50ab501c65198141687
+  size: 44223
   hash: md5
   path: ImageNet_mapping.txt
