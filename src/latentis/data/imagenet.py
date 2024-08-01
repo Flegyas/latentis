@@ -1,8 +1,9 @@
 from pathlib import Path
 
-from datasets import ClassLabel, Dataset
-from latentis import PROJECT_ROOT
 import pandas as pd
+from datasets import ClassLabel, Dataset
+
+from latentis import PROJECT_ROOT
 
 
 def read_imagenet_labels(root_dir: Path = None, file_name: str = "ImageNet_mapping.txt"):
