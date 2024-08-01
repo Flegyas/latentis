@@ -302,8 +302,8 @@ class Space(SerializableMixin):
     def keys(self) -> Sequence[str]:
         return self._vector_source.keys
 
-    def as_tensor(self) -> torch.Tensor:
-        return self._vector_source.as_tensor()
+    def as_tensor(self, device: torch.device = "cpu") -> torch.Tensor:
+        return self._vector_source.as_tensor(device=device)
 
     def to_memory(self) -> "Space":
         if isinstance(self._vector_source, torch.Tensor):
