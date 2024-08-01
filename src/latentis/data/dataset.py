@@ -21,6 +21,7 @@ class DataType(StrEnum):
     TEXT = auto()
     IMAGE = auto()
     LABEL = auto()
+    LONG = auto()
 
 
 class FeatureProperty(StrEnum):
