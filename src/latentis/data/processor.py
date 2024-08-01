@@ -414,4 +414,4 @@ if __name__ == "__main__":
 
     data = HFDatasetView.load_from_disk(path=PROJECT_ROOT / "data" / "imagenet_text")
 
-    print(data.hf_dataset)
+    print(data.hf_dataset["train"][0])
