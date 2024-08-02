@@ -92,7 +92,7 @@ def test_cka(mode: CKAMode, same_shape_spaces, different_dim_spaces, precomputed
     cka_result = CKA(mode=mode)(precomputed_cka["stored_x"], precomputed_cka["stored_y"])
 
     # higher tolerance because of the RBF kernel being noisy
-    assert cka_result == pytest.approx(precomputed_cka[mode], abs=1e-4)
+    assert cka_result == pytest.approx(precomputed_cka[mode], abs=TOL)
 
     # test functional interface
     space1, space2 = same_shape_spaces[0], same_shape_spaces[1]
@@ -114,15 +114,16 @@ def test_svcca(same_shape_spaces, different_dim_spaces, precomputed_svcca):
     # test object-oriented interface
     space1, space2 = same_shape_spaces[0], same_shape_spaces[1]
 
-    svcca_none = SVCCA(device=None, tolerance=SVCCA_TOLERANCE)
+    svcca_none = SVCCA(tolerance=TOL)
     svcca_result = svcca_none(space1, space2)
 
     assert svcca_result.device.type == "cpu"
 
     # check that GPU works correctly
     if torch.cuda.is_available():
-        svcca_gpu = SVCCA(device=torch.device("cuda"), tolerance=SVCCA_TOLERANCE)
-        svcca_result = svcca_gpu(space1, space2)
+        device = torch.device("cuda")
+        svcca_gpu = SVCCA(tolerance=TOL)
+        svcca_result = svcca_gpu(space1.to(device), space2.to(device))
 
         assert svcca_result.device.type == "cuda"
 
@@ -132,35 +133,33 @@ def test_svcca(same_shape_spaces, different_dim_spaces, precomputed_svcca):
 
     for spaces in [same_shape_spaces, different_dim_spaces]:
         space1, space2 = spaces
-        svcca = SVCCA(tolerance=SVCCA_TOLERANCE)
+        svcca = SVCCA(tolerance=TOL)
 
-        svcca_result = svcca(space1, space1)
+        svcca_result = svcca(space1, space1, tolerance=TOL)
         assert svcca_result == pytest.approx(
             1.0, abs=TOL
         ), f"Computed a SVCCA value of {svcca_result} for identical spaces while it should be 1. "
 
         # svcca must stay in 0, 1 range
-        svcca_result = svcca(space1, space2)
+        svcca_result = svcca(space1, space2, tolerance=TOL)
         assert 0.0 - TOL <= svcca_result <= 1.0 + TOL
 
-        symm_svcca_result = svcca(space2, space1)
+        symm_svcca_result = svcca(space2, space1, tolerance=TOL)
         assert symm_svcca_result == pytest.approx(
             svcca_result, abs=TOL
         ), f"Computed asymmetric SVCCA values: {symm_svcca_result}, {svcca_result} "
 
     # check that the svcca results didn't change from stored computations
-    svcca_result = SVCCA(device="cpu", tolerance=SVCCA_TOLERANCE)(
-        precomputed_svcca["stored_space1"], precomputed_svcca["stored_space2"]
-    )
+    svcca_result = SVCCA(tolerance=TOL)(precomputed_svcca["stored_space1"], precomputed_svcca["stored_space2"])
 
     # higher tolerance because of the RBF kernel being noisy
-    assert svcca_result == pytest.approx(precomputed_svcca["result"], abs=1e-3)
+    assert svcca_result == pytest.approx(precomputed_svcca["result"], abs=TOL)
 
     # test functional interface
     space1, space2 = same_shape_spaces[0], same_shape_spaces[1]
     svcca_result = svcca_fn(space1, space2, tolerance=SVCCA_TOLERANCE)
 
-    assert svcca_result == pytest.approx(SVCCA(tolerance=SVCCA_TOLERANCE)(space1, space2), abs=TOL)
+    assert svcca_result == pytest.approx(SVCCA(tolerance=TOL)(space1, space2), abs=TOL)
     assert svcca_result.device.type == "cpu"
 
     if torch.cuda.is_available():
