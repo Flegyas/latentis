@@ -406,7 +406,7 @@ ImageNetText = Pipeline(
 )
 
 if __name__ == "__main__":
-    data: DatasetView = ImageNet.build().run()["dataset_view"]
+    data: DatasetView = IMDB.build().run()["dataset_view"]
     data.save_to_disk(
         parent_dir=PROJECT_ROOT / "data",
     )
@@ -415,4 +415,8 @@ if __name__ == "__main__":
 
     data = HFDatasetView.load_from_disk(path=PROJECT_ROOT / "data" / data.name)
 
+    print(data.hf_dataset)
+    print()
     print(data.hf_dataset["train"][0])
+    print()
+    print(data.hf_dataset["test"][0])

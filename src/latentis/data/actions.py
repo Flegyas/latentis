@@ -163,9 +163,6 @@ class ToHFView:
 
 def imdb_process(data: DatasetDict, seed: int = 42):
     del data["unsupervised"]
-    fit_data = data["train"].train_test_split(test_size=0.1, seed=seed)
-    data["train"] = fit_data["train"]
-    data["val"] = fit_data["test"]
 
     data = data.cast_column(
         "label",
