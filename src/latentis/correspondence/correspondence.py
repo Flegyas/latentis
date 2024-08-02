@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from itertools import groupby
 import operator
 import random
-from typing import Mapping, Sequence, Tuple, Union
+from itertools import groupby
+from typing import Mapping, Sequence, Union
 
 import torch
 

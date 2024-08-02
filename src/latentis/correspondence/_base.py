@@ -25,7 +25,8 @@ class Correspondence(SerializableMixin):
     def __init__(self, **metadata):
         metadata = metadata or {}
         metadata[_CorrespondenceMetadata._VERSION] = self.version
-        metadata[_CorrespondenceMetadata._TYPE] = Correspondence.__name__
+        metadata[_CorrespondenceMetadata._TYPE] = self.__class__.__name__
+
         self._metadata = metadata.copy()
 
     @property

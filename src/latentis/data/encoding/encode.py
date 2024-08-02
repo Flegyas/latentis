@@ -13,11 +13,11 @@ from tqdm import tqdm
 from latentis.benchmark.task import Task
 from latentis.data import DATA_DIR
 from latentis.data.dataset import Feature, HFDatasetView
-from latentis.data.processor import TREC, DatasetView
 from latentis.data.encoding.text_pooling import HFPooler, Pooler, mean_pool
+from latentis.data.processor import TREC, DatasetView
 from latentis.data.utils import default_collate
 from latentis.nn import LatentisModule
-from latentis.nn.encoders import ImageHFEncoder, TextHFEncoder
+from latentis.nn.encoders import TextHFEncoder
 from latentis.space import Space
 from latentis.space.vector_source import HDF5Source
 

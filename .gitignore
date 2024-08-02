@@ -1,10 +1,13 @@
 wandb
 multirun.yaml
 storage
-benchmark
-
+# ignore only top level benchmark folder
+/benchmarks
+/nexus
+results
 # ignore the _version.py file
 _version.py
+/lightning_logs
 
 # .gitignore defaults for python and pycharm
 .idea
