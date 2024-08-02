@@ -260,8 +260,8 @@ class HDF5Source(VectorSource):
         if isinstance(index, np.ndarray):
             if len(index) != len(np.unique(index)):
                 # TODO: fix this inefficient sorting
-                return torch.tensor(np.array([self.data[i] for i in index]).copy())
-            sort_idx = np.argsort(index)
+                return torch.as_tensor(np.array([self.data[i] for i in index]))
+            sort_idx: np.ndarray[Any, np.dtype[np.signedinteger[Any]]] = np.argsort(index)
             return torch.as_tensor(self.data[index[sort_idx]][sort_idx.argsort()])
 
         return torch.as_tensor(self.data[index])
