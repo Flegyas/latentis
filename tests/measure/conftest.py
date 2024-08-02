@@ -6,7 +6,6 @@ import pytest
 import torch
 
 from latentis.measure.base import CKAMode
-from latentis.space import Space
 
 if TYPE_CHECKING:
     from latentis.types import LatentisSpace
