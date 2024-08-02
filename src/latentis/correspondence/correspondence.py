@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import operator
 import random
-from itertools import groupby
 from typing import Mapping, Sequence, Union
 
 import torch
@@ -73,8 +71,9 @@ class ImageNetToTextCorrespondence(Correspondence):
     ) -> Mapping[str, Sequence[int]]:
         y_synsets = [key.split("_")[0] for key in y_keys]
 
-        y_synset2indices = groupby(enumerate(y_synsets), key=operator.itemgetter(1))
-        y_synset2indices = {key: list(map(operator.itemgetter(0), group)) for key, group in y_synset2indices}
+        y_synset2indices = {key: [] for key in set(y_synsets)}
+        for i, synset_id in enumerate(y_synsets):
+            y_synset2indices[synset_id].append(i)
 
         x_indices = torch.randperm(len(x_keys), generator=torch.Generator().manual_seed(seed))[:size]
         x_synsets = [x_keys[i].split("_")[0] for i in x_indices]
