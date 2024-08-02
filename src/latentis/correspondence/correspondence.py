@@ -47,25 +47,27 @@ class SameKeyCorrespondence(Correspondence):
 
 
 class ImageNetToTextCorrespondence(Correspondence):
-    def match(self, x_keys: Sequence[str], y_keys: Sequence[str]) -> Union[bool, torch.BoolTensor]:
-        single: bool = isinstance(x_keys, str) and isinstance(y_keys, str)
-
-        if single:
+    def match(self, x_keys: Sequence[str], y_keys: Sequence[str], mode="first") -> Union[bool, torch.BoolTensor]:
+        if isinstance(x_keys, (str, int)):
             x_keys = [x_keys]
+        if isinstance(y_keys, (str, int)):
             y_keys = [y_keys]
 
         x_synsets = [key.split("_")[0] for key in x_keys]
         y_synsets = [key.split("_")[0] for key in y_keys]
 
-        if single:
+        if len(x_synsets) == 1 and len(y_synsets) == 1:
             return x_synsets[0] == y_synsets[0]
 
         result = torch.zeros(len(x_synsets), len(y_synsets), dtype=torch.bool)
         for i, x_synset in enumerate(x_synsets):
             for j, y_synset in enumerate(y_synsets):
-                result[i, j] = x_synset == y_synset
+                if x_synset == y_synset:
+                    result[i, j] = True
+                    if mode == "first":
+                        break
 
-        return result
+        return result  # .squeeze(dim=(0, 1))
 
     def subset(
         self, x_keys: Sequence[str], y_keys: Sequence[str], size: int, seed: int = 42
@@ -73,6 +75,7 @@ class ImageNetToTextCorrespondence(Correspondence):
         y_synsets = [key.split("_")[0] for key in y_keys]
 
         y_synset2indices = groupby(enumerate(y_synsets), key=operator.itemgetter(1))
+        y_synset2indices = {key: list(map(operator.itemgetter(0), group)) for key, group in y_synset2indices}
 
         x_indices = torch.randperm(len(x_keys), generator=torch.Generator().manual_seed(seed))[:size]
         x_synsets = [x_keys[i].split("_")[0] for i in x_indices]

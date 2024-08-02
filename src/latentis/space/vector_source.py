@@ -137,7 +137,8 @@ class VectorSource(metaclass=VectorSourceMeta):
         raise NotImplementedError
 
     def select(self, indices: Sequence[int]) -> VectorSource:
-        return TensorSource(vectors=self[indices], keys=[self.keys[i] for i in indices])
+        source = TensorSource(vectors=self[indices], keys=[self.keys[i] for i in indices])
+        return source
 
 
 class TensorSource(VectorSource, SerializableMixin):
@@ -257,6 +258,9 @@ class HDF5Source(VectorSource):
             index = np.array(index)
 
         if isinstance(index, np.ndarray):
+            if len(index) != len(np.unique(index)):
+                # TODO: fix this inefficient sorting
+                return torch.tensor(np.array([self.data[i] for i in index]).copy())
             sort_idx = np.argsort(index)
             return torch.as_tensor(self.data[index[sort_idx]][sort_idx.argsort()])
 
