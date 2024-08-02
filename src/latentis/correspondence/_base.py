@@ -26,6 +26,12 @@ class PI:
     x_indices: torch.Tensor
     y_indices: torch.Tensor
 
+    def __post_init__(self):
+        if self.x_indices.shape != self.y_indices.shape:
+            raise ValueError(
+                f"Expected x_indices and y_indices to have the same shape, got {self.x_indices.shape} and {self.y_indices.shape}"
+            )
+
 
 class Correspondence(SerializableMixin):
     def __init__(self, **metadata):
