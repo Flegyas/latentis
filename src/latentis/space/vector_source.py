@@ -136,6 +136,9 @@ class VectorSource(metaclass=VectorSourceMeta):
     def load_from_disk(cls, path: Path) -> VectorSource:
         raise NotImplementedError
 
+    def select(self, indices: Sequence[int]) -> VectorSource:
+        return TensorSource(vectors=self[indices], keys=[self.keys[i] for i in indices])
+
 
 class TensorSource(VectorSource, SerializableMixin):
     @classmethod
@@ -321,6 +324,11 @@ class HDF5Source(VectorSource):
             return self[self._keys2offset.get_y(key)]
         except KeyError:
             raise KeyError(f"Key {key} not found in {self._keys2offset}")
+
+    # def select(self, indices: Sequence[int]) -> VectorSource:
+    #     return HDF5Source(shape=(len(indices), self.data.shape[1]), root_dir=self.root_dir).add_vectors(
+    #         self[indices], keys=[self.keys[i] for i in indices]
+    #     )
 
 
 class SearchSource(VectorSource):

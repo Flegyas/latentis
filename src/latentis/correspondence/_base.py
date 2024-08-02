@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from dataclasses import dataclass
 from enum import auto
 from pathlib import Path
 from typing import Sequence
@@ -19,6 +20,12 @@ _METADATA_FILE_NAME = "metadata.json"
 class _CorrespondenceMetadata(StrEnum):
     _VERSION = auto()
     _TYPE = auto()
+
+
+@dataclass(frozen=True)
+class PI:
+    x_indices: torch.Tensor
+    y_indices: torch.Tensor
 
 
 class Correspondence(SerializableMixin):
@@ -66,10 +73,5 @@ class Correspondence(SerializableMixin):
     def add_noise(self, x: Space, y: Space):
         pass
 
-    # def random_subset(self, factor: Union[int, float], seed: int):
-    #     n = int(len(self.x2y) * factor) if 0 < factor <= 1 else factor
-    #     x_ids = self.get_x_ids()
-    #     y_ids = self.get_y_ids()
-    #     subset = torch.randperm(x_ids.size(0), generator=torch.Generator().manual_seed(seed))[:n]
-
-    #     return TensorCorrespondence(x2y=torch.stack([x_ids[subset, :], y_ids[subset, :]], dim=-1))
+    def subset(self, x_keys: Sequence[str], y_keys: Sequence[str], size: int, seed: int = 42) -> PI:
+        raise NotImplementedError

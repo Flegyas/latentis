@@ -8,6 +8,7 @@ from typing import Mapping, Sequence, Union
 import torch
 
 from latentis.correspondence import Correspondence
+from latentis.correspondence._base import PI
 
 # WikimatrixCorrespondence(source_dataset="en", target_dataset="fr", source_id=0)
 
@@ -36,14 +37,12 @@ class SameKeyCorrespondence(Correspondence):
     def __init__(self):
         super().__init__()
 
-    def subset(
-        self, x_keys: Sequence[str], y_keys: Sequence[str], size: int, seed: int = 42
-    ) -> Mapping[str, Sequence[int]]:
+    def subset(self, x_keys: Sequence[str], y_keys: Sequence[str], size: int, seed: int = 42) -> PI:
         if len(x_keys) != len(y_keys):
             raise ValueError(f"Expected x_keys and y_keys to have the same length, got {len(x_keys)} and {len(y_keys)}")
         p = torch.randperm(len(x_keys), generator=torch.Generator().manual_seed(seed))[:size]
 
-        return dict(
+        return PI(
             x_indices=p,
             y_indices=p,
         )
@@ -102,7 +101,7 @@ class ImageNetToTextCorrespondence(Correspondence):
 
         y_indices = [random.choice(y_synset2indices[x_synset]) for x_synset in x_synsets]
 
-        return dict(
-            x_indices=x_indices,
-            y_indices=y_indices,
+        return PI(
+            x_indices=torch.as_tensor(x_indices),
+            y_indices=torch.as_tensor(y_indices),
         )
