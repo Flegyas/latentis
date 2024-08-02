@@ -406,8 +406,6 @@ ImageNetText = Pipeline(
 )
 
 if __name__ == "__main__":
-    data = HFDatasetView.load_from_disk(path=PROJECT_ROOT / "data" / "imagenet")
-
     data: DatasetView = ImageNet.build().run()["dataset_view"]
     data.save_to_disk(
         parent_dir=PROJECT_ROOT / "data",

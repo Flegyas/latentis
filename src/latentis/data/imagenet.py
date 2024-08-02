@@ -6,7 +6,7 @@ from datasets import ClassLabel, Dataset
 from latentis import PROJECT_ROOT
 
 
-def read_imagenet_labels(root_dir: Path = None, file_name: str = "ImageNet_mapping.txt"):
+def read_imagenet_labels(root_dir: Path = None, file_name: str = "ImageNet_mapping.tsv"):
     file = (root_dir or PROJECT_ROOT / "data") / file_name
     data = pd.read_csv(file, sep="\t")
     assert len(data) == 1000

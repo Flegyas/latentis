@@ -2,4 +2,4 @@ outs:
 - md5: da76d5129f38f50ab501c65198141687
   size: 44223
   hash: md5
-  path: ImageNet_mapping.txt
+  path: ImageNet_mapping.tsv
