@@ -3,7 +3,6 @@ from typing import Optional, Sequence
 import datasets
 from datasets import ClassLabel, DatasetDict
 
-from latentis import PROJECT_ROOT
 from latentis.data.dataset import DatasetView, Feature, FeatureMapping, HFDatasetView
 from latentis.data.imagenet import read_imagenet_labels
 
