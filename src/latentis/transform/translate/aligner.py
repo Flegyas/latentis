@@ -3,6 +3,7 @@ from typing import Any, Callable, Mapping, Optional
 import torch
 from torch import nn
 
+from latentis.correspondence._base import PI
 from latentis.transform import Estimator, Identity, Transform
 from latentis.transform.base import StandardScaling
 from latentis.transform.dim_matcher import DimMatcher, ZeroPadding
@@ -35,14 +36,17 @@ class Translator(Estimator):
 
         self._fitted = False
 
-    def fit(self, x: torch.Tensor, y: torch.Tensor) -> Mapping[str, Any]:
-        x = self.x_transform.fit_transform(x=x)
-        y = self.y_transform.fit_transform(x=y)
+    def fit(self, x: torch.Tensor, y: torch.Tensor, pi: PI = None, **kwargs) -> Mapping[str, Any]:
+        x_anchors = x[pi.x_indices] if pi is not None else x
+        y_anchors = y[pi.y_indices] if pi is not None else y
+
+        x_anchors = self.x_transform.fit_transform(x=x_anchors)
+        y_anchors = self.y_transform.fit_transform(x=y_anchors)
 
         if self.dim_matcher is not None:
-            x, y = self.dim_matcher.fit_transform(x=x, y=y)
+            x_anchors, y_anchors = self.dim_matcher.fit_transform(x=x_anchors, y=y_anchors)
 
-        self.aligner.fit(x=x, y=y)
+        self.aligner.fit(x=x_anchors, y=y_anchors)
 
         self._fitted = True
 
@@ -86,8 +90,11 @@ class MatrixAligner(Estimator):
         super().__init__(name=name)
         self.align_fn_state = align_fn_state
 
-    def fit(self, x: torch.Tensor, y: torch.Tensor) -> Mapping[str, Any]:
-        state = self.align_fn_state(x=x, y=y)
+    def fit(self, x: torch.Tensor, y: torch.Tensor, pi: PI = None) -> Mapping[str, Any]:
+        x_anchors = x[pi.x_indices] if pi is not None else x
+        y_anchors = y[pi.y_indices] if pi is not None else y
+
+        state = self.align_fn_state(x=x_anchors, y=y_anchors)
         self._register_state(state=state)
 
         return self

@@ -10,6 +10,7 @@ from latentis.serialize.io_utils import SerializableMixin
 from latentis.transform.functional import InverseFn, State, StateFn, TransformFn
 
 if TYPE_CHECKING:
+    from latentis.correspondence import PI
     from latentis.types import LatentisSpace, Metadata
 
 
@@ -214,7 +215,15 @@ class Estimator(Transform):
         self._x_space = x_space
         self._y_space = y_space
 
-    def fit(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> "Estimator":
+    def fit(
+        self,
+        x: torch.Tensor,
+        y: torch.Tensor,
+        pi: PI = None,
+        x_info: Mapping[str, Any] = None,
+        y_info: Mapping[str, Any] = None,
+        **kwargs,
+    ) -> "Estimator":
         return self
 
     def transform(self, x: torch.Tensor, y: torch.Tensor, **kwargs) -> torch.Tensor:

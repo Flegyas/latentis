@@ -193,7 +193,7 @@ class TensorSource(VectorSource, SerializableMixin):
 
     @property
     def keys(self) -> Sequence[str]:
-        return self._keys2offset.x
+        return list(self._keys2offset.x)
 
     def add_vectors(self, vectors: torch.Tensor, keys: Sequence[str] | None = None) -> VectorSource:
         if vectors.ndim == 1:
@@ -236,7 +236,7 @@ class HDF5Source(VectorSource):
 
     @property
     def keys(self) -> Sequence[str]:
-        return self._keys2offset.x
+        return list(self._keys2offset.x)
 
     @property
     def shape(self) -> torch.Size:
