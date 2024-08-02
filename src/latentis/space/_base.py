@@ -470,8 +470,10 @@ class Space(SerializableMixin):
     def to_hf_dataset(self, name: str) -> Any:
         raise NotImplementedError
 
-    def select(self, indices: Sequence[int]) -> "Space":
-        return Space.like(
-            space=self,
-            vector_source=self._vector_source.select(indices),
-        )
+    def select(self, indices: Sequence[int], return_keys: bool = False) -> "Space":
+        space = self._vector_source[indices]
+
+        if return_keys:
+            return space, [self.keys[i] for i in indices]
+
+        return space
