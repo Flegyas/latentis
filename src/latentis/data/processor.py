@@ -377,6 +377,7 @@ ImageNet = Pipeline(
             features=[
                 Feature(name="image", data_type=DataType.IMAGE),
                 Feature(name="label", data_type=DataType.LABEL),
+                Feature(name="synset_id", data_type=DataType.TEXT),
             ],
         ),
     },
@@ -405,13 +406,15 @@ ImageNetText = Pipeline(
 )
 
 if __name__ == "__main__":
-    data: DatasetView = ImageNetText.build().run()["dataset_view"]
+    data = HFDatasetView.load_from_disk(path=PROJECT_ROOT / "data" / "imagenet")
+
+    data: DatasetView = ImageNet.build().run()["dataset_view"]
     data.save_to_disk(
         parent_dir=PROJECT_ROOT / "data",
     )
 
     print(data.hf_dataset)
 
-    data = HFDatasetView.load_from_disk(path=PROJECT_ROOT / "data" / "imagenet_text")
+    data = HFDatasetView.load_from_disk(path=PROJECT_ROOT / "data" / data.name)
 
     print(data.hf_dataset["train"][0])

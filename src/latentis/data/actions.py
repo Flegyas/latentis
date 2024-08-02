@@ -3,7 +3,9 @@ from typing import Optional, Sequence
 import datasets
 from datasets import ClassLabel, DatasetDict
 
+from latentis import PROJECT_ROOT
 from latentis.data.dataset import DatasetView, Feature, FeatureMapping, HFDatasetView
+from latentis.data.imagenet import read_imagenet_labels
 
 
 class LoadHFDataset:
@@ -183,4 +185,19 @@ def imagenet_process(data: DatasetDict, seed: int = 42):
     data["train"] = train_data
     data["test"] = data["validation"]
     del data["validation"]
+
+    imagenet_df = read_imagenet_labels()
+    imagenet_df["synset_id"] = imagenet_df["pos"] + imagenet_df["offset"]
+
+    def mapping(sample, index: int):
+        synset_id = imagenet_df.loc[imagenet_df["class_id"] == sample["label"], "synset_id"].item()
+        sample_id = f"{synset_id}_{index}"
+        return {"synset_id": synset_id, "sample_id": sample_id}
+
+    data = data.map(
+        mapping,
+        batched=False,
+        with_indices=True,
+    )
+
     return data
