@@ -66,8 +66,7 @@ class ImageNetToTextCorrespondence(Correspondence):
                     result[i, j] = True
                     if mode == "first":
                         break
-
-        return result  # .squeeze(dim=(0, 1))
+        return result.bool()  # .squeeze(dim=(0, 1))
 
     def subset(
         self, x_keys: Sequence[str], y_keys: Sequence[str], size: int, seed: int = 42
