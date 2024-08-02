@@ -13,11 +13,11 @@ from tqdm import tqdm
 from latentis.benchmark.task import Task
 from latentis.data import DATA_DIR
 from latentis.data.dataset import Feature, HFDatasetView
-from latentis.data.encoding.text_pooling import HFPooler, Pooler, mean_pool
-from latentis.data.processor import TREC, DatasetView
+from latentis.data.encoding.text_pooling import Pooler
+from latentis.data.processor import DatasetView
 from latentis.data.utils import default_collate
 from latentis.nn import LatentisModule
-from latentis.nn.encoders import TextHFEncoder
+from latentis.nn.encoders import ImageHFEncoder
 from latentis.space import Space
 from latentis.space.vector_source import HDF5Source
 
@@ -131,6 +131,7 @@ class EncodeTask(Task):
         save_source_model: bool = False,
         pooler: Optional[nn.Module] = None,
         target_path: Optional[str] = None,
+        write_every: int = 5,
     ):
         super().__init__()
         if split not in dataset_view.hf_dataset:
@@ -147,6 +148,7 @@ class EncodeTask(Task):
         self.save_source_model = save_source_model
         self.pooler = pooler or IdentityPooling(output_dim=self.model.output_dim)
         self.target_path = target_path
+        self.write_every: int = write_every
 
     def metadata(self):
         return {
@@ -199,8 +201,9 @@ class EncodeTask(Task):
             collate_fn=functools.partial(self.collate_fn, model=model, feature=self.feature.name),
         )
 
-        for batch in tqdm(
-            loader, desc=f"Encoding `{self.split}` samples for feature {self.feature.name} using {model.hash}"
+        for i_batch, batch in tqdm(
+            enumerate(loader),
+            desc=f"Encoding `{self.split}` samples for feature {self.feature.name} using {model.hash}",
         ):
             raw_encoding = model.encode(batch.to(self.device))
 
@@ -210,8 +213,9 @@ class EncodeTask(Task):
                     f"Multiple encodings returned by pooler `{self.pooler}`. Expected only one encoding per batch."
                 )
 
+            write: bool = i_batch % self.write_every == 0
             for encoding, pooler_properties in encoding2pooler_properties:
-                space.add_vectors(vectors=encoding, keys=batch[self.dataset._id_column], write=True)
+                space.add_vectors(vectors=encoding, keys=batch[self.dataset._id_column], write=write)
 
         space.save_to_disk(
             target_path=space_path,
@@ -224,75 +228,38 @@ class EncodeTask(Task):
         return EncodeResult(space=space)
 
 
-# if __name__ == "__main__":
-#     if True:
-#         CIFAR100.build().run()["dataset_view"].save_to_disk(DATA_DIR)
-
-#     datasets = ["cifar100"]
-#     for dataset_name, hf_encoder in itertools.product(
-#         datasets,
-#         [
-#             "WinKawaks/vit-small-patch16-224",
-#             "google/vit-base-patch16-224",
-#             "google/vit-large-patch16-224",
-#             "facebook/dinov2-base",
-#         ],
-#     ):
-#         dataset = HFDatasetView.load_from_disk(DATA_DIR / dataset_name)
-
-#         for split in dataset.splits():
-#             task = EncodeTask(
-#                 dataset=dataset,
-#                 split=split,
-#                 feature="img",
-#                 model=ImageHFEncoder(hf_encoder),
-#                 collate_fn=default_collate,
-#                 encoding_batch_size=128,
-#                 num_workers=2,
-#                 save_source_model=False,
-#                 # pooler=HFPooler(layers=[12], pooling_fn=cls_pool, output_dim=768),
-#                 device=torch.device("cuda"),
-#                 target_path=DATA_DIR / dataset_name / "encodings" / split / hf_encoder.replace("/", "-"),
-#             )
-
-#             print(task.properties())
-#             task.run()
-#             # Space.load_from_disk()
-
 if __name__ == "__main__":
-    if False:
-        TREC.build().run()["dataset_view"].save_to_disk(DATA_DIR)
-
-    datasets = ["imagenet_text"]
+    datasets = ["imagenet"]
     for dataset_name, hf_encoder in itertools.product(
         datasets,
         [
-            "FacebookAI/roberta-large",
-            "FacebookAI/roberta-base",
-            "google-bert/bert-base-uncased",
-            "google-bert/bert-base-cased",
-            # "WinKawaks/vit-small-patch16-224",
-            # "google/vit-base-patch16-224",
-            # "google/vit-large-patch16-224",
-            # "facebook/dinov2-base",
+            # "FacebookAI/roberta-large",
+            # "FacebookAI/roberta-base",
+            # "google-bert/bert-base-uncased",
+            # "google-bert/bert-base-cased",
+            "WinKawaks/vit-small-patch16-224",
+            "google/vit-base-patch16-224",
+            "google/vit-large-patch16-224",
+            "facebook/dinov2-base",
         ],
     ):
         dataset = HFDatasetView.load_from_disk(DATA_DIR / dataset_name)
 
         for split in dataset.splits():
-            encoder = TextHFEncoder(hf_encoder)
+            encoder = ImageHFEncoder(hf_encoder)
             task = EncodeTask(
                 dataset_view=dataset,
                 split=split,
-                feature="text",
+                feature="image",
                 model=encoder,
                 collate_fn=default_collate,
-                encoding_batch_size=256,
+                encoding_batch_size=512,
                 num_workers=8,
                 save_source_model=False,
-                pooler=HFPooler(layers=[encoder.num_layers - 1], pooling_fn=mean_pool, output_dim=encoder.output_dim),
+                # pooler=HFPooler(layers=[encoder.num_layers - 1], pooling_fn=mean_pool, output_dim=encoder.output_dim),
                 device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
                 target_path=DATA_DIR / dataset_name / "encodings" / hf_encoder.replace("/", "-") / split,
+                write_every=5,
             )
 
             print(task.metadata())
