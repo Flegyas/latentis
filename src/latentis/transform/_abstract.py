@@ -20,7 +20,7 @@ class Transform(nn.Module, SerializableMixin):
     def metadata(self) -> Metadata:
         return {
             "name": self.name,
-            # "invertible": self.invertible,
+            "invertible": self.invertible,
         }
 
     def __init__(

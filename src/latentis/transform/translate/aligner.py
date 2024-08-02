@@ -10,6 +10,15 @@ from latentis.transform.translate.functional import sgd_affine_align_state, svd_
 
 
 class Translator(Estimator):
+    @property
+    def metadata(self) -> Mapping[str, Any]:
+        super_metadata = super().metadata
+        super_metadata.update({f"aligner.{k}": v for k, v in self.aligner.metadata.items()})
+        if self.dim_matcher is not None:
+            super_metadata.update({f"dim_matcher.{k}": v for k, v in self.dim_matcher.metadata.items()})
+
+        return super_metadata
+
     def __init__(
         self,
         aligner: Estimator,
@@ -63,6 +72,12 @@ class Translator(Estimator):
 
 
 class MatrixAligner(Estimator):
+    @property
+    def metadata(self) -> Mapping[str, Any]:
+        super_metadata = super().metadata
+        super_metadata["align_fn_state"] = self.align_fn_state.__name__
+        return super_metadata
+
     def __init__(
         self,
         name: str,
@@ -87,6 +102,15 @@ class MatrixAligner(Estimator):
 
 
 class SGDAffineAligner(Estimator):
+    @property
+    def metadata(self) -> Mapping[str, Any]:
+        super_metadata = super().metadata
+        super_metadata["num_steps"] = self.num_steps
+        super_metadata["lr"] = self.lr
+        super_metadata["random_seed"] = self.random_seed
+
+        return super_metadata
+
     def __init__(
         self,
         num_steps: int,
