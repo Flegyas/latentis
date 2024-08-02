@@ -10,7 +10,6 @@ import torch
 
 from latentis.data import DATA_DIR
 from latentis.serialize.io_utils import SerializableMixin, load_json, save_json
-from latentis.space import Space
 from latentis.types import Metadata, StrEnum
 
 _CORRESPONDENCE_DIR = DATA_DIR / "correspondences"
@@ -65,13 +64,6 @@ class Correspondence(SerializableMixin):
     @abstractmethod
     def match(self, x_keys: Sequence[str], y_keys: Sequence[str]) -> torch.Tensor:
         raise NotImplementedError
-
-    @abstractmethod
-    def split(self):
-        pass
-
-    def add_noise(self, x: Space, y: Space):
-        pass
 
     def subset(self, x_keys: Sequence[str], y_keys: Sequence[str], size: int, seed: int = 42) -> PI:
         raise NotImplementedError
