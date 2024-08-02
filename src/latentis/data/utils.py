@@ -20,7 +20,11 @@ class Batch(UserDict):
 
 class BiMap(SerializableMixin):
     def __init__(self, x: Sequence[str], y: Sequence[int]):
-        assert len(x) == len(y), "x and y must have the same length"
+        if len(x) != len(y):
+            raise ValueError("x and y must have the same length")
+        if len(set(x)) != len(x):
+            raise ValueError("x must be unique")
+
         self._x2y: Dict[str, int] = {k: v for k, v in zip(x, y)}
         self._y2x: Dict[int, str] = {v: k for k, v in self._x2y.items()}
 
