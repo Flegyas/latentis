@@ -165,7 +165,7 @@ class Identity(Transform):
     def inverse_transform(self, **kwargs) -> torch.Tensor:
         return tuple(kwargs.values())
 
-    def fit(self, x: LatentisSpace) -> "Identity":
+    def fit(self, x: LatentisSpace, *args, **kwargs) -> "Identity":
         return self
 
     def fit_transform(self, **kwargs) -> torch.Tensor:
