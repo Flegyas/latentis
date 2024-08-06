@@ -28,7 +28,7 @@ class Translator(Estimator):
         y_transform: Optional[Transform] = None,
         dim_matcher: Optional[DimMatcher] = None,
     ) -> None:
-        super().__init__(name=name)
+        super().__init__(name=name or "translator")
         self.x_transform = x_transform or Identity()
         self.y_transform = y_transform or Identity()
         self.aligner = aligner
