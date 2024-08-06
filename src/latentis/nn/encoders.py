@@ -104,6 +104,7 @@ class ImageHFEncoder(HFEncoder):
         self.processor = AutoImageProcessor.from_pretrained(self.hf_name)
 
         self.is_clip: bool = "clip" in self.hf_name
+
         self._output_dim = (
             self.model.config.vision_config.projection_dim if self.is_clip else self.model.config.hidden_size
         )
