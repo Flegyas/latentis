@@ -56,7 +56,12 @@ class TextHFEncoder(HFEncoder):
             "max_length": max_length,
             **kwargs,
         }
-        self._output_dim = self.model.config.hidden_size
+
+        self.is_clip: bool = "clip" in self.hf_name
+
+        self._output_dim = (
+            self.model.config.text_config.projection_dim if self.is_clip else self.model.config.hidden_size
+        )
 
     @property
     def num_layers(self):
@@ -68,12 +73,10 @@ class TextHFEncoder(HFEncoder):
 
     @torch.no_grad()
     def pre_encode(self, samples: Sequence, feature: str) -> BatchEncoding:
-        is_clip: bool = self.hf_name.startswith("openai/clip")
-
         tok_out: BatchEncoding = self.tokenizer(
             [sample[feature] for sample in samples],
             return_special_tokens_mask=True,
-            return_token_type_ids=not is_clip,
+            return_token_type_ids=not self.is_clip,
             return_tensors="pt",
             **self.pre_encode_kwargs,
         )
@@ -87,8 +90,8 @@ class TextHFEncoder(HFEncoder):
         del tok_out["special_tokens_mask"]
 
         if self.hf_name.startswith("openai/clip"):
-            # TODO: fix this
-            encodings = [self.model.text_model(**tok_out, return_dict=True)["last_hidden_state"]]
+            # TODO: check this
+            encodings = self.model.text_model(**tok_out, return_dict=True).pooler_output
         else:
             encodings = self.model(**tok_out)["hidden_states"]
 
@@ -101,8 +104,9 @@ class ImageHFEncoder(HFEncoder):
         self.processor = AutoImageProcessor.from_pretrained(self.hf_name)
 
         self.is_clip: bool = "clip" in self.hf_name
-        config = self.model.config.vision_config if self.is_clip else self.model.config
-        self._output_dim = config.hidden_size
+        self._output_dim = (
+            self.model.config.vision_config.projection_dim if self.is_clip else self.model.config.hidden_size
+        )
 
     @property
     def output_dim(self):
