@@ -99,7 +99,10 @@ class ImageHFEncoder(HFEncoder):
     def __init__(self, hf_name: str, requires_grad: bool = False, metadata: Optional[Metadata] = None):
         super().__init__(hf_name, requires_grad, metadata=metadata)
         self.processor = AutoImageProcessor.from_pretrained(self.hf_name)
-        self._output_dim = self.model.config.hidden_size
+
+        self.is_clip: bool = "clip" in self.hf_name
+        config = self.model.config.vision_config if self.is_clip else self.model.config
+        self._output_dim = config.hidden_size
 
     @property
     def output_dim(self):
@@ -116,5 +119,8 @@ class ImageHFEncoder(HFEncoder):
     @torch.no_grad()
     def encode(self, x: BatchEncoding):
         x = x["proc_out"]
-        outputs = self.model(**x)
-        return {"x": outputs.last_hidden_state[:, 0, :]}
+        if not self.is_clip:
+            outputs = self.model(**x)
+            return {"x": outputs.last_hidden_state[:, 0, :]}
+        else:
+            return {"x": self.model.get_image_features(**x)}
