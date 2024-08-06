@@ -17,7 +17,7 @@ from latentis.data.encoding.text_pooling import Pooler
 from latentis.data.processor import DatasetView
 from latentis.data.utils import default_collate
 from latentis.nn import LatentisModule
-from latentis.nn.encoders import ImageHFEncoder
+from latentis.nn.encoders import TextHFEncoder
 from latentis.space import Space
 from latentis.space.vector_source import HDF5Source
 
@@ -52,7 +52,7 @@ class IdentityPooling(Pooler):
     def __init__(self, output_dim: int):
         super().__init__(name="no_pooling", output_dim=output_dim)
 
-    def forward(self, x):
+    def forward(self, x, **kwargs):
         return [(x, {})]
 
 
@@ -229,7 +229,7 @@ class EncodeTask(Task):
 
 
 if __name__ == "__main__":
-    datasets = ["imagenet"]
+    datasets = ["imagenet_text"]
     for dataset_name, hf_encoder in itertools.product(
         datasets,
         [
@@ -237,24 +237,31 @@ if __name__ == "__main__":
             # "FacebookAI/roberta-base",
             # "google-bert/bert-base-uncased",
             # "google-bert/bert-base-cased",
-            "WinKawaks/vit-small-patch16-224",
-            "google/vit-base-patch16-224",
-            "google/vit-large-patch16-224",
-            "facebook/dinov2-base",
+            # "sentence-transformers/all-mpnet-base-v2",
+            # "WinKawaks/vit-small-patch16-224",
+            # "google/vit-base-patch16-224",
+            # "google/vit-large-patch16-224",
+            # "facebook/dinov2-base",
+            # "facebook/dinov2-large",
+            "google/vit-large-patch32-384",
+            # "facebook/vit-mae-huge",
+            # "google/vit-large-patch16-224-in21k",
+            "openai/clip-vit-large-patch14",
         ],
     ):
         dataset = HFDatasetView.load_from_disk(DATA_DIR / dataset_name)
 
         for split in dataset.splits():
-            encoder = ImageHFEncoder(hf_encoder)
+            encoder = TextHFEncoder(hf_encoder)
+            # encoder = ImageHFEncoder(hf_encoder)
             task = EncodeTask(
                 dataset_view=dataset,
                 split=split,
-                feature="image",
+                feature="text",
                 model=encoder,
                 collate_fn=default_collate,
                 encoding_batch_size=512,
-                num_workers=8,
+                num_workers=16,
                 save_source_model=False,
                 # pooler=HFPooler(layers=[encoder.num_layers - 1], pooling_fn=mean_pool, output_dim=encoder.output_dim),
                 device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),

@@ -152,7 +152,7 @@ class FuncXTransform(Transform):
 
 class Identity(Transform):
     def __init__(self):
-        super().__init__(invertible=True)
+        super().__init__(name="identity", invertible=True)
 
     def transform(self, **kwargs) -> torch.Tensor:
         result = tuple(kwargs.values())
