@@ -159,17 +159,21 @@ class Identity(Transform):
 
         if len(result) == 1:
             return result[0]
-
         return result
 
     def inverse_transform(self, **kwargs) -> torch.Tensor:
-        return tuple(kwargs.values())
+        result = tuple(kwargs.values())
+
+        if len(result) == 1:
+            return result[0]
+
+        return result
 
     def fit(self, x: LatentisSpace, *args, **kwargs) -> "Identity":
         return self
 
     def fit_transform(self, **kwargs) -> torch.Tensor:
-        return tuple(kwargs.values())
+        return self.transform(**kwargs)
 
 
 class XTransformSequence(Transform):
