@@ -43,6 +43,9 @@ class Translator(Estimator):
         x_anchors = self.x_transform.fit_transform(x=x_anchors)
         y_anchors = self.y_transform.fit_transform(x=y_anchors)
 
+        x_anchors = x_anchors[0] if isinstance(x_anchors, tuple) and len(x_anchors) == 1 else x_anchors
+        y_anchors = y_anchors[0] if isinstance(y_anchors, tuple) and len(y_anchors) == 1 else y_anchors
+
         if self.dim_matcher is not None:
             x_anchors, y_anchors = self.dim_matcher.fit_transform(x=x_anchors, y=y_anchors)
 
@@ -52,18 +55,22 @@ class Translator(Estimator):
 
         return self
 
-    def transform(self, x: torch.Tensor) -> torch.Tensor:
+    def transform(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
         assert self._fitted, "The transform should be fitted before being applied."
 
         x = self.x_transform.transform(x=x)
+
         if self.dim_matcher is not None:
             x = self.dim_matcher.transform(x=x)[0]
+
         x = self.aligner.transform(x=x)
+
         if self.dim_matcher is not None:
             x = self.dim_matcher.inverse_transform(x=None, y=x)
+
         x = self.y_transform.inverse_transform(x=x)
 
-        return x
+        return dict(x=x)
 
     # def inverse_transform(self, x: torch.Tensor, y: torch.Tensor = None) -> torch.Tensor:
     #     # assert x is None, "The inverse transform should be applied on the target space (y)"
