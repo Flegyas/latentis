@@ -10,11 +10,8 @@ from latentis.measure import MetricFn
 from latentis.measure.cka import CKA, CKAMode
 from latentis.measure.functional.cka import cka as cka_fn
 from latentis.measure.functional.cka import kernel_hsic, linear_hsic
-from latentis.measure.functional.cka import cka as cka_fn
-from latentis.measure.functional.cka import kernel_hsic, linear_hsic
 from latentis.measure.functional.svcca import robust_svcca as svcca_fn
 from latentis.measure.svcca import SVCCA
-from latentis.space import LatentSpace
 
 if TYPE_CHECKING:
     from latentis.types import LatentisSpace
@@ -32,7 +29,9 @@ TOL = 1e-3
         (lambda x, y: torch.trace(torch.matmul(x, y.t()))),
     ],
 )
-def test_metric(metric_fn: Callable[[LatentisSpace, LatentisSpace], torch.Tensor], same_shape_spaces):
+def test_metric(
+    metric_fn: Callable[[LatentisSpace, LatentisSpace], torch.Tensor], same_shape_spaces
+):
     space1, space2 = same_shape_spaces
     fn_result = metric_fn(
         space1 if isinstance(space1, torch.Tensor) else space1.as_tensor(),
@@ -89,7 +88,9 @@ def test_cka(mode: CKAMode, same_shape_spaces, different_dim_spaces, precomputed
         assert symm_cka_result == pytest.approx(cka_result, abs=TOL)
 
     # check that the cka results didn't change from stored computations
-    cka_result = CKA(mode=mode)(precomputed_cka["stored_x"], precomputed_cka["stored_y"])
+    cka_result = CKA(mode=mode)(
+        precomputed_cka["stored_space1"], precomputed_cka["stored_space2"]
+    )
 
     # higher tolerance because of the RBF kernel being noisy
     assert cka_result == pytest.approx(precomputed_cka[mode], abs=TOL)
@@ -136,8 +137,8 @@ def test_svcca(same_shape_spaces, different_dim_spaces, precomputed_svcca):
         svcca = SVCCA(tolerance=TOL)
 
         svcca_result = svcca(space1, space1)
-        assert svcca_result == pytest.approx(
-            1.0, abs=TOL
+        assert (
+            svcca_result == pytest.approx(1.0, abs=TOL)
         ), f"Computed a SVCCA value of {svcca_result} for identical spaces while it should be 1. "
 
         # svcca must stay in 0, 1 range
@@ -150,14 +151,16 @@ def test_svcca(same_shape_spaces, different_dim_spaces, precomputed_svcca):
         ), f"Computed asymmetric SVCCA values: {symm_svcca_result}, {svcca_result} "
 
     # check that the svcca results didn't change from stored computations
-    svcca_result = SVCCA(tolerance=TOL)(precomputed_svcca["stored_space1"], precomputed_svcca["stored_space2"])
+    svcca_result = SVCCA(tolerance=TOL)(
+        precomputed_svcca["stored_space1"], precomputed_svcca["stored_space2"]
+    )
 
     # higher tolerance because of the RBF kernel being noisy
     assert svcca_result == pytest.approx(precomputed_svcca["result"], abs=TOL)
 
     # test functional interface
     space1, space2 = same_shape_spaces[0], same_shape_spaces[1]
-    svcca_result = svcca_fn(space1, space2, tolerance=SVCCA_TOLERANCE)
+    svcca_result = svcca_fn(space1, space2, tolerance=TOL)
 
     assert svcca_result == pytest.approx(SVCCA(tolerance=TOL)(space1, space2), abs=TOL)
     assert svcca_result.device.type == "cpu"
@@ -166,5 +169,5 @@ def test_svcca(same_shape_spaces, different_dim_spaces, precomputed_svcca):
         space1 = space1.to("cuda")
         space2 = space2.to("cuda")
 
-        svcca_result = svcca_fn(space1, space2, tolerance=SVCCA_TOLERANCE)
+        svcca_result = svcca_fn(space1, space2, tolerance=TOL)
         assert svcca_result.device.type == "cuda"
