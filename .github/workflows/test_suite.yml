@@ -43,7 +43,7 @@ jobs:
       #     large-packages: true
       #     docker-images: true
       #     swap-storage: true
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Set up uv
         if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest' }}

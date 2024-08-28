@@ -14,7 +14,6 @@ jobs:
         include:
           - os: ubuntu-20.04
             label: linux-64
-            prefix: /usr/share/miniconda3/envs/
 
     name: ${{ matrix.label }}-py${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
@@ -35,7 +34,7 @@ jobs:
         run: |
           echo "${RELEASE_TAG_VERSION}"
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -45,11 +44,14 @@ jobs:
       - name: Restore working directory (env.yaml Python version)
         run: git checkout .
 
-      - name: Build SDist and wheel
-        run: pipx run build
+      - name: Set up uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Build the project
+        run: uvx --from build pyproject-build --installer uv
 
       - name: Check metadata
-        run: pipx run twine check dist/*
+        run: uvx twine check dist/*
 
       - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
