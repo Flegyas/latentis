@@ -5,11 +5,28 @@ import importlib
 import logging
 from enum import auto
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Type, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
+)
 
 from latentis.nn import LatentisModule
 from latentis.serialize.disk_index import DiskIndex
-from latentis.serialize.io_utils import SerializableMixin, load_json, load_model, save_json, save_model
+from latentis.serialize.io_utils import (
+    SerializableMixin,
+    load_json,
+    load_model,
+    save_json,
+    save_model,
+)
 from latentis.space.search import SearchMetric, SearchResult
 from latentis.space.vector_source import SearchSource, TensorSource, VectorSource
 from latentis.transform import Transform
@@ -42,7 +59,9 @@ class Space(SerializableMixin):
 
     def __init__(
         self,
-        vector_source: Optional[Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]],
+        vector_source: Optional[
+            Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]
+        ],
         source_model: Optional[LatentisModule] = None,
         metadata: Optional[Metadata] = None,
         root_path: Optional[Path] = None,
@@ -79,9 +98,13 @@ class Space(SerializableMixin):
         metadata[_SpaceMetadata._VERSION] = self.version
 
         # removing this metadata from the index
-        metadata[_SpaceMetadata._TYPE] = self.__class__.__module__ + "." + self.__class__.__name__
+        metadata[_SpaceMetadata._TYPE] = (
+            self.__class__.__module__ + "." + self.__class__.__name__
+        )
         metadata[_SpaceMetadata._VECTOR_SOURCE] = (
-            self._vector_source.__class__.__module__ + "." + self._vector_source.__class__.__name__
+            self._vector_source.__class__.__module__
+            + "."
+            + self._vector_source.__class__.__name__
         )
 
         self._metadata = metadata.copy()
@@ -188,7 +211,9 @@ class Space(SerializableMixin):
         """
         if sum(sizes) != 1:
             if sum(sizes) != len(self):
-                raise ValueError("Sizes must sum to 1 or be the same length as the number of vectors.")
+                raise ValueError(
+                    "Sizes must sum to 1 or be the same length as the number of vectors."
+                )
 
             sizes = [size / sum(sizes) for size in sizes]
 
@@ -220,7 +245,9 @@ class Space(SerializableMixin):
     def source_model(self) -> Optional[LatentisModule]:
         return self._source_model
 
-    def get_vector(self, offset: Optional[int] = None, key: Optional[str] = None) -> torch.Tensor:
+    def get_vector(
+        self, offset: Optional[int] = None, key: Optional[str] = None
+    ) -> torch.Tensor:
         if (offset is not None) and (key is not None):
             raise ValueError("Only one of offset or key can be provided.")
 
@@ -254,7 +281,11 @@ class Space(SerializableMixin):
         # save model
         if save_source_model:
             if self.source_model is not None:
-                save_model(model=self.source_model, target_path=target_path / "model.pt", version=self.version)
+                save_model(
+                    model=self.source_model,
+                    target_path=target_path / "model.pt",
+                    version=self.version,
+                )
 
         # TODO: remove save to disk from disk index
         if self._decoders is not None:
@@ -274,7 +305,9 @@ class Space(SerializableMixin):
         # load correct VectorSource
         vector_source_cls = metadata[_SpaceMetadata._VECTOR_SOURCE]
         vector_source_pkg, vector_source_cls = vector_source_cls.rsplit(".", 1)
-        vector_source_cls = getattr(importlib.import_module(vector_source_pkg), vector_source_cls)
+        vector_source_cls = getattr(
+            importlib.import_module(vector_source_pkg), vector_source_cls
+        )
 
         vector_source = vector_source_cls.load_from_disk(path / "vectors")
 
@@ -295,7 +328,9 @@ class Space(SerializableMixin):
         try:
             space._decoders = DiskIndex.load_from_disk(path=path / "decoders")
         except FileNotFoundError:
-            space._decoders = DiskIndex(root_path=path / "decoders", item_class=LatentisModule)
+            space._decoders = DiskIndex(
+                root_path=path / "decoders", item_class=LatentisModule
+            )
         return space
 
     @property
@@ -320,7 +355,9 @@ class Space(SerializableMixin):
 
     def like_(
         self,
-        vector_source: Optional[Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]] = None,
+        vector_source: Optional[
+            Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]
+        ] = None,
         metadata: Optional[Mapping[str, Any]] = None,
         deepcopy: bool = False,
     ):
@@ -336,7 +373,9 @@ class Space(SerializableMixin):
         cls,
         #
         space: Space,
-        vector_source: Optional[Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]] = None,
+        vector_source: Optional[
+            Union[torch.Tensor, Tuple[torch.Tensor, Sequence[str]], VectorSource]
+        ] = None,
         # decoders: Optional[Dict[str, LatentisModule]] = None,
         metadata: Optional[Mapping[str, Any]] = None,
         #
@@ -356,7 +395,11 @@ class Space(SerializableMixin):
             Space: The new space, with the arguments not provided taken from the given space.
         """
         if vector_source is None:
-            vector_source = space.vector_source if not deepcopy else copy.deepcopy(space.vector_source)
+            vector_source = (
+                space.vector_source
+                if not deepcopy
+                else copy.deepcopy(space.vector_source)
+            )
 
         # if decoders is None:
         #     decoders = space.decoders if not deepcopy else copy.deepcopy(space.decoders)
@@ -377,7 +420,9 @@ class Space(SerializableMixin):
     def shape(self) -> torch.Size:
         return self._vector_source.shape
 
-    def __getitem__(self, index: Union[int, Sequence[int], slice]) -> Mapping[str, torch.Tensor]:
+    def __getitem__(
+        self, index: Union[int, Sequence[int], slice]
+    ) -> Mapping[str, torch.Tensor]:
         return self._vector_source[index]
 
     def __iter__(self):
@@ -387,18 +432,25 @@ class Space(SerializableMixin):
         return len(self._vector_source)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(vectors={self.shape}, metadata={self.metadata})"
+        return (
+            f"{self.__class__.__name__}(vectors={self.shape}, metadata={self.metadata})"
+        )
 
     def __eq__(self, __value: object) -> bool:
         if not isinstance(__value, Space):
             return False
 
-        return self.metadata == __value.metadata and self._vector_source == __value._vector_source
+        return (
+            self.metadata == __value.metadata
+            and self._vector_source == __value._vector_source
+        )
 
     def get_vectors_by_key(self, keys: Sequence[str]) -> torch.Tensor:
         return self._vector_source.get_vectors_by_key(keys=keys)
 
-    def add_vectors(self, vectors: torch.Tensor, keys: Optional[Sequence[str]] = None, **kwargs) -> None:
+    def add_vectors(
+        self, vectors: torch.Tensor, keys: Optional[Sequence[str]] = None, **kwargs
+    ) -> None:
         """Add vectors to this space.
 
         Args:
@@ -426,7 +478,10 @@ class Space(SerializableMixin):
     def compare(
         self,
         *others: LatentisSpace,
-        metrics: Mapping[str, Union[SearchMetric, Callable[[LatentisSpace, LatentisSpace], torch.Tensor]]],
+        metrics: Mapping[
+            str,
+            Union[SearchMetric, Callable[[LatentisSpace, LatentisSpace], torch.Tensor]],
+        ],
     ):
         """Compare this space with another space using the given metrics.
 
@@ -441,7 +496,10 @@ class Space(SerializableMixin):
             key: metric if isinstance(metric, SearchMetric) else MetricFn(key, metric)
             for key, metric in (metrics.items())
         }
-        metrics_results = {metric_name: metric(self, *others) for metric_name, metric in metrics.items()}
+        metrics_results = {
+            metric_name: metric(self, *others)
+            for metric_name, metric in metrics.items()
+        }
         return metrics_results
 
     def to_source(

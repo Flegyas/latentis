@@ -1,7 +1,9 @@
 import torch
 
 
-def pca(x: torch.Tensor, k: int, return_weights: bool = False, return_recon: bool = False):
+def pca(
+    x: torch.Tensor, k: int, return_weights: bool = False, return_recon: bool = False
+):
     """Perform Principal Component Analysis (PCA) on the input data.
 
     Args:

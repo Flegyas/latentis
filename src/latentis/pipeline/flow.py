@@ -35,7 +35,13 @@ class IOMapping(UserDict):
 
 
 class Step:
-    def __init__(self, block: str, input_mappings: IOMapping, outputs: IOSpec, method: str = "__call__") -> None:
+    def __init__(
+        self,
+        block: str,
+        input_mappings: IOMapping,
+        outputs: IOSpec,
+        method: str = "__call__",
+    ) -> None:
         self._input_mappings: IOMapping = input_mappings
         self._outputs: IOSpec = [outputs] if isinstance(outputs, str) else outputs
         self._method: str = method
@@ -43,7 +49,14 @@ class Step:
         self._block: Block = block
 
     def __hash__(self) -> int:
-        return hash((self._block, self._method, tuple(self._input_mappings), tuple(self._outputs)))
+        return hash(
+            (
+                self._block,
+                self._method,
+                tuple(self._input_mappings),
+                tuple(self._outputs),
+            )
+        )
 
     @property
     def input_mappings(self) -> IOMapping:
@@ -70,7 +83,9 @@ class Step:
         try:
             block_out = method(**kwargs)
         except TypeError as e:
-            raise TypeError(f"Error when calling {block}.{self._method} with inputs {kwargs.keys()}.") from e
+            raise TypeError(
+                f"Error when calling {block}.{self._method} with inputs {kwargs.keys()}."
+            ) from e
 
         # if isinstance(block_out, dict):
         #     raise NotImplementedError
@@ -89,7 +104,9 @@ class Step:
 
 class FlowInput(Step):
     def __init__(self, name: str) -> None:
-        super().__init__(input_mappings={name: [name]}, outputs=name, block=None, method=None)
+        super().__init__(
+            input_mappings={name: [name]}, outputs=name, block=None, method=None
+        )
 
     @property
     def name(self) -> str:
@@ -101,7 +118,9 @@ class FlowInput(Step):
 
 class FlowOutput(Step):
     def __init__(self, name: str) -> None:
-        super().__init__(input_mappings={name: [name]}, outputs=name, block=None, method=None)
+        super().__init__(
+            input_mappings={name: [name]}, outputs=name, block=None, method=None
+        )
 
     @property
     def name(self) -> str:
@@ -113,7 +132,9 @@ class FlowOutput(Step):
 
 class Passthrough(Step):
     def __init__(self, name: str) -> None:
-        super().__init__(input_mappings={name: [name]}, outputs=name, block=None, method=None)
+        super().__init__(
+            input_mappings={name: [name]}, outputs=name, block=None, method=None
+        )
 
     @property
     def name(self) -> str:
@@ -124,7 +145,12 @@ class Passthrough(Step):
 
 
 class Flow:
-    def __init__(self, name: str = "default", inputs: Sequence[str] = None, outputs: Sequence[str] = None) -> None:
+    def __init__(
+        self,
+        name: str = "default",
+        inputs: Sequence[str] = None,
+        outputs: Sequence[str] = None,
+    ) -> None:
         super().__init__()
         self.name: str = name
         inputs = [inputs] if isinstance(inputs, str) else inputs
@@ -180,7 +206,10 @@ class Flow:
             #     edge = tuple(edge)
             edge_label = self.dag.edges[edge]["mappings"]
             edge_label = ", ".join(
-                [k if len(v) == 1 and k == v[0] else f"{k}:{','.join(v)}" for k, v in edge_label.items()]
+                [
+                    k if len(v) == 1 and k == v[0] else f"{k}:{','.join(v)}"
+                    for k, v in edge_label.items()
+                ]
             )
             edge_label = f'<<table border="0" cellborder="0" cellspacing="0" cellpadding="{edge_padding}"><tr><td>{edge_label}</td></tr></table>>'
             graph.edge(edge[0], edge[1], label=edge_label)
@@ -193,7 +222,9 @@ class Flow:
         # return [self.dag.nodes[node]["step"] for node in root_nodes]
 
     def get_leaves(self) -> Sequence[Step]:
-        leaf_nodes = [node for node, out_degree in self.dag.out_degree if out_degree == 0]
+        leaf_nodes = [
+            node for node, out_degree in self.dag.out_degree if out_degree == 0
+        ]
         return [self.dag.nodes[node]["step"] for node in leaf_nodes]
 
     def _add_step(self, step: Step) -> "Flow":
@@ -201,8 +232,15 @@ class Flow:
 
     def get_by_output(self, output: str) -> Step:
         # traverse the graph in reverse topological order to find the nodes that provide the target output (excluding FlowOutputs)
-        steps = [self.dag.nodes[node]["step"] for node in nx.topological_sort(self.dag.reverse())]
-        steps = [step for step in steps if output in step.outputs and not isinstance(step, FlowOutput)]
+        steps = [
+            self.dag.nodes[node]["step"]
+            for node in nx.topological_sort(self.dag.reverse())
+        ]
+        steps = [
+            step
+            for step in steps
+            if output in step.outputs and not isinstance(step, FlowOutput)
+        ]
 
         return steps
 
@@ -232,7 +270,9 @@ class Flow:
         #     block=block_obj, method_name=method, inputs=list(input_mappings.values()), outputs=outputs
         # )
 
-        step = Step(block=block, method=method, input_mappings=input_mappings, outputs=outputs)
+        step = Step(
+            block=block, method=method, input_mappings=input_mappings, outputs=outputs
+        )
 
         nodes = list(self.dag.nodes)
 
@@ -242,7 +282,9 @@ class Flow:
             # retrieve the UNIQUE leaf node that provides the input value excluding the FlowOutputs
             # if it's not found, then it's a new FlowInput
             possible_dependencies: Step = self.get_by_output(output=input_value)
-            dependency = possible_dependencies[0] if len(possible_dependencies) > 0 else None
+            dependency = (
+                possible_dependencies[0] if len(possible_dependencies) > 0 else None
+            )
 
             if dependency is None:
                 if self.inputs is not None:
@@ -267,11 +309,13 @@ class Flow:
                     self.dag.add_edge(
                         step.name,
                         other_step.name,
-                        mappings={}
+                        mappings={},
                         # mappings={output: output},
                     )
                 elif output in other_step.outputs and output not in dependencies.keys():
-                    raise ValueError(f"Output {output} already provided by step {node}.")
+                    raise ValueError(
+                        f"Output {output} already provided by step {node}."
+                    )
 
         self._add_step(step=step)
         for input_value, dependency in dependencies.items():
@@ -304,13 +348,18 @@ class Flow:
             try:
                 block = blocks[step.block] if step.block is not None else None
             except KeyError as e:
-                raise KeyError(f"Block {step.block} not found in available blocks: {blocks}") from e
+                raise KeyError(
+                    f"Block {step.block} not found in available blocks: {blocks}"
+                ) from e
 
             step_out = step.run(block=block, **params)
 
             context.update(step_out)
 
-        return {flow_output.outputs[0]: context[flow_output.outputs[0]] for flow_output in self.outputs}
+        return {
+            flow_output.outputs[0]: context[flow_output.outputs[0]]
+            for flow_output in self.outputs
+        }
 
 
 @gin.configurable("pipeline")
@@ -347,7 +396,9 @@ class Pipeline:
     def run(self, flow: Optional[str] = None, **kwargs):
         if flow is None:
             if len(self.flows) != 1:
-                raise ValueError("Multiple flows available. Please specify the flow to run.")
+                raise ValueError(
+                    "Multiple flows available. Please specify the flow to run."
+                )
             else:
                 flow = next(iter(self.flows.keys()))
 
@@ -380,7 +431,11 @@ class Pipeline:
 
     @classmethod
     def check_signature(
-        cls, block: nn.Module, method_name: str, inputs: Sequence[str], outputs: Sequence[IOSpec]
+        cls,
+        block: nn.Module,
+        method_name: str,
+        inputs: Sequence[str],
+        outputs: Sequence[IOSpec],
     ) -> None:
         # check the method is a valid callable attribute of the block
         if isinstance(block, nn.Module) and isinstance(method_name, str):
@@ -396,10 +451,16 @@ class Pipeline:
         input_args: Mapping[str] = inspect.signature(method).parameters
         # if an argument is given in inputs, then it should be mapped to an argument in the method signature
         # it can either be mapped directly or to a keyword argument
-        kwargs = set(arg_name for arg_name, param in input_args.items() if param.kind == inspect.Parameter.VAR_KEYWORD)
+        kwargs = set(
+            arg_name
+            for arg_name, param in input_args.items()
+            if param.kind == inspect.Parameter.VAR_KEYWORD
+        )
         for input_name in inputs:
             if input_name not in input_args and len(kwargs) == 0:
-                raise ValueError(f"Argument {input_name} not found in method {method_name} of {block} and no **kwargs.")
+                raise ValueError(
+                    f"Argument {input_name} not found in method {method_name} of {block} and no **kwargs."
+                )
 
         # if an argument is required, it should be given in inputs
         # skip special arguments: self, cls, args, kwargs
@@ -414,12 +475,17 @@ class Pipeline:
         }
         for arg_name, param in free_args.items():
             if param.default == inspect.Parameter.empty and arg_name not in inputs:
-                raise ValueError(f"Argument {arg_name} is required but not provided in inputs.")
+                raise ValueError(
+                    f"Argument {arg_name} is required but not provided in inputs."
+                )
 
 
 class NNPipeline(nn.Module, Pipeline):
     def __init__(
-        self, name: str, blocks: Optional[Mapping[str, Any]] = None, flows: Optional[Mapping[str, Flow]] = None
+        self,
+        name: str,
+        blocks: Optional[Mapping[str, Any]] = None,
+        flows: Optional[Mapping[str, Flow]] = None,
     ) -> None:
         nn.Module.__init__(self)
         Pipeline.__init__(self, name=name, blocks=blocks, flows=flows)

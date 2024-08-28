@@ -40,7 +40,9 @@ class PairwiseMetric(Metric):
 
 
 class MetricFn(PairwiseMetric):
-    def __init__(self, key: str, fn: Callable[[LatentisSpace, LatentisSpace], torch.Tensor]) -> None:
+    def __init__(
+        self, key: str, fn: Callable[[LatentisSpace, LatentisSpace], torch.Tensor]
+    ) -> None:
         super().__init__(fn.__name__ if hasattr(fn, "__name__") else key)
         self.key = key
         self.fn = fn

@@ -9,19 +9,23 @@ from latentis.utils import seed_everything
 
 
 def svd_align_state(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-    assert x.size(1) == y.size(
-        1
+    assert (
+        x.size(1) == y.size(1)
     ), f"Dimension mismatch between {x.size(1)} and {y.size(1)}. Forgot some padding/truncation transforms?"
 
     #  Compute the translation vector that aligns A to B using SVD.
     u, sigma, vt = torch.svd((y.T @ x).T)
     translation_matrix = u @ vt.T
 
-    translation_matrix = torch.as_tensor(translation_matrix, dtype=x.dtype, device=x.device)
+    translation_matrix = torch.as_tensor(
+        translation_matrix, dtype=x.dtype, device=x.device
+    )
     return dict(matrix=translation_matrix)
 
 
-def svd_align(x: torch.Tensor, y: torch.Tensor, dim_matcher: Optional[DimMatcher] = None) -> torch.Tensor:
+def svd_align(
+    x: torch.Tensor, y: torch.Tensor, dim_matcher: Optional[DimMatcher] = None
+) -> torch.Tensor:
     if dim_matcher is not None:
         x, y = dim_matcher.fit_transform(x=x, y=y)
 
@@ -37,12 +41,18 @@ def svd_align(x: torch.Tensor, y: torch.Tensor, dim_matcher: Optional[DimMatcher
 
 @torch.enable_grad()
 def sgd_affine_align_state(
-    x: torch.Tensor, y: torch.Tensor, num_steps: int = 300, lr: float = 1e-3, random_seed: int = None
+    x: torch.Tensor,
+    y: torch.Tensor,
+    num_steps: int = 300,
+    lr: float = 1e-3,
+    random_seed: int = None,
 ) -> nn.Module:
     devices = None if x.device.type == "cpu" else [x.device.index]
     with torch.random.fork_rng(devices=devices):
         seed_everything(random_seed)
-        translation = nn.Linear(x.size(1), y.size(1), device=x.device, dtype=x.dtype, bias=True)
+        translation = nn.Linear(
+            x.size(1), y.size(1), device=x.device, dtype=x.dtype, bias=True
+        )
 
         x = x.detach()
         y = y.detach()
@@ -58,15 +68,24 @@ def sgd_affine_align_state(
 
 
 def sgd_affine_align(
-    x: torch.Tensor, y: torch.Tensor, *, num_steps: int = 300, lr: float = 1e-3, random_seed: int = None
+    x: torch.Tensor,
+    y: torch.Tensor,
+    *,
+    num_steps: int = 300,
+    lr: float = 1e-3,
+    random_seed: int = None,
 ) -> nn.Module:
-    state = sgd_affine_align_state(x, y, num_steps=num_steps, lr=lr, random_seed=random_seed)
+    state = sgd_affine_align_state(
+        x, y, num_steps=num_steps, lr=lr, random_seed=random_seed
+    )
     return state["translation"](x)
 
 
 def lstsq_align_state(x: torch.Tensor, y: torch.Tensor):
     translation_matrix = torch.linalg.lstsq(x, y).solution
-    translation_matrix = torch.as_tensor(translation_matrix, dtype=x.dtype, device=x.device)
+    translation_matrix = torch.as_tensor(
+        translation_matrix, dtype=x.dtype, device=x.device
+    )
     return dict(matrix=translation_matrix)
 
 
@@ -77,7 +96,9 @@ def lstsq_align(x: torch.Tensor, y: torch.Tensor):
 
 def lstsq_ortho_align_state(x: torch.Tensor, y: torch.Tensor):
     translation_matrix = torch.linalg.lstsq(x, y).solution
-    translation_matrix = torch.as_tensor(translation_matrix, dtype=x.dtype, device=x.device)
+    translation_matrix = torch.as_tensor(
+        translation_matrix, dtype=x.dtype, device=x.device
+    )
     U, _, Vt = torch.svd(translation_matrix)
     translation_matrix = U @ Vt.T
     return dict(matrix=translation_matrix)

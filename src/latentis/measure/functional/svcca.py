@@ -32,10 +32,13 @@ def robust_svcca(
     """
     result = None
     for _ in range(num_trials):
-
         try:
             result = svcca(
-                space1, space2, variance_percentage=variance_percentage, epsilon=epsilon, tolerance=tolerance
+                space1,
+                space2,
+                variance_percentage=variance_percentage,
+                epsilon=epsilon,
+                tolerance=tolerance,
             )
 
             break
@@ -67,7 +70,9 @@ def svcca(
     Returns:
         svcca_similarity: float quantifying the SVCCA similarity between X and Y.
     """
-    assert space1.shape[0] == space2.shape[0], "space1 and space2 must have the same number of samples."
+    assert (
+        space1.shape[0] == space2.shape[0]
+    ), "space1 and space2 must have the same number of samples."
 
     space1, space2 = space1.T, space2.T
 
@@ -77,7 +82,9 @@ def svcca(
     # shape (m, m), where m = num_neurons_x + num_neurons_y
     covariance = torch.cov(torch.cat((space1, space2)))
 
-    covariances = _decompose_and_normalize_covariance_matrix(covariance, num_neurons_x, num_neurons_y)
+    covariances = _decompose_and_normalize_covariance_matrix(
+        covariance, num_neurons_x, num_neurons_y
+    )
 
     (svd_decomposition, kept_indices) = _compute_ccas(covariances, epsilon=epsilon)
 
@@ -87,7 +94,9 @@ def svcca(
     singular_values = svd_decomposition["s"]
 
     # only keep the singular values explaining threshold% of the variance
-    last_significant_direction = _get_last_most_important_direction(singular_values, variance_percentage)
+    last_significant_direction = _get_last_most_important_direction(
+        singular_values, variance_percentage
+    )
 
     singular_values_to_keep = singular_values[:last_significant_direction]
 
@@ -100,7 +109,9 @@ def svcca(
     return svcca_similarity
 
 
-def _decompose_and_normalize_covariance_matrix(covariance: torch.Tensor, n_x: int, n_y: int) -> Dict[str, torch.Tensor]:
+def _decompose_and_normalize_covariance_matrix(
+    covariance: torch.Tensor, n_x: int, n_y: int
+) -> Dict[str, torch.Tensor]:
     """Decomposes and normalizes the covariance matrix.
 
     The function first decomposes the covariance matrix between X and Y as cov(X, X), cov(Y, Y) and cross-cov(X, Y), cross-cov(Y, X) and then
@@ -117,7 +128,10 @@ def _decompose_and_normalize_covariance_matrix(covariance: torch.Tensor, n_x: in
     cov_xx, cov_yy = covariance[:n_x, :n_x], covariance[n_x:, n_x:]
     cov_xy, cov_yx = covariance[:n_x, n_x:], covariance[n_x:, :n_x]
 
-    assert cov_xx.shape == (n_x, n_x) and cov_yy.shape == (n_y, n_y), "Covariance matrix has incorrect shape."
+    assert cov_xx.shape == (n_x, n_x) and cov_yy.shape == (
+        n_y,
+        n_y,
+    ), "Covariance matrix has incorrect shape."
 
     xmax = torch.max(torch.abs(cov_xx)) + 1e-6
     ymax = torch.max(torch.abs(cov_yy)) + 1e-6
@@ -204,12 +218,21 @@ def _prune_small_covariances(
         pruned_covariances: dict containing pruned cov_xx, cov_yy, cross-cov_xy and cross-cov_yx.
         kept_indices: indices of dimensions that were not pruned.
     """
-    x_diag, y_diag = torch.abs(torch.diagonal(covariances["xx"])), torch.abs(torch.diagonal(covariances["yy"]))
+    x_diag, y_diag = (
+        torch.abs(torch.diagonal(covariances["xx"])),
+        torch.abs(torch.diagonal(covariances["yy"])),
+    )
 
     x_idxs, y_idxs = x_diag >= epsilon, y_diag >= epsilon
 
-    sigma_xx_crop, sigma_yy_crop = covariances["xx"][x_idxs][:, x_idxs], covariances["yy"][y_idxs][:, y_idxs]
-    sigma_xy_crop, sigma_yx_crop = covariances["xy"][x_idxs][:, y_idxs], covariances["yx"][y_idxs][:, x_idxs]
+    sigma_xx_crop, sigma_yy_crop = (
+        covariances["xx"][x_idxs][:, x_idxs],
+        covariances["yy"][y_idxs][:, y_idxs],
+    )
+    sigma_xy_crop, sigma_yx_crop = (
+        covariances["xy"][x_idxs][:, y_idxs],
+        covariances["yx"][y_idxs][:, x_idxs],
+    )
 
     pruned_covariances = {
         "xx": sigma_xx_crop,

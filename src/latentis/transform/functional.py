@@ -122,13 +122,17 @@ def std_scaling_state(x: torch.Tensor) -> State:
     return {"scale": scale}
 
 
-def standard_scaling_transform(x: torch.Tensor, *, shift: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
+def standard_scaling_transform(
+    x: torch.Tensor, *, shift: torch.Tensor, scale: torch.Tensor
+) -> torch.Tensor:
     x = centering_transform(x=x, shift=shift)
     x = std_scaling_transform(x=x, scale=scale)
     return x
 
 
-def standard_scaling_inverse(x: torch.Tensor, *, shift: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
+def standard_scaling_inverse(
+    x: torch.Tensor, *, shift: torch.Tensor, scale: torch.Tensor
+) -> torch.Tensor:
     return (x * scale) + shift
 
 
@@ -144,7 +148,9 @@ def l2_normalize_transform(x: torch.Tensor) -> torch.Tensor:
     return lp_normalize_transform(x=x, p=2)
 
 
-def isotropic_scaling_transform(x: torch.Tensor, *, scale: torch.Tensor) -> torch.Tensor:
+def isotropic_scaling_transform(
+    x: torch.Tensor, *, scale: torch.Tensor
+) -> torch.Tensor:
     return x * scale
 
 
@@ -152,20 +158,30 @@ def isotropic_scaling_inverse(x: torch.Tensor, *, scale: torch.Tensor) -> torch.
     return x / scale
 
 
-def dimension_permutation_transform(x: torch.Tensor, *, permutation: torch.Tensor, dim: int = -1) -> torch.Tensor:
+def dimension_permutation_transform(
+    x: torch.Tensor, *, permutation: torch.Tensor, dim: int = -1
+) -> torch.Tensor:
     return x.index_select(dim=dim, index=permutation)
 
 
-def dimension_permutation_inverse(x: torch.Tensor, *, permutation: torch.Tensor, dim: int = -1) -> torch.Tensor:
-    inverse_permutation = torch.zeros_like(permutation, dtype=torch.long, device=permutation.device)
-    inverse_permutation[permutation] = torch.arange(len(permutation), dtype=torch.long, device=permutation.device)
+def dimension_permutation_inverse(
+    x: torch.Tensor, *, permutation: torch.Tensor, dim: int = -1
+) -> torch.Tensor:
+    inverse_permutation = torch.zeros_like(
+        permutation, dtype=torch.long, device=permutation.device
+    )
+    inverse_permutation[permutation] = torch.arange(
+        len(permutation), dtype=torch.long, device=permutation.device
+    )
     return x.index_select(dim=dim, index=inverse_permutation)
 
 
 def random_dimension_permutation_state(x: torch.Tensor, random_seed: int) -> State:
     return {
         "permutation": torch.as_tensor(
-            torch.randperm(x.shape[1], generator=torch.Generator().manual_seed(random_seed)),
+            torch.randperm(
+                x.shape[1], generator=torch.Generator().manual_seed(random_seed)
+            ),
             dtype=torch.long,
             device=x.device,
         )
@@ -180,6 +196,12 @@ def isometry_inverse(x: torch.Tensor, *, matrix: torch.Tensor) -> torch.Tensor:
     return x @ matrix.T
 
 
-def random_isometry_state(x: torch.Tensor, *, random_seed: Optional[int] = None) -> State:
-    matrix = torch.as_tensor(ortho_group.rvs(x.shape[1], random_state=random_seed), dtype=x.dtype, device=x.device)
+def random_isometry_state(
+    x: torch.Tensor, *, random_seed: Optional[int] = None
+) -> State:
+    matrix = torch.as_tensor(
+        ortho_group.rvs(x.shape[1], random_state=random_seed),
+        dtype=x.dtype,
+        device=x.device,
+    )
     return {"matrix": matrix}

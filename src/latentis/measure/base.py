@@ -33,7 +33,13 @@ class CKA(PairwiseMetric):
         device (torch.device): The torch device (e.g., CPU or GPU) to perform calculations on.
     """
 
-    def __init__(self, mode: CKAMode, device: torch.device = None, tolerance: float = 1e-6, sigma=None):
+    def __init__(
+        self,
+        mode: CKAMode,
+        device: torch.device = None,
+        tolerance: float = 1e-6,
+        sigma=None,
+    ):
         """Initialize the CKA instance with a specific mode and torch device."""
         super().__init__(CKA)
 

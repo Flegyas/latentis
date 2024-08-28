@@ -39,28 +39,15 @@ repos:
       #      - id: sort-simple-yaml  # sorts simple yaml files which consist only of top-level keys, preserving comments and blocks.
       - id: trailing-whitespace # trims trailing whitespace.
 
-  - repo: https://github.com/PyCQA/isort.git
-    rev: "5.12.0"
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.6.2
     hooks:
-      - id: isort
-
-  - repo: https://github.com/psf/black.git
-    rev: "22.3.0"
-    hooks:
-      - id: black
-      - id: black-jupyter
-
-  - repo: https://github.com/asottile/blacken-docs.git
-    rev: "v1.12.1"
-    hooks:
-      - id: blacken-docs
-
-  - repo: https://github.com/PyCQA/flake8.git
-    rev: "4.0.1"
-    hooks:
-      - id: flake8
-        additional_dependencies:
-          - flake8-docstrings==1.6.0
+      # Run the linter.
+      - id: ruff
+        args: [--fix]
+      # Run the formatter.
+      - id: ruff-format
 
   # - repo: https://github.com/pycqa/pydocstyle.git
   #   rev: "6.1.1"
@@ -81,8 +68,3 @@ repos:
   #     args: ['-c', 'pyproject.toml', '--recursive', 'src']
   #     additional_dependencies:
   #       - toml
-  - repo: https://github.com/PyCQA/autoflake
-    rev: v2.2.1
-    hooks:
-      - id: autoflake
-        args: [--remove-all-unused-imports, --in-place]

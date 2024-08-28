@@ -15,9 +15,11 @@ def test_index(tmp_path: Path):
     index = DiskIndex(tmp_path / "test_index", item_class=Space)
     n_items: int = 10
 
-    random_properties = [{"p1": str(torch.randn(1, 1).item()), "p2": "value2"} for _ in range(n_items)]
+    random_properties = [
+        {"p1": str(torch.randn(1, 1).item()), "p2": "value2"} for _ in range(n_items)
+    ]
 
-    for x, properties in zip(range(n_items), random_properties):
+    for _, properties in zip(range(n_items), random_properties):
         fake_item = Space(
             torch.randn(1, 1),
             metadata=properties,
@@ -30,7 +32,9 @@ def test_index(tmp_path: Path):
     assert len(index) == n_items == len(items)
 
     # add item with same key
-    new_item_key = index.add_item(item=Space(torch.randn(1, 2), metadata={"a": 1, "b": 2}))
+    new_item_key = index.add_item(
+        item=Space(torch.randn(1, 2), metadata={"a": 1, "b": 2})
+    )
     assert len(index) == n_items + 1
 
     with pytest.raises(FileExistsError):

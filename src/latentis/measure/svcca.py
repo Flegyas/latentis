@@ -37,7 +37,9 @@ class SVCCA(Metric):
             float: The SVCCA similarity between space1 and space2.
         """
         if space1.device != space2.device:
-            raise ValueError(f"space1 and space2 must be on the same device. Found {space1.device} and {space2.device}")
+            raise ValueError(
+                f"space1 and space2 must be on the same device. Found {space1.device} and {space2.device}"
+            )
 
         svcca_fn = robust_svcca if self.robust else svcca
 

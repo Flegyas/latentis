@@ -27,10 +27,18 @@ class ZeroPadding(DimMatcher):
 
         self._register_state(
             {
-                "x_pad": torch.as_tensor(max(0, x_pad), dtype=torch.long, device=x.device),
-                "y_pad": torch.as_tensor(max(0, y_pad), dtype=torch.long, device=x.device),
-                "transform_x": torch.as_tensor(transform_x, dtype=torch.bool, device=x.device),
-                "transform_y": torch.as_tensor(transform_y, dtype=torch.bool, device=x.device),
+                "x_pad": torch.as_tensor(
+                    max(0, x_pad), dtype=torch.long, device=x.device
+                ),
+                "y_pad": torch.as_tensor(
+                    max(0, y_pad), dtype=torch.long, device=x.device
+                ),
+                "transform_x": torch.as_tensor(
+                    transform_x, dtype=torch.bool, device=x.device
+                ),
+                "transform_y": torch.as_tensor(
+                    transform_y, dtype=torch.bool, device=x.device
+                ),
             }
         )
 

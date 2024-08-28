@@ -74,7 +74,9 @@ class IsotropicScaling(Transform):
         self.scale: float = scale
 
     def fit(self, x: torch.Tensor) -> "IsotropicScaling":
-        self._register_state({"scale": torch.tensor(self.scale, dtype=x.dtype, device=x.device)})
+        self._register_state(
+            {"scale": torch.tensor(self.scale, dtype=x.dtype, device=x.device)}
+        )
         return self
 
     def transform(self, x: torch.Tensor) -> torch.Tensor:
@@ -90,7 +92,9 @@ class RandomIsometry(Transform):
         self.random_seed: int = random_seed
 
     def fit(self, x: torch.Tensor) -> "RandomIsometry":
-        self._register_state(FL.random_isometry_state(x=x, random_seed=self.random_seed))
+        self._register_state(
+            FL.random_isometry_state(x=x, random_seed=self.random_seed)
+        )
         return self
 
     def transform(self, x: torch.Tensor) -> torch.Tensor:
@@ -106,7 +110,9 @@ class RandomDimensionPermutation(Transform):
         self.random_seed: int = random_seed
 
     def fit(self, x: torch.Tensor, y=None) -> "RandomDimensionPermutation":
-        self._register_state(FL.random_dimension_permutation_state(x=x, random_seed=self.random_seed))
+        self._register_state(
+            FL.random_dimension_permutation_state(x=x, random_seed=self.random_seed)
+        )
 
         return self
 

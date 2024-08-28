@@ -14,7 +14,11 @@ from latentis.transform.base import Centering, MeanLPNorm, StandardScaling, STDS
 from latentis.transform.dim_matcher import ZeroPadding
 from latentis.transform.translate import MatrixAligner
 from latentis.transform.translate.aligner import SGDAffineAligner
-from latentis.transform.translate.functional import lstsq_align_state, lstsq_ortho_align_state, svd_align_state
+from latentis.transform.translate.functional import (
+    lstsq_align_state,
+    lstsq_ortho_align_state,
+    svd_align_state,
+)
 from latentis.utils import seed_everything
 
 if TYPE_CHECKING:
@@ -30,7 +34,14 @@ def manual_svd_translation(A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
 
 
 class ManualLatentTranslation(nn.Module):
-    def __init__(self, seed: int, centering: bool, std_correction: bool, l2_norm: bool, method: str) -> None:
+    def __init__(
+        self,
+        seed: int,
+        centering: bool,
+        std_correction: bool,
+        l2_norm: bool,
+        method: str,
+    ) -> None:
         super().__init__()
 
         self.seed: int = seed
@@ -122,7 +133,9 @@ class ManualLatentTranslation(nn.Module):
                 self.decoding_anchors = y
 
             translation_matrix, sigma = manual_svd_translation(A=x, B=y)
-            self.sigma_rank = (~sigma.isclose(torch.zeros_like(sigma), atol=1e-1).bool()).sum().item()
+            self.sigma_rank = (
+                (~sigma.isclose(torch.zeros_like(sigma), atol=1e-1).bool()).sum().item()
+            )
         elif self.method == "lstsq":
             translation_matrix = torch.linalg.lstsq(x, y).solution
         elif self.method == "lstsq+ortho":
@@ -132,7 +145,9 @@ class ManualLatentTranslation(nn.Module):
         else:
             raise NotImplementedError
 
-        translation_matrix = torch.as_tensor(translation_matrix, dtype=x.dtype, device=x.device)
+        translation_matrix = torch.as_tensor(
+            translation_matrix, dtype=x.dtype, device=x.device
+        )
         self.register_buffer("translation_matrix", translation_matrix)
 
         self.translation = lambda x: x @ self.translation_matrix
@@ -149,7 +164,9 @@ class ManualLatentTranslation(nn.Module):
             encoding_x = F.normalize(encoding_x, p=2, dim=-1)
 
         if self.method == "svd" and self.encoding_dim < self.decoding_dim:
-            padded = torch.zeros(X.size(0), self.decoding_dim, device=X.device, dtype=X.dtype)
+            padded = torch.zeros(
+                X.size(0), self.decoding_dim, device=X.device, dtype=X.dtype
+            )
             padded[:, : self.encoding_dim] = encoding_x
             encoding_x = padded
 
@@ -162,7 +179,9 @@ class ManualLatentTranslation(nn.Module):
             decoding_x = decoding_x * self.decoding_norm
 
         # restore center
-        decoding_x = (decoding_x * self.std_decoding_anchors) + self.mean_decoding_anchors
+        decoding_x = (
+            decoding_x * self.std_decoding_anchors
+        ) + self.mean_decoding_anchors
 
         info = {}
         if compute_info:
@@ -179,7 +198,12 @@ _RANDOM_SEED = 0
     [
         ("svd", lambda: MatrixAligner("svd", align_fn_state=svd_align_state)),
         ("lstsq", lambda: MatrixAligner("lstsq", align_fn_state=lstsq_align_state)),
-        ("lstsq+ortho", lambda: MatrixAligner("lstsq+ortho", align_fn_state=lstsq_ortho_align_state)),
+        (
+            "lstsq+ortho",
+            lambda: MatrixAligner(
+                "lstsq+ortho", align_fn_state=lstsq_ortho_align_state
+            ),
+        ),
         ("linear", lambda: SGDAffineAligner(num_steps=20, lr=1e-3, random_seed=0)),
     ],
 )
@@ -243,18 +267,49 @@ def test_manual_translation(
     translator = NNPipeline(
         name="translator",
         flows={
-            "fit": Flow(name="fit", inputs=["fit_source", "fit_target"], outputs="estimator")
-            .add(block="x_transform", method="fit_transform", inputs="fit_source:x", outputs="x")
-            .add(block="y_transform", method="fit_transform", inputs="fit_target:x", outputs="y")
-            .add(block="padder", method="fit_transform", inputs=["x", "y"], outputs=["padded_x", "padded_y"])
-            .add(block="aligner", method="fit", inputs=["padded_x:x", "padded_y:y"], outputs=["estimator"]),
+            "fit": Flow(
+                name="fit", inputs=["fit_source", "fit_target"], outputs="estimator"
+            )
+            .add(
+                block="x_transform",
+                method="fit_transform",
+                inputs="fit_source:x",
+                outputs="x",
+            )
+            .add(
+                block="y_transform",
+                method="fit_transform",
+                inputs="fit_target:x",
+                outputs="y",
+            )
+            .add(
+                block="padder",
+                method="fit_transform",
+                inputs=["x", "y"],
+                outputs=["padded_x", "padded_y"],
+            )
+            .add(
+                block="aligner",
+                method="fit",
+                inputs=["padded_x:x", "padded_y:y"],
+                outputs=["estimator"],
+            ),
             #
-            "transform": Flow(name="transform", inputs=["source"], outputs=["translated_x"])
-            .add(block="x_transform", method="transform", inputs="source:x", outputs="x")
+            "transform": Flow(
+                name="transform", inputs=["source"], outputs=["translated_x"]
+            )
+            .add(
+                block="x_transform", method="transform", inputs="source:x", outputs="x"
+            )
             .add(block="padder", method="transform", inputs="x", outputs="x")
             .add(block="aligner", method="transform", inputs="x", outputs="x")
             .add(block="padder", method="inverse_transform", inputs="x:y", outputs="x")
-            .add(block="y_transform", method="inverse_transform", inputs="x", outputs="translated_x"),
+            .add(
+                block="y_transform",
+                method="inverse_transform",
+                inputs="x",
+                outputs="translated_x",
+            ),
         },
         blocks={
             "x_transform": x_transform,
@@ -275,7 +330,9 @@ def test_manual_translation(
 
     assert torch.allclose(
         manual_output,
-        latentis_output.as_tensor() if isinstance(latentis_output, Space) else latentis_output["translated_x"],
+        latentis_output.as_tensor()
+        if isinstance(latentis_output, Space)
+        else latentis_output["translated_x"],
     )
 
     if isinstance(A, Space):
@@ -295,18 +352,49 @@ def test_procrustes(
     procrustes = NNPipeline(
         name="procrustes",
         flows={
-            "fit": Flow(name="fit", inputs=["fit_source", "fit_target"], outputs="estimator")
-            .add(block="x_transform", method="fit_transform", inputs="fit_source:x", outputs="x")
-            .add(block="y_transform", method="fit_transform", inputs="fit_target:x", outputs="y")
-            .add(block="padder", method="fit_transform", inputs=["x", "y"], outputs=["padded_x", "padded_y"])
-            .add(block="aligner", method="fit", inputs=["padded_x:x", "padded_y:y"], outputs=["estimator"]),
+            "fit": Flow(
+                name="fit", inputs=["fit_source", "fit_target"], outputs="estimator"
+            )
+            .add(
+                block="x_transform",
+                method="fit_transform",
+                inputs="fit_source:x",
+                outputs="x",
+            )
+            .add(
+                block="y_transform",
+                method="fit_transform",
+                inputs="fit_target:x",
+                outputs="y",
+            )
+            .add(
+                block="padder",
+                method="fit_transform",
+                inputs=["x", "y"],
+                outputs=["padded_x", "padded_y"],
+            )
+            .add(
+                block="aligner",
+                method="fit",
+                inputs=["padded_x:x", "padded_y:y"],
+                outputs=["estimator"],
+            ),
             #
-            "transform": Flow(name="transform", inputs=["source"], outputs=["translated_x"])
-            .add(block="x_transform", method="transform", inputs="source:x", outputs="x")
+            "transform": Flow(
+                name="transform", inputs=["source"], outputs=["translated_x"]
+            )
+            .add(
+                block="x_transform", method="transform", inputs="source:x", outputs="x"
+            )
             .add(block="padder", method="transform", inputs="x", outputs="x")
             .add(block="aligner", method="transform", inputs="x", outputs="x")
             .add(block="padder", method="inverse_transform", inputs="x:y", outputs="x")
-            .add(block="y_transform", method="inverse_transform", inputs="x", outputs="translated_x"),
+            .add(
+                block="y_transform",
+                method="inverse_transform",
+                inputs="x",
+                outputs="translated_x",
+            ),
         },
         blocks={
             "x_transform": StandardScaling(),
@@ -319,7 +407,9 @@ def test_procrustes(
     x1 = procrustes.run(flow="transform", source=x)["translated_x"]
 
     manual_result = (
-        ManualLatentTranslation(seed=42, centering=True, std_correction=True, l2_norm=False, method="svd")
+        ManualLatentTranslation(
+            seed=42, centering=True, std_correction=True, l2_norm=False, method="svd"
+        )
         .fit(x=x, y=y)
         .transform(x)
     )

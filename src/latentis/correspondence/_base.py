@@ -71,5 +71,7 @@ class Correspondence(SerializableMixin):
     def match(self, x_keys: Sequence[str], y_keys: Sequence[str]) -> torch.Tensor:
         raise NotImplementedError
 
-    def subset(self, x_keys: Sequence[str], y_keys: Sequence[str], size: int, seed: int = 42) -> PI:
+    def subset(
+        self, x_keys: Sequence[str], y_keys: Sequence[str], size: int, seed: int = 42
+    ) -> PI:
         raise NotImplementedError

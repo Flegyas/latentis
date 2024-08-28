@@ -60,6 +60,14 @@ class CKA(Metric):
             Computed CKA value.
         """
         if space1.device != space2.device:
-            raise ValueError(f"space1 and space2 must be on the same device. Found {space1.device} and {space2.device}")
+            raise ValueError(
+                f"space1 and space2 must be on the same device. Found {space1.device} and {space2.device}"
+            )
 
-        return cka(space1=space1, space2=space2, hsic=self.hsic, sigma=sigma, tolerance=self.tolerance)
+        return cka(
+            space1=space1,
+            space2=space2,
+            hsic=self.hsic,
+            sigma=sigma,
+            tolerance=self.tolerance,
+        )

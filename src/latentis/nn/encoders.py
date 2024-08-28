@@ -1,7 +1,13 @@
 from typing import Optional, Sequence
 
 import torch
-from transformers import AutoImageProcessor, AutoModel, AutoTokenizer, BatchEncoding, PreTrainedModel
+from transformers import (
+    AutoImageProcessor,
+    AutoModel,
+    AutoTokenizer,
+    BatchEncoding,
+    PreTrainedModel,
+)
 
 from latentis.nn._base import WrappedModule
 from latentis.types import Metadata
@@ -17,7 +23,9 @@ class HFEncoder(WrappedModule):
         metadata: Optional[Metadata] = None,
     ):
         hf_model: PreTrainedModel = (
-            AutoModel.from_pretrained(hf_name, output_hidden_states=True, return_dict=True)
+            AutoModel.from_pretrained(
+                hf_name, output_hidden_states=True, return_dict=True
+            )
             .eval()
             .requires_grad_(requires_grad)
         )
@@ -45,7 +53,9 @@ class TextHFEncoder(HFEncoder):
         metadata: Optional[Metadata] = None,
         **kwargs,
     ):
-        super().__init__(hf_name, requires_grad, encode_fn=None, decode_fn=None, metadata=metadata)
+        super().__init__(
+            hf_name, requires_grad, encode_fn=None, decode_fn=None, metadata=metadata
+        )
         self.tokenizer = AutoTokenizer.from_pretrained(hf_name)
 
         max_length = max_length or self.model.config.max_length
@@ -60,7 +70,9 @@ class TextHFEncoder(HFEncoder):
         self.is_clip: bool = "clip" in self.hf_name
 
         self._output_dim = (
-            self.model.config.text_config.projection_dim if self.is_clip else self.model.config.hidden_size
+            self.model.config.text_config.projection_dim
+            if self.is_clip
+            else self.model.config.hidden_size
         )
 
     @property
@@ -86,7 +98,10 @@ class TextHFEncoder(HFEncoder):
     def encode(self, x: BatchEncoding):
         tok_out = x["tok_out"]
 
-        mask = tok_out["attention_mask"] * tok_out["special_tokens_mask"].bool().logical_not()
+        mask = (
+            tok_out["attention_mask"]
+            * tok_out["special_tokens_mask"].bool().logical_not()
+        )
         del tok_out["special_tokens_mask"]
 
         if self.hf_name.startswith("openai/clip"):
@@ -99,14 +114,21 @@ class TextHFEncoder(HFEncoder):
 
 
 class ImageHFEncoder(HFEncoder):
-    def __init__(self, hf_name: str, requires_grad: bool = False, metadata: Optional[Metadata] = None):
+    def __init__(
+        self,
+        hf_name: str,
+        requires_grad: bool = False,
+        metadata: Optional[Metadata] = None,
+    ):
         super().__init__(hf_name, requires_grad, metadata=metadata)
         self.processor = AutoImageProcessor.from_pretrained(self.hf_name)
 
         self.is_clip: bool = "clip" in self.hf_name
 
         self._output_dim = (
-            self.model.config.vision_config.projection_dim if self.is_clip else self.model.config.hidden_size
+            self.model.config.vision_config.projection_dim
+            if self.is_clip
+            else self.model.config.hidden_size
         )
 
     @property

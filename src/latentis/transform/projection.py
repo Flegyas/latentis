@@ -124,7 +124,9 @@ def pointwise_wrapper(func, unsqueeze: bool = False) -> Callable[..., torch.Tens
     def wrapper(x, anchors):
         rel_x = []
         for point in x:
-            partial_rel_data = [func(point[unsqueeze], anchors=anchor[unsqueeze]) for anchor in anchors]
+            partial_rel_data = [
+                func(point[unsqueeze], anchors=anchor[unsqueeze]) for anchor in anchors
+            ]
             rel_x.append(partial_rel_data)
         rel_x = torch.as_tensor(rel_x, dtype=anchors.dtype, device=anchors.device)
         return rel_x
@@ -168,6 +170,8 @@ class RelativeProjection(Transform):
         return self
 
     def transform(self, x: LatentisSpace) -> torch.Tensor:
-        rel_x = relative_projection(x, **self.get_state(), projection_fn=self.projection_fn)
+        rel_x = relative_projection(
+            x, **self.get_state(), projection_fn=self.projection_fn
+        )
 
         return rel_x

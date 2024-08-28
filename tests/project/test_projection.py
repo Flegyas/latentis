@@ -31,7 +31,9 @@ from latentis.utils import seed_everything
 
 
 def random_ortho_matrix(random_seed: int) -> torch.Tensor:
-    return torch.as_tensor(ortho_group.rvs(LATENT_DIM, random_state=random_seed), dtype=torch.double)
+    return torch.as_tensor(
+        ortho_group.rvs(LATENT_DIM, random_state=random_seed), dtype=torch.double
+    )
 
 
 def random_perm_matrix(random_seed: int) -> torch.Tensor:
@@ -211,7 +213,9 @@ def test_invariances(
     rel_transform: Transform,
 ):
     y = invariance(x) if isinstance(x, torch.Tensor) else x.transform(invariance)
-    y_anchors = invariance(x_anchors if isinstance(x_anchors, torch.Tensor) else x_anchors.as_tensor())
+    y_anchors = invariance(
+        x_anchors if isinstance(x_anchors, torch.Tensor) else x_anchors.as_tensor()
+    )
 
     if isinstance(x, Space):
         y = Space.like(x, vector_source=y)
@@ -225,27 +229,61 @@ def test_invariances(
     RelProj = NNPipeline(name="RelProj")
     RelProj.add(
         Flow(name="fit", inputs="anchors", outputs="rel_anchors")
-        .add(block="abs_transform", method="fit_transform", inputs="anchors:x", outputs="abs_anchors")
-        .add(block="projection", method="fit", inputs="abs_anchors:anchors", outputs="rel_proj")
-        .add(block="projection", method="transform", inputs="abs_anchors:x", outputs="rel_anchors")
-        .add(block="rel_transform", method="fit_transform", inputs="rel_anchors:x", outputs="rel_anchors")
+        .add(
+            block="abs_transform",
+            method="fit_transform",
+            inputs="anchors:x",
+            outputs="abs_anchors",
+        )
+        .add(
+            block="projection",
+            method="fit",
+            inputs="abs_anchors:anchors",
+            outputs="rel_proj",
+        )
+        .add(
+            block="projection",
+            method="transform",
+            inputs="abs_anchors:x",
+            outputs="rel_anchors",
+        )
+        .add(
+            block="rel_transform",
+            method="fit_transform",
+            inputs="rel_anchors:x",
+            outputs="rel_anchors",
+        )
     )
     RelProj.add(
         Flow(name="transform", inputs="x", outputs="rel_x")
         .add(block="abs_transform", method="transform", inputs="x", outputs="abs_x")
-        .add(block="projection", method="transform", inputs=["abs_x:x"], outputs="rel_x")
-        .add(block="rel_transform", method="transform", inputs="rel_x:x", outputs="rel_x")
+        .add(
+            block="projection", method="transform", inputs=["abs_x:x"], outputs="rel_x"
+        )
+        .add(
+            block="rel_transform", method="transform", inputs="rel_x:x", outputs="rel_x"
+        )
     )
     pipeline = RelProj.build(
         abs_transform=abs_transform,
         projection=RelativeProjection(projection_fn=projection_fn),
         rel_transform=rel_transform,
     )
-    pipeline.run(flow="fit", anchors=x_anchors.as_tensor() if isinstance(x_anchors, Space) else x_anchors)
-    x_projected = pipeline.run(flow="transform", x=x if isinstance(x, torch.Tensor) else x.as_tensor())
+    pipeline.run(
+        flow="fit",
+        anchors=x_anchors.as_tensor() if isinstance(x_anchors, Space) else x_anchors,
+    )
+    x_projected = pipeline.run(
+        flow="transform", x=x if isinstance(x, torch.Tensor) else x.as_tensor()
+    )
 
-    pipeline.run(flow="fit", anchors=y_anchors.as_tensor() if isinstance(y_anchors, Space) else y_anchors)
-    y_projected = pipeline.run(flow="transform", x=y if isinstance(y, torch.Tensor) else y.as_tensor())
+    pipeline.run(
+        flow="fit",
+        anchors=y_anchors.as_tensor() if isinstance(y_anchors, Space) else y_anchors,
+    )
+    y_projected = pipeline.run(
+        flow="transform", x=y if isinstance(y, torch.Tensor) else y.as_tensor()
+    )
 
     assert not invariant or torch.allclose(x_projected["rel_x"], y_projected["rel_x"])
 

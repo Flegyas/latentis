@@ -24,7 +24,12 @@ class Pooler(nn.Module):
 
 
 class HFPooler(Pooler):
-    def __init__(self, output_dim: int, pooling_fn: callable, layers: Optional[Sequence[int]] = None):
+    def __init__(
+        self,
+        output_dim: int,
+        pooling_fn: callable,
+        layers: Optional[Sequence[int]] = None,
+    ):
         assert all(isinstance(layer, int) and layer >= 0 for layer in layers)
         super().__init__(name=f"{pooling_fn.__name__}_{layers}", output_dim=output_dim)
 
@@ -35,13 +40,20 @@ class HFPooler(Pooler):
         return self.pooling_fn(encodings=x, mask=mask, layers=self.layers)
 
 
-def token_pool(encodings: Tuple[torch.Tensor], mask: torch.Tensor, layers: Optional[Sequence[int]] = None):
+def token_pool(
+    encodings: Tuple[torch.Tensor],
+    mask: torch.Tensor,
+    layers: Optional[Sequence[int]] = None,
+):
     assert all(isinstance(layer, int) and layer >= 0 for layer in layers)
     layers = list(range(len(encodings))) if not layers else set(layers)
 
     token_encodings = [
         (
-            [sample_encoding[sample_mask].cpu().numpy() for sample_encoding, sample_mask in zip(layer_encoding, mask)],
+            [
+                sample_encoding[sample_mask].cpu().numpy()
+                for sample_encoding, sample_mask in zip(layer_encoding, mask)
+            ],
             {"pool": "token", "layer": i_layer},
         )
         for i_layer, layer_encoding in enumerate(encodings)
@@ -51,7 +63,11 @@ def token_pool(encodings: Tuple[torch.Tensor], mask: torch.Tensor, layers: Optio
     return token_encodings
 
 
-def mean_pool(encodings: Tuple[torch.Tensor], mask: torch.Tensor, layers: Optional[Sequence[int]] = None):
+def mean_pool(
+    encodings: Tuple[torch.Tensor],
+    mask: torch.Tensor,
+    layers: Optional[Sequence[int]] = None,
+):
     assert all(isinstance(layer, int) and layer >= 0 for layer in layers)
     layers = list(range(len(encodings))) if not layers else set(layers)
 
@@ -73,14 +89,21 @@ def mean_pool(encodings: Tuple[torch.Tensor], mask: torch.Tensor, layers: Option
     return pooled_encodings
 
 
-def sum_pool(encodings: Tuple[torch.Tensor], mask: torch.Tensor, layers: Optional[Sequence[int]] = None):
+def sum_pool(
+    encodings: Tuple[torch.Tensor],
+    mask: torch.Tensor,
+    layers: Optional[Sequence[int]] = None,
+):
     assert all(isinstance(layer, int) and layer >= 0 for layer in layers)
     layers = list(range(len(encodings))) if not layers else set(layers)
 
     pooled_encodings = [
         (
             torch.stack(
-                [sample_encoding[sample_mask].sum(dim=0) for sample_encoding, sample_mask in zip(layer_encoding, mask)],
+                [
+                    sample_encoding[sample_mask].sum(dim=0)
+                    for sample_encoding, sample_mask in zip(layer_encoding, mask)
+                ],
                 dim=0,
             ),
             {"pool": "sum", "layer": i_layer},
@@ -92,7 +115,9 @@ def sum_pool(encodings: Tuple[torch.Tensor], mask: torch.Tensor, layers: Optiona
     return pooled_encodings
 
 
-def cls_pool(encodings: Tuple[torch.Tensor], layers: Optional[Sequence[int]] = None, **kwargs):
+def cls_pool(
+    encodings: Tuple[torch.Tensor], layers: Optional[Sequence[int]] = None, **kwargs
+):
     assert all(isinstance(layer, int) and layer >= 0 for layer in layers)
     layers = list(range(len(encodings))) if not layers else set(layers)
 

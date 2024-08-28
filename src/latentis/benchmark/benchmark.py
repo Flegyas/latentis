@@ -34,7 +34,9 @@ class EstimateResult:
 
 
 class EstimateTask(Task):
-    def __init__(self, x: Space, y: Space, pi: Correspondence, estimator: Estimator) -> None:
+    def __init__(
+        self, x: Space, y: Space, pi: Correspondence, estimator: Estimator
+    ) -> None:
         super().__init__()
         self.x: Space = x
         self.y: Space = y
@@ -46,7 +48,10 @@ class EstimateTask(Task):
 
         x_keys, y_keys = self.pi.align(x_keys=self.x.keys, y_keys=self.y.keys)
 
-        self.estimator.fit(x=self.x.get_vectors_by_key(keys=x_keys), y=self.y.get_vectors_by_key(keys=y_keys))
+        self.estimator.fit(
+            x=self.x.get_vectors_by_key(keys=x_keys),
+            y=self.y.get_vectors_by_key(keys=y_keys),
+        )
 
         return EstimateResult(estimator=self.estimator)
 
@@ -147,7 +152,10 @@ if __name__ == "__main__":
     test_pi = IdentityCorrespondence(n_samples=len(x_test))
 
     estimate_task = EstimateTask(
-        x=x_fit, y=y_fit, pi=fit_pi, estimator=MatrixAligner(name="orthogonal", align_fn_state=svd_align_state)
+        x=x_fit,
+        y=y_fit,
+        pi=fit_pi,
+        estimator=MatrixAligner(name="orthogonal", align_fn_state=svd_align_state),
     )
     print(estimate_task.run().estimator)
     # transform_task = TransformTask("space", "estimator")

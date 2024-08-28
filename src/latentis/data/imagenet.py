@@ -6,7 +6,9 @@ from datasets import ClassLabel, Dataset
 from latentis import PROJECT_ROOT
 
 
-def read_imagenet_labels(root_dir: Path = None, file_name: str = "ImageNet_mapping.tsv"):
+def read_imagenet_labels(
+    root_dir: Path = None, file_name: str = "ImageNet_mapping.tsv"
+):
     file = (root_dir or PROJECT_ROOT / "data") / file_name
     data = pd.read_csv(file, sep="\t")
     assert len(data) == 1000
@@ -105,7 +107,14 @@ OPENAI_IMAGENET_TEMPLATES = (
 
 def get_template_dataset(test_size: float = 0.15, seed: int = 42) -> Dataset:
     imagenet_data = read_imagenet_labels()
-    data = {"synset_id": [], "class_id": [], "lemma": [], "template_id": [], "sample_id": [], "text": []}
+    data = {
+        "synset_id": [],
+        "class_id": [],
+        "lemma": [],
+        "template_id": [],
+        "sample_id": [],
+        "text": [],
+    }
 
     for imagenet_synset in imagenet_data.itertuples():
         for template_id, template in enumerate(OPENAI_IMAGENET_TEMPLATES):
@@ -131,7 +140,9 @@ def get_template_dataset(test_size: float = 0.15, seed: int = 42) -> Dataset:
     )
     data = data.cast_column("template_id", template_label)
 
-    return data.train_test_split(test_size=test_size, seed=seed, stratify_by_column="class_id")
+    return data.train_test_split(
+        test_size=test_size, seed=seed, stratify_by_column="class_id"
+    )
 
 
 get_template_dataset()

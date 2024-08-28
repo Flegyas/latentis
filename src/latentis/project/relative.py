@@ -69,7 +69,10 @@ def pointwise_wrapper(func, unsqueeze: bool = False) -> Callable[..., torch.Tens
     def wrapper(x, anchors):
         rel_x = []
         for point in x:
-            partial_rel_data = [func(x=point[unsqueeze], anchors=anchor[unsqueeze]) for anchor in anchors]
+            partial_rel_data = [
+                func(x=point[unsqueeze], anchors=anchor[unsqueeze])
+                for anchor in anchors
+            ]
             rel_x.append(partial_rel_data)
         rel_x = torch.as_tensor(rel_x, dtype=anchors.dtype, device=anchors.device)
         return rel_x
@@ -85,10 +88,18 @@ def relative_projection(
     rel_transforms: Optional[Sequence[Transform]] = None,
 ):
     abs_transforms = nn.ModuleList(
-        abs_transforms if isinstance(abs_transforms, Sequence) else [] if abs_transforms is None else [abs_transforms]
+        abs_transforms
+        if isinstance(abs_transforms, Sequence)
+        else []
+        if abs_transforms is None
+        else [abs_transforms]
     )
     rel_transforms = nn.ModuleList(
-        rel_transforms if isinstance(rel_transforms, Sequence) else [] if rel_transforms is None else [rel_transforms]
+        rel_transforms
+        if isinstance(rel_transforms, Sequence)
+        else []
+        if rel_transforms is None
+        else [rel_transforms]
     )
 
     x_vectors = x.vectors if isinstance(x, LatentSpace) else x
@@ -99,7 +110,9 @@ def relative_projection(
     transformed_anchors = anchor_vectors
     for abs_transform in abs_transforms:
         transformed_x = abs_transform(x=transformed_x, reference=transformed_anchors)
-        transformed_anchors = abs_transform(x=transformed_anchors, reference=transformed_anchors)
+        transformed_anchors = abs_transform(
+            x=transformed_anchors, reference=transformed_anchors
+        )
 
     # relative projection of x with respect to the anchors
     rel_x = projection_fn(x=transformed_x, anchors=transformed_anchors)
@@ -134,7 +147,9 @@ class RelativeProjection(nn.Module):
             if hasattr(projection_fn, "__name__")
             else "relative_projection"
         )
-        self.register_buffer("anchors", anchors.vectors if anchors is not None else None)
+        self.register_buffer(
+            "anchors", anchors.vectors if anchors is not None else None
+        )
 
         self.abs_transforms = nn.ModuleList(
             abs_transforms

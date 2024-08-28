@@ -22,7 +22,9 @@ logger = logging.getLogger(__name__)
 load_envs()
 
 try:
-    PROJECT_ROOT = Path(git.Repo(Path.cwd(), search_parent_directories=True).working_dir)
+    PROJECT_ROOT = Path(
+        git.Repo(Path.cwd(), search_parent_directories=True).working_dir
+    )
 except git.exc.InvalidGitRepositoryError:
     PROJECT_ROOT = Path.cwd()
 

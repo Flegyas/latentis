@@ -7,16 +7,23 @@ from latentis.correspondence._base import PI
 from latentis.transform import Estimator, Identity, Transform
 from latentis.transform.base import StandardScaling
 from latentis.transform.dim_matcher import DimMatcher, ZeroPadding
-from latentis.transform.translate.functional import sgd_affine_align_state, svd_align_state
+from latentis.transform.translate.functional import (
+    sgd_affine_align_state,
+    svd_align_state,
+)
 
 
 class Translator(Estimator):
     @property
     def metadata(self) -> Mapping[str, Any]:
         super_metadata = super().metadata
-        super_metadata.update({f"aligner.{k}": v for k, v in self.aligner.metadata.items()})
+        super_metadata.update(
+            {f"aligner.{k}": v for k, v in self.aligner.metadata.items()}
+        )
         if self.dim_matcher is not None:
-            super_metadata.update({f"dim_matcher.{k}": v for k, v in self.dim_matcher.metadata.items()})
+            super_metadata.update(
+                {f"dim_matcher.{k}": v for k, v in self.dim_matcher.metadata.items()}
+            )
 
         return super_metadata
 
@@ -36,18 +43,30 @@ class Translator(Estimator):
 
         self._fitted = False
 
-    def fit(self, x: torch.Tensor, y: torch.Tensor, pi: PI = None, **kwargs) -> Mapping[str, Any]:
+    def fit(
+        self, x: torch.Tensor, y: torch.Tensor, pi: PI = None, **kwargs
+    ) -> Mapping[str, Any]:
         x_anchors = x[pi.x_indices] if pi is not None else x
         y_anchors = y[pi.y_indices] if pi is not None else y
 
         x_anchors = self.x_transform.fit_transform(x=x_anchors)
         y_anchors = self.y_transform.fit_transform(x=y_anchors)
 
-        x_anchors = x_anchors[0] if isinstance(x_anchors, tuple) and len(x_anchors) == 1 else x_anchors
-        y_anchors = y_anchors[0] if isinstance(y_anchors, tuple) and len(y_anchors) == 1 else y_anchors
+        x_anchors = (
+            x_anchors[0]
+            if isinstance(x_anchors, tuple) and len(x_anchors) == 1
+            else x_anchors
+        )
+        y_anchors = (
+            y_anchors[0]
+            if isinstance(y_anchors, tuple) and len(y_anchors) == 1
+            else y_anchors
+        )
 
         if self.dim_matcher is not None:
-            x_anchors, y_anchors = self.dim_matcher.fit_transform(x=x_anchors, y=y_anchors)
+            x_anchors, y_anchors = self.dim_matcher.fit_transform(
+                x=x_anchors, y=y_anchors
+            )
 
         self.aligner.fit(x=x_anchors, y=y_anchors)
 
@@ -111,7 +130,9 @@ class MatrixAligner(Estimator):
 
         return x
 
-    def inverse_transform(self, x: torch.Tensor, y: torch.Tensor = None) -> torch.Tensor:
+    def inverse_transform(
+        self, x: torch.Tensor, y: torch.Tensor = None
+    ) -> torch.Tensor:
         raise NotImplementedError
 
 

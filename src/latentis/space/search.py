@@ -2,10 +2,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, Optional, Sequence, Union
+from io import BytesIO
+import json
+from pathlib import Path
+import tarfile
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 
 import faiss as _faiss
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn.functional as F
 
@@ -15,7 +20,11 @@ from latentis.transform._abstract import Transform
 # https://github.com/facebookresearch/faiss/wiki/MetricType-and-distances
 class SearchMetric(Enum):
     EUCLIDEAN = ("euclidean", _faiss.METRIC_L2)
-    COSINE_SIM = ("cosine", _faiss.METRIC_INNER_PRODUCT, lambda x: F.normalize(x, p=2, dim=-1))
+    COSINE_SIM = (
+        "cosine",
+        _faiss.METRIC_INNER_PRODUCT,
+        lambda x: F.normalize(x, p=2, dim=-1),
+    )
     INNER_PRODUCT = ("inner_product", _faiss.METRIC_INNER_PRODUCT)
     L2 = ("l2", _faiss.METRIC_L2)
 
@@ -28,7 +37,9 @@ class SearchMetric(Enum):
     # JACCARD = ("jaccard", _faiss.METRIC_Jaccard)
     # MAHALANOBIS https://gist.github.com/mdouze/6cc12fa967e5d9911580ef633e559476
 
-    def __init__(self, name: str, backend_metric, transformation: Optional[Transform] = None) -> None:
+    def __init__(
+        self, name: str, backend_metric, transformation: Optional[Transform] = None
+    ) -> None:
         self.key: str = name
         self.backend_metric = backend_metric
         self.transformation = transformation
@@ -83,8 +94,12 @@ class SearchIndex:
         self._metric_fn: SearchMetric = metric_fn
         self._transform: Transform = transform
         self._name: Optional[str] = name
-        self._key2offset: Mapping[str, int] = key2offset if key2offset is not None else {}
-        self._offset2key: Mapping[int, str] = {offset: key for key, offset in self._key2offset.items()}
+        self._key2offset: Mapping[str, int] = (
+            key2offset if key2offset is not None else {}
+        )
+        self._offset2key: Mapping[int, str] = {
+            offset: key for key, offset in self._key2offset.items()
+        }
 
     def _add_mapping(self, key: str, offset: int):
         assert key not in self._key2offset, f"Vector ID {key} already exists"
@@ -106,15 +121,23 @@ class SearchIndex:
         name: Optional[str] = None,
     ) -> None:
         assert num_dimensions > 0, "Number of dimensions must be greater than 0"
-        assert isinstance(metric_fn, SearchMetric), f"Metric must be one of {SearchMetric}"
+        assert isinstance(
+            metric_fn, SearchMetric
+        ), f"Metric must be one of {SearchMetric}"
         if transform is not None and metric_fn.transformation is not None:
             # TODO: support Transform.compose or similar
-            raise NotImplementedError("transform and metric_fn.transformation cannot be both not None")
+            raise NotImplementedError(
+                "transform and metric_fn.transformation cannot be both not None"
+            )
 
         transform = transform or metric_fn.transformation
 
-        index: _faiss.Index = _faiss.index_factory(num_dimensions, factory_string, metric_fn.backend_metric)
-        return cls(backend_index=index, metric_fn=metric_fn, transform=transform, name=name)
+        index: _faiss.Index = _faiss.index_factory(
+            num_dimensions, factory_string, metric_fn.backend_metric
+        )
+        return cls(
+            backend_index=index, metric_fn=metric_fn, transform=transform, name=name
+        )
 
     def __contains__(self, key: str) -> bool:
         return key in self._key2offset
@@ -164,7 +187,9 @@ class SearchIndex:
     ) -> int:
         # TODO: without a key/offset check here, we can end up adding vectors and then failing to map it properly
         assert vector.ndim == 1, "Vector must be 1-dimensional"
-        assert vector.shape[0] == self.num_dimensions, f"Vector must have {self.num_dimensions} dimensions"
+        assert (
+            vector.shape[0] == self.num_dimensions
+        ), f"Vector must have {self.num_dimensions} dimensions"
 
         vector = vector.unsqueeze(dim=0)
         vector = vector.detach().cpu()
@@ -185,8 +210,12 @@ class SearchIndex:
         keys: Optional[Sequence[str]] = None,
     ) -> Sequence[int]:
         assert vectors.ndim == 2, "vectors must be 2-dimensional"
-        assert vectors.shape[1] == self.num_dimensions, f"Vectors must have {self.num_dimensions} dimensions"
-        assert keys is None or len(keys) == 0 or len(keys) == vectors.shape[0], "Must provide a key for each vector"
+        assert (
+            vectors.shape[1] == self.num_dimensions
+        ), f"Vectors must have {self.num_dimensions} dimensions"
+        assert (
+            keys is None or len(keys) == 0 or len(keys) == vectors.shape[0]
+        ), "Must provide a key for each vector"
 
         start_id = self.num_elements
 
@@ -263,13 +292,20 @@ class SearchIndex:
         ), "Must provide exactly one of query_offsets, query_vectors, or query_keys"
 
         if query_offsets is not None:
-            return self._search_by_offsets(query_offsets=query_offsets, k=k, return_keys=return_keys)
+            return self._search_by_offsets(
+                query_offsets=query_offsets, k=k, return_keys=return_keys
+            )
         elif query_vectors is not None:
             return self._search_by_vectors(
-                query_vectors=query_vectors, k=k, transform=transform, return_keys=return_keys
+                query_vectors=query_vectors,
+                k=k,
+                transform=transform,
+                return_keys=return_keys,
             )
         elif query_keys is not None:
-            return self._search_by_keys(query_keys=query_keys, k=k, return_keys=return_keys)
+            return self._search_by_keys(
+                query_keys=query_keys, k=k, return_keys=return_keys
+            )
 
     def search_range(
         self,
@@ -307,13 +343,21 @@ class SearchIndex:
         ), "Must provide exactly one of query_offsets, query_vectors, or query_keys"
 
         if query_offsets is not None:
-            return self._search_by_offsets_range(query_offsets=query_offsets, radius=radius, sort=sort)
+            return self._search_by_offsets_range(
+                query_offsets=query_offsets, radius=radius, sort=sort
+            )
         elif query_vectors is not None:
             return self._search_by_vectors_range(
-                query_vectors=query_vectors, radius=radius, transform=transform, return_keys=return_keys, sort=sort
+                query_vectors=query_vectors,
+                radius=radius,
+                transform=transform,
+                return_keys=return_keys,
+                sort=sort,
             )
         elif query_keys is not None:
-            return self._search_by_keys_range(query_keys=query_keys, radius=radius, return_keys=return_keys, sort=sort)
+            return self._search_by_keys_range(
+                query_keys=query_keys, radius=radius, return_keys=return_keys, sort=sort
+            )
 
     # def get_vector(self, offset: int, return_tensors: bool = False) -> Union[np.ndarray, torch.Tensor]:
     #     if isinstance(offset, np.int64):
@@ -335,12 +379,16 @@ class SearchIndex:
         ), "Must provide exactly one of query_offset, or query_key"
 
         if query_offset is not None:
-            return self._get_vector_by_offset(offset=query_offset, return_tensors=return_tensors)
+            return self._get_vector_by_offset(
+                offset=query_offset, return_tensors=return_tensors
+            )
 
         elif query_key is not None:
             return self._get_vector_by_key(key=query_key, return_tensors=return_tensors)
 
-    def _get_vector_by_offset(self, offset: int, return_tensors: bool = False) -> Union[np.ndarray, torch.Tensor]:
+    def _get_vector_by_offset(
+        self, offset: int, return_tensors: bool = False
+    ) -> Union[np.ndarray, torch.Tensor]:
         if isinstance(offset, np.int64):
             offset = int(offset)
         assert offset < self.num_elements, f"offset {offset} does not exist"
@@ -349,7 +397,9 @@ class SearchIndex:
             result = torch.as_tensor(result)
         return result
 
-    def _get_vector_by_key(self, key: str, return_tensors: bool = False) -> Union[np.ndarray, torch.Tensor]:
+    def _get_vector_by_key(
+        self, key: str, return_tensors: bool = False
+    ) -> Union[np.ndarray, torch.Tensor]:
         assert self._key2offset, "No keys have been added to this index"
         offset = self._key2offset[key]
         return self._get_vector_by_offset(offset=offset, return_tensors=return_tensors)
@@ -374,15 +424,21 @@ class SearchIndex:
         ), "Must provide exactly one of query_offsets, or query_keys"
 
         if query_offsets is not None:
-            return self._get_vectors_by_offsets(offsets=query_offsets, return_tensors=return_tensors)
+            return self._get_vectors_by_offsets(
+                offsets=query_offsets, return_tensors=return_tensors
+            )
 
         elif query_keys is not None:
-            return self._get_vectors_by_keys(keys=query_keys, return_tensors=return_tensors)
+            return self._get_vectors_by_keys(
+                keys=query_keys, return_tensors=return_tensors
+            )
 
     def _get_vectors_by_offsets(
         self, offsets: Sequence[int], return_tensors: bool = False
     ) -> Union[np.ndarray, torch.Tensor]:
-        assert all(offset < self.num_elements for offset in offsets), f"Some of these offsets do not exist: {offsets}"
+        assert all(
+            offset < self.num_elements for offset in offsets
+        ), f"Some of these offsets do not exist: {offsets}"
         result = self.backend_index.reconstruct_batch(offsets)
 
         if return_tensors:
@@ -394,22 +450,36 @@ class SearchIndex:
         self, keys: Sequence[str], return_tensors: bool = False
     ) -> Union[np.ndarray, torch.Tensor]:
         offsets = [self._key2offset[key] for key in keys]
-        return self._get_vectors_by_offsets(offsets=offsets, return_tensors=return_tensors)
+        return self._get_vectors_by_offsets(
+            offsets=offsets, return_tensors=return_tensors
+        )
 
-    def _search_by_keys(self, query_keys: List[str], k, return_keys: bool = False) -> SearchResult:
+    def _search_by_keys(
+        self, query_keys: List[str], k, return_keys: bool = False
+    ) -> SearchResult:
         query_vectors = self._get_vectors_by_keys(keys=query_keys, return_tensors=False)
 
         return self._search_by_vectors(query_vectors, k=k, return_keys=return_keys)
 
     def _search_by_keys_range(
-        self, query_keys: List[str], radius: float, return_keys: bool = False, sort: bool = True
+        self,
+        query_keys: List[str],
+        radius: float,
+        return_keys: bool = False,
+        sort: bool = True,
     ) -> SearchResult:
         query_vectors = self._get_vectors_by_keys(query_keys, return_tensors=False)
 
-        return self._search_by_vectors_range(query_vectors, radius=radius, return_keys=return_keys, sort=sort)
+        return self._search_by_vectors_range(
+            query_vectors, radius=radius, return_keys=return_keys, sort=sort
+        )
 
     def _search_by_vectors(
-        self, query_vectors: Union[np.ndarray, torch.Tensor], k: int, transform: bool = False, return_keys: bool = False
+        self,
+        query_vectors: Union[np.ndarray, torch.Tensor],
+        k: int,
+        transform: bool = False,
+        return_keys: bool = False,
     ) -> SearchResult:
         if query_vectors.ndim == 1:
             query_vectors = query_vectors[None, :]
@@ -417,7 +487,9 @@ class SearchIndex:
             query_vectors.shape[1] == self.num_dimensions
         ), f"query_vectors must have {self.num_dimensions} dimensions"
 
-        assert not transform or self.transform is not None, "Cannot transform vectors without a transform!"
+        assert (
+            not transform or self.transform is not None
+        ), "Cannot transform vectors without a transform!"
         if transform:
             query_vectors = self.transform(query_vectors)
 
@@ -433,7 +505,11 @@ class SearchIndex:
             return SearchResult(
                 distances=distances,
                 offsets=offsets,
-                keys=([self._offset2key[offset] for offset in offsets] if return_keys else None),
+                keys=(
+                    [self._offset2key[offset] for offset in offsets]
+                    if return_keys
+                    else None
+                ),
             )
 
         else:
@@ -441,7 +517,10 @@ class SearchIndex:
                 distances=distances,
                 offsets=offsets,
                 keys=(
-                    [[self._offset2key[offset] for offset in item_offsets] for item_offsets in offsets]
+                    [
+                        [self._offset2key[offset] for offset in item_offsets]
+                        for item_offsets in offsets
+                    ]
                     if return_keys
                     else None
                 ),
@@ -462,14 +541,18 @@ class SearchIndex:
         if query_vectors.ndim == 1:
             query_vectors = query_vectors[None, :]
 
-        assert not transform or self.transform is not None, "Cannot transform vectors without a transform!"
+        assert (
+            not transform or self.transform is not None
+        ), "Cannot transform vectors without a transform!"
         if transform:
             query_vectors = self.transform(query_vectors)
 
         if isinstance(query_vectors, torch.Tensor):
             query_vectors = query_vectors.cpu().detach().numpy()
 
-        lims, distances, offsets = self.backend_index.range_search(query_vectors, radius)
+        lims, distances, offsets = self.backend_index.range_search(
+            query_vectors, radius
+        )
         split_distances = []
         split_offsets = []
         for i in range(len(lims) - 1):
@@ -495,7 +578,11 @@ class SearchIndex:
             return SearchResult(
                 distances=split_distances,
                 offsets=split_offsets,
-                keys=([self._offset2key[offset] for offset in split_offsets] if return_keys else None),
+                keys=(
+                    [self._offset2key[offset] for offset in split_offsets]
+                    if return_keys
+                    else None
+                ),
             )
 
         else:
@@ -503,19 +590,34 @@ class SearchIndex:
                 distances=split_distances,
                 offsets=split_offsets,
                 keys=(
-                    [[self._offset2key[offset] for offset in item_offsets] for item_offsets in offsets]
+                    [
+                        [self._offset2key[offset] for offset in item_offsets]
+                        for item_offsets in offsets
+                    ]
                     if return_keys
                     else None
                 ),
             )
 
-    def _search_by_offsets(self, query_offsets: Sequence[int], k: int, return_keys: bool = False) -> SearchResult:
-        query_vectors = self.get_vectors(query_offsets=query_offsets, return_tensors=False)
-        return self._search_by_vectors(query_vectors=query_vectors, k=k, transform=False, return_keys=return_keys)
+    def _search_by_offsets(
+        self, query_offsets: Sequence[int], k: int, return_keys: bool = False
+    ) -> SearchResult:
+        query_vectors = self.get_vectors(
+            query_offsets=query_offsets, return_tensors=False
+        )
+        return self._search_by_vectors(
+            query_vectors=query_vectors, k=k, transform=False, return_keys=return_keys
+        )
 
-    def _search_by_offsets_range(self, query_offsets: Sequence[int], radius: float, sort: bool = True) -> SearchResult:
-        query_vectors = self.get_vectors(query_offsets=query_offsets, return_tensors=False)
-        return self._search_by_vectors_range(query_vectors=query_vectors, radius=radius, transform=False, sort=sort)
+    def _search_by_offsets_range(
+        self, query_offsets: Sequence[int], radius: float, sort: bool = True
+    ) -> SearchResult:
+        query_vectors = self.get_vectors(
+            query_offsets=query_offsets, return_tensors=False
+        )
+        return self._search_by_vectors_range(
+            query_vectors=query_vectors, radius=radius, transform=False, sort=sort
+        )
 
     # TODO: query for farthest neighbors https://gist.github.com/mdouze/c7653aaa8c3549b28bad75bd67543d34#file-demo_farthest_l2-ipynb
 

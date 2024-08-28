@@ -45,7 +45,9 @@ class SerializableMixin:
     @classmethod
     def hash_metadata(cls, metadata: Mapping[str, Any]) -> str:
         hash_obj = hashlib.sha256(
-            json.dumps(metadata, default=lambda o: o.__dict__, sort_keys=True).encode(encoding="utf-8")
+            json.dumps(metadata, default=lambda o: o.__dict__, sort_keys=True).encode(
+                encoding="utf-8"
+            )
         )
         return hash_obj.hexdigest()[:10]
 

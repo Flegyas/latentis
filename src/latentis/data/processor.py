@@ -5,7 +5,14 @@ from datasets import ClassLabel, Dataset
 from latentis import PROJECT_ROOT
 from latentis.benchmark.task import Task
 from latentis.data import actions
-from latentis.data.dataset import DatasetView, DataType, Feature, FeatureMapping, FeatureProperty, HFDatasetView
+from latentis.data.dataset import (
+    DatasetView,
+    DataType,
+    Feature,
+    FeatureMapping,
+    FeatureProperty,
+    HFDatasetView,
+)
 from latentis.data.imagenet import get_template_dataset
 from latentis.pipeline.flow import Flow, Pipeline
 
@@ -111,7 +118,10 @@ DBPedia14 = Pipeline(
         "map_text": actions.HFMap(
             input_columns=["title", "content"],
             fn=lambda title, content: {
-                "x": [title + ". " + content.strip('"').strip() for title, content in zip(title, content)]
+                "x": [
+                    title + ". " + content.strip('"').strip()
+                    for title, content in zip(title, content)
+                ]
             },
         ),
         "map_feature_names": actions.MapFeatures(
@@ -123,7 +133,11 @@ DBPedia14 = Pipeline(
             name="dbpedia14",
             id_column="sample_id",
             features=[
-                Feature(name="x", data_type=DataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"}),
+                Feature(
+                    name="x",
+                    data_type=DataType.TEXT,
+                    properties={FeatureProperty.LANGUAGE: "en"},
+                ),
                 Feature(name="y", data_type=DataType.LABEL),
             ],
         ),
@@ -145,11 +159,21 @@ TREC = Pipeline(
             name="trec",
             id_column="sample_id",
             features=[
-                Feature(name="text", data_type=DataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"}),
                 Feature(
-                    name="coarse_label", data_type=DataType.LABEL, properties={FeatureProperty.FINE_GRAINED: False}
+                    name="text",
+                    data_type=DataType.TEXT,
+                    properties={FeatureProperty.LANGUAGE: "en"},
                 ),
-                Feature(name="fine_label", data_type=DataType.LABEL, properties={FeatureProperty.FINE_GRAINED: True}),
+                Feature(
+                    name="coarse_label",
+                    data_type=DataType.LABEL,
+                    properties={FeatureProperty.FINE_GRAINED: False},
+                ),
+                Feature(
+                    name="fine_label",
+                    data_type=DataType.LABEL,
+                    properties={FeatureProperty.FINE_GRAINED: True},
+                ),
             ],
         ),
     },
@@ -170,7 +194,11 @@ AGNews = Pipeline(
             name="ag_news",
             id_column="sample_id",
             features=[
-                Feature(name="text", data_type=DataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"}),
+                Feature(
+                    name="text",
+                    data_type=DataType.TEXT,
+                    properties={FeatureProperty.LANGUAGE: "en"},
+                ),
                 Feature(name="label", data_type=DataType.LABEL),
             ],
         ),
@@ -197,7 +225,11 @@ IMDB = Pipeline(
             name="imdb",
             id_column="sample_id",
             features=[
-                Feature(name="text", data_type=DataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"}),
+                Feature(
+                    name="text",
+                    data_type=DataType.TEXT,
+                    properties={FeatureProperty.LANGUAGE: "en"},
+                ),
                 Feature(name="label", data_type=DataType.LABEL),
             ],
         ),
@@ -369,7 +401,9 @@ ImageNet = Pipeline(
         .add(block="to_view", inputs="data", outputs="dataset_view")
     ),
     blocks={
-        "load_dataset": actions.LoadHFDataset(path="ILSVRC/imagenet-1k", trust_remote_code=True),
+        "load_dataset": actions.LoadHFDataset(
+            path="ILSVRC/imagenet-1k", trust_remote_code=True
+        ),
         "process": actions.imagenet_process,
         "to_view": actions.ToHFView(
             name="imagenet",
@@ -398,7 +432,11 @@ ImageNetText = Pipeline(
             features=[
                 Feature(name="synset_id", data_type=DataType.TEXT),
                 Feature(name="class_id", data_type=DataType.LONG),
-                Feature(name="text", data_type=DataType.TEXT, properties={FeatureProperty.LANGUAGE: "en"}),
+                Feature(
+                    name="text",
+                    data_type=DataType.TEXT,
+                    properties={FeatureProperty.LANGUAGE: "en"},
+                ),
                 Feature(name="template_id", data_type=DataType.TEXT),
             ],
         ),

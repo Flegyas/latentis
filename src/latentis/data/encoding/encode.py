@@ -70,10 +70,17 @@ def _run(
                 vector_source=HDF5Source(
                     num_elements=len(split_data),
                     dimension=pooler.output_dim,
-                    root_dir=DATA_DIR / dataset.name / "encodings" / split / self.feature.name / pooler.name,
+                    root_dir=DATA_DIR
+                    / dataset.name
+                    / "encodings"
+                    / split
+                    / self.feature.name
+                    / pooler.name,
                 ),
                 metadata={
-                    **{f"model/{key}": value for key, value in model.properties.items()},
+                    **{
+                        f"model/{key}": value for key, value in model.properties.items()
+                    },
                     "feature": self.feature.name,
                     "split": split,
                     "dataset": dataset.name,
@@ -89,20 +96,25 @@ def _run(
             pin_memory=self.device != torch.device("cpu"),
             shuffle=False,
             num_workers=self.num_workers,
-            collate_fn=functools.partial(self.collate_fn, model=model, feature=self.feature.name),
+            collate_fn=functools.partial(
+                self.collate_fn, model=model, feature=self.feature.name
+            ),
         )
 
         for batch in tqdm(
-            loader, desc=f"Encoding `{split}` samples for feature {self.feature.name} using {model.item_id[:8]}"
+            loader,
+            desc=f"Encoding `{split}` samples for feature {self.feature.name} using {model.item_id[:8]}",
         ):
             raw_encoding = model.encode(batch.to(self.device))
 
             for pooler in self.poolers:
                 encoding2pooler_properties = pooler(**raw_encoding)
 
-                for encoding, pooler_properties in encoding2pooler_properties:
+                for encoding, _pooler_properties in encoding2pooler_properties:
                     pooler2space[pooler].add_vectors(
-                        vectors=encoding, keys=batch[dataset._id_column].cpu().tolist(), write=True
+                        vectors=encoding,
+                        keys=batch[dataset._id_column].cpu().tolist(),
+                        write=True,
                     )
 
         split2pooler2space[split] = pooler2space
@@ -135,7 +147,9 @@ class EncodeTask(Task):
     ):
         super().__init__()
         if split not in dataset_view.hf_dataset:
-            raise ValueError(f"Split `{split}` not found in dataset `{dataset_view.name}`")
+            raise ValueError(
+                f"Split `{split}` not found in dataset `{dataset_view.name}`"
+            )
 
         self.dataset = dataset_view
         self.feature: Feature = dataset_view.get_feature(feature)
@@ -166,10 +180,14 @@ class EncodeTask(Task):
     ) -> Space:
         pylogger.info(f"Encoding {self.feature} for dataset {self.dataset._name}")
 
-        space_path = self.target_path or (DATA_DIR / self.dataset.name / "encodings" / self.hash)
+        space_path = self.target_path or (
+            DATA_DIR / self.dataset.name / "encodings" / self.hash
+        )
         if space_path.exists():
             pylogger.info(f"Loading existing encodings from {space_path}")
-            space = Space.load_from_disk(space_path, load_source_model=self.save_source_model)
+            space = Space.load_from_disk(
+                space_path, load_source_model=self.save_source_model
+            )
             return EncodeResult(space=space)
 
         model_device = self.model.device
@@ -198,7 +216,9 @@ class EncodeTask(Task):
             pin_memory=self.device != torch.device("cpu"),
             shuffle=False,
             num_workers=self.num_workers,
-            collate_fn=functools.partial(self.collate_fn, model=model, feature=self.feature.name),
+            collate_fn=functools.partial(
+                self.collate_fn, model=model, feature=self.feature.name
+            ),
         )
 
         for i_batch, batch in tqdm(
@@ -214,8 +234,10 @@ class EncodeTask(Task):
                 )
 
             write: bool = i_batch % self.write_every == 0
-            for encoding, pooler_properties in encoding2pooler_properties:
-                space.add_vectors(vectors=encoding, keys=batch[self.dataset._id_column], write=write)
+            for encoding, _pooler_properties in encoding2pooler_properties:
+                space.add_vectors(
+                    vectors=encoding, keys=batch[self.dataset._id_column], write=write
+                )
 
         space.save_to_disk(
             target_path=space_path,
@@ -265,7 +287,11 @@ if __name__ == "__main__":
                 save_source_model=False,
                 # pooler=HFPooler(layers=[encoder.num_layers - 1], pooling_fn=mean_pool, output_dim=encoder.output_dim),
                 device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-                target_path=DATA_DIR / dataset_name / "encodings" / hf_encoder.replace("/", "-") / split,
+                target_path=DATA_DIR
+                / dataset_name
+                / "encodings"
+                / hf_encoder.replace("/", "-")
+                / split,
                 write_every=5,
             )
 

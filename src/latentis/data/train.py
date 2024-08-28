@@ -88,18 +88,27 @@ if __name__ == "__main__":
         [("trec", "coarse_label"), ("imdb", "label"), ("ag_news", "label")],
         ["bert-base-cased", "bert-base-uncased", "roberta-base"],
     ):
-        dataset = DatasetView.load_from_disk(DATA_DIR / dataset_name)
+        dataset: DatasetView = DatasetView.load_from_disk(DATA_DIR / dataset_name)
 
         res = attach_decoder(
             dataset=dataset,
             train_space_id=(
-                space_key := space_index.get_item_key(split="train", layer=12, **{"model/hf_name": hf_encoder_name})
+                space_key := space_index.get_item_key(
+                    split="train", layer=12, **{"model/hf_name": hf_encoder_name}
+                )
             ),
-            test_space_id=space_index.get_item_key(split="test", layer=12, **{"model/hf_name": hf_encoder_name}),
+            test_space_id=space_index.get_item_key(
+                split="test", layer=12, **{"model/hf_name": hf_encoder_name}
+            ),
             y_gt_key=label_feature,
-            model_builder=lambda: Classifier(
-                input_dim=space_index.load_item(item_key=space_key).shape[1],  # TODO add this a space property
-                num_classes=len(dataset.hf_dataset["train"].features[label_feature].names),
+            model_builder=lambda dataset=dataset,
+            label_feature=label_feature: Classifier(
+                input_dim=space_index.load_item(item_key=space_key).shape[
+                    1
+                ],  # TODO add this a space property
+                num_classes=len(
+                    dataset.hf_dataset["train"].features[label_feature].names
+                ),
                 deep=True,
                 bias=True,
                 x_feature="encodings_key",

@@ -108,14 +108,20 @@ class HFDatasetView(DatasetView):
         path: Optional[Path] = None,
     ):
         super().__init__()
-        assert isinstance(hf_dataset, DatasetDict), f"Expected {DatasetDict}, got {type(hf_dataset)}"
-        assert len(set(features)) == len(features), f"Features {features} contain duplicates!"
+        assert isinstance(
+            hf_dataset, DatasetDict
+        ), f"Expected {DatasetDict}, got {type(hf_dataset)}"
+        assert len(set(features)) == len(
+            features
+        ), f"Features {features} contain duplicates!"
         assert len(features) > 0, f"Features {features} must not be empty!"
         assert all(
             id_column in hf_dataset[split].column_names for split in hf_dataset.keys()
         ), f"ID column {id_column} not in all splits of dataset {hf_dataset}"
         assert all(
-            feature.name in hf_dataset[split].column_names for feature in features for split in hf_dataset.keys()
+            feature.name in hf_dataset[split].column_names
+            for feature in features
+            for split in hf_dataset.keys()
         ), f"Specified features ({features}) not in all splits of dataset {hf_dataset}"
         assert 0 < perc <= 1, f"Percentage {perc} not in (0, 1]"
 
@@ -225,7 +231,9 @@ class HFDatasetView(DatasetView):
             name=self._name,
             hf_dataset=self._hf_dataset,
             id_column=self._id_column,
-            features=[feature for feature in self._features if feature.name in feature_keys],
+            features=[
+                feature for feature in self._features if feature.name in feature_keys
+            ],
             perc=self._perc,
             properties=self._properties,
             parent_dir=self._path,

@@ -1,4 +1,3 @@
-
 import math
 
 import torch
@@ -15,9 +14,16 @@ def rbf_cka(space1: torch.Tensor, space2: torch.Tensor, sigma: float = None):
 
 
 @preprocess_latent_space_args
-def cka(space1: torch.Tensor, space2: torch.Tensor, hsic: callable, sigma: float = None, tolerance=1e-6):
-
-    assert space1.shape[0] == space2.shape[0], "X and Y must have the same number of samples."
+def cka(
+    space1: torch.Tensor,
+    space2: torch.Tensor,
+    hsic: callable,
+    sigma: float = None,
+    tolerance=1e-6,
+):
+    assert (
+        space1.shape[0] == space2.shape[0]
+    ), "X and Y must have the same number of samples."
 
     numerator = hsic(space1, space2, sigma)
 
@@ -26,7 +32,9 @@ def cka(space1: torch.Tensor, space2: torch.Tensor, hsic: callable, sigma: float
 
     cka_result = numerator / (var1 * var2)
 
-    assert 0 - tolerance <= cka_result <= 1 + tolerance, "CKA value must be between 0 and 1."
+    assert (
+        0 - tolerance <= cka_result <= 1 + tolerance
+    ), "CKA value must be between 0 and 1."
 
     return cka_result
 
@@ -63,7 +71,9 @@ def kernel_hsic(X: torch.Tensor, Y: torch.Tensor, sigma):
     Returns:
         The computed HSIC value.
     """
-    return torch.sum(center_kernel_matrix(rbf(X, sigma)) * center_kernel_matrix(rbf(Y, sigma)))
+    return torch.sum(
+        center_kernel_matrix(rbf(X, sigma)) * center_kernel_matrix(rbf(Y, sigma))
+    )
 
 
 def center_kernel_matrix(K: torch.Tensor) -> torch.Tensor:

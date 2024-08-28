@@ -15,7 +15,9 @@ class Batch(UserDict):
         super().__init__(data)
 
     def to(self, device: torch.device):
-        return Batch({k: v.to(device) if hasattr(v, "to") else v for k, v in self.items()})
+        return Batch(
+            {k: v.to(device) if hasattr(v, "to") else v for k, v in self.items()}
+        )
 
 
 class BiMap(SerializableMixin):

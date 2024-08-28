@@ -81,7 +81,9 @@ class Transform(nn.Module, SerializableMixin):
         return self._invertible
 
     def inverse_transform(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
-        raise RuntimeError(f"Inverse transform not implemented for {type(self).__name__}.")
+        raise RuntimeError(
+            f"Inverse transform not implemented for {type(self).__name__}."
+        )
 
 
 class FuncXTransform(Transform):
@@ -102,9 +104,15 @@ class FuncXTransform(Transform):
         self._inverse_fn: Optional[InverseFn] = inverse_fn
         self._state_fn: Optional[State] = state_fn
 
-        self._transform_params: Mapping[str, Any] = {} if transform_params is None else transform_params
-        self._state_params: Mapping[str, Any] = {} if state_params is None else state_params
-        self._inverse_params: Mapping[str, Any] = {} if inverse_params is None else inverse_params
+        self._transform_params: Mapping[str, Any] = (
+            {} if transform_params is None else transform_params
+        )
+        self._state_params: Mapping[str, Any] = (
+            {} if state_params is None else state_params
+        )
+        self._inverse_params: Mapping[str, Any] = (
+            {} if inverse_params is None else inverse_params
+        )
 
         self._fitted: bool = False
 

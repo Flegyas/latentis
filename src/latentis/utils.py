@@ -31,7 +31,9 @@ def get_env(env_name: str, default: Optional[str] = None) -> str:
     env_value: str = os.environ[env_name]
     if not env_value:
         if default is None:
-            message = f"{env_name} has yet to be configured and no default value is present!"
+            message = (
+                f"{env_name} has yet to be configured and no default value is present!"
+            )
             pylogger.error(message)
             raise ValueError(message)
         return default
@@ -85,7 +87,9 @@ min_seed_value = np.iinfo(np.uint32).min
 # https://github.com/Lightning-AI/lightning/blob/f6a36cf2204b8a6004b11cf0e21879872a63f414/src/lightning/fabric/utilities/seed.py#L19
 
 
-def _select_seed_randomly(min_seed_value: int = min_seed_value, max_seed_value: int = max_seed_value) -> int:
+def _select_seed_randomly(
+    min_seed_value: int = min_seed_value, max_seed_value: int = max_seed_value
+) -> int:
     return random.randint(min_seed_value, max_seed_value)  # noqa: S3
 
 
@@ -111,12 +115,16 @@ def seed_everything(seed: Optional[int] = None) -> int:
                 seed = int(env_seed)
             except ValueError:
                 seed = _select_seed_randomly(min_seed_value, max_seed_value)
-                pylogger.warn(f"Invalid seed found: {repr(env_seed)}, seed set to {seed}")
+                pylogger.warn(
+                    f"Invalid seed found: {repr(env_seed)}, seed set to {seed}"
+                )
     elif not isinstance(seed, int):
         seed = int(seed)
 
     if not (min_seed_value <= seed <= max_seed_value):
-        pylogger.warn(f"{seed} is not in bounds, numpy accepts from {min_seed_value} to {max_seed_value}")
+        pylogger.warn(
+            f"{seed} is not in bounds, numpy accepts from {min_seed_value} to {max_seed_value}"
+        )
         seed = _select_seed_randomly(min_seed_value, max_seed_value)
 
     pylogger.info(f"Seed set to {seed}")

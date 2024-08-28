@@ -36,8 +36,12 @@ def resolve_benchmark(benchmark_name: str) -> list[dict]:
             y_dataset_fit_name = fit_corr_properties["y_dataset"]
 
             # TODO: how to access spaces properties without dataset loading?
-            x_dataset_fit = DatasetView.load_from_disk(data_dir / x_dataset_fit_name, load_hf_dataset=False)
-            y_dataset_fit = DatasetView.load_from_disk(data_dir / y_dataset_fit_name, load_hf_dataset=False)
+            x_dataset_fit = DatasetView.load_from_disk(
+                data_dir / x_dataset_fit_name, load_hf_dataset=False
+            )
+            y_dataset_fit = DatasetView.load_from_disk(
+                data_dir / y_dataset_fit_name, load_hf_dataset=False
+            )
 
             x_spaces_fit = x_dataset_fit.encodings.get_items(
                 dataset=x_dataset_fit_name,
@@ -56,7 +60,9 @@ def resolve_benchmark(benchmark_name: str) -> list[dict]:
                     pairing_policy.fit.y_space_constraints,
                 ),
             )
-            for x_space_fit_key, y_space_fit_key in itertools.product(x_spaces_fit, y_spaces_fit):
+            for x_space_fit_key, y_space_fit_key in itertools.product(
+                x_spaces_fit, y_spaces_fit
+            ):
                 for test_pairing_policy in pairing_policy.tests:
                     test_split = test_pairing_policy.split
 
@@ -67,7 +73,10 @@ def resolve_benchmark(benchmark_name: str) -> list[dict]:
                             test_pairing_policy.correspondence_constraints,
                         ),
                     )
-                    for test_corr_id, test_corr_properties in available_test_correspondences.items():
+                    for (
+                        test_corr_id,
+                        test_corr_properties,
+                    ) in available_test_correspondences.items():
                         x_dataset_test_name = test_corr_properties["x_dataset"]
                         y_dataset_test_name = test_corr_properties["y_dataset"]
 
@@ -97,7 +106,9 @@ def resolve_benchmark(benchmark_name: str) -> list[dict]:
                             ),
                         )
 
-                        for x_space_test_key, y_space_test_key in itertools.product(x_spaces_test, y_spaces_test):
+                        for x_space_test_key, y_space_test_key in itertools.product(
+                            x_spaces_test, y_spaces_test
+                        ):
                             for estimator_name in pairing_policy.estimators:
                                 for metric_type, metrics in config.metrics.items():
                                     for metric_name in metrics:
@@ -133,11 +144,15 @@ def resolve_benchmark(benchmark_name: str) -> list[dict]:
                                             }
                                         )
 
-        (BENCHMARK_DIR / benchmark_name / "benchmark.json").write_text(f"{json.dumps(experiments, indent=4)}\n")
+        (BENCHMARK_DIR / benchmark_name / "benchmark.json").write_text(
+            f"{json.dumps(experiments, indent=4)}\n"
+        )
         return experiments
 
 
-def experiments_summary(experiments: list[dict], benchmark_name: Optional[str] = None) -> str:
+def experiments_summary(
+    experiments: list[dict], benchmark_name: Optional[str] = None
+) -> str:
     fit_correspondences = set()
     fit_x_spaces = set()
     fit_y_spaces = set()

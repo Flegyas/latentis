@@ -10,7 +10,13 @@ from lightning import LightningModule
 from torch import nn
 from torch.utils.data import DataLoader, default_collate
 
-from latentis.serialize.io_utils import SerializableMixin, load_json, load_model, save_json, save_model
+from latentis.serialize.io_utils import (
+    SerializableMixin,
+    load_json,
+    load_model,
+    save_json,
+    save_model,
+)
 from latentis.types import Metadata, StrEnum
 
 
@@ -39,13 +45,17 @@ class LatentisModule(LightningModule, SerializableMixin):
     def save_to_disk(self, target_path: Path) -> None:
         target_path.mkdir(parents=True, exist_ok=True)
         save_json(self.metadata, target_path / _METADATA_FILE_NAME)
-        save_model(model=self, target_path=target_path / "model.pt", version=self.version)
+        save_model(
+            model=self, target_path=target_path / "model.pt", version=self.version
+        )
 
     @classmethod
     def load_from_disk(cls, path: Path) -> LatentisModule:
         properties = cls.load_metadata(path)
         # TODO: if the save is changed, the properties should be injected here
-        return load_model(path / "model.pt", version=properties[_LatentisModuleMetadata._VERSION])
+        return load_model(
+            path / "model.pt", version=properties[_LatentisModuleMetadata._VERSION]
+        )
 
     @property
     def version(cls) -> int:
@@ -127,7 +137,11 @@ class PooledModel(WrappedModule):
             decode_fn=decode_fn,
             metadata={
                 **metadata,
-                **{"pooler": self.pooler.name if hasattr(self.pooler, "name") else self.pooler.__class__.__name__},
+                **{
+                    "pooler": self.pooler.name
+                    if hasattr(self.pooler, "name")
+                    else self.pooler.__class__.__name__
+                },
             },
         )
         self.pooler = pooler

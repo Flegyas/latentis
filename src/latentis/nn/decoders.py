@@ -19,7 +19,9 @@ class SVCModel(LatentisModule):
         self.model = model
 
     def forward(self, x):
-        return F.one_hot(torch.as_tensor(self.model.predict(x.cpu().numpy()))).to(x.device)
+        return F.one_hot(torch.as_tensor(self.model.predict(x.cpu().numpy()))).to(
+            x.device
+        )
 
 
 class LambdaModule(LatentisModule):
@@ -40,8 +42,8 @@ class Classifier(LatentisModule):
         bias: bool = True,
         x_feature: str = "x",
         y_feature: str = "y",
-        first_activation: nn.Module = nn.Tanh(),
-        second_activation: nn.Module = nn.ReLU(),
+        first_activation: nn.Module = nn.Tanh(),  # noqa: B008
+        second_activation: nn.Module = nn.ReLU(),  # noqa: B008
         first_projection_dim: Optional[int] = None,
         trainer_params: Mapping[str, Any] = None,
         lr: float = 1e-3,
@@ -77,18 +79,30 @@ class Classifier(LatentisModule):
         if not isinstance(deep, bool):
             raise ValueError(f"deep must be bool, got {deep} of type {type(deep)}")
 
-        if not deep and (first_activation is None or second_activation is None or first_projection_dim is None):
+        if not deep and (
+            first_activation is None
+            or second_activation is None
+            or first_projection_dim is None
+        ):
             pylogger.warning(
                 "If deep is False, first_activation, second_activation and first_projection_dim are not used!"
             )
 
-        if callable(first_activation) and getattr(first_activation, "__name__", None) == "<lambda>":
+        if (
+            callable(first_activation)
+            and getattr(first_activation, "__name__", None) == "<lambda>"
+        ):
             first_activation = LambdaModule(first_activation)
 
-        if callable(second_activation) and getattr(second_activation, "__name__", None) == "<lambda>":
+        if (
+            callable(second_activation)
+            and getattr(second_activation, "__name__", None) == "<lambda>"
+        ):
             second_activation = LambdaModule(second_activation)
 
-        first_projection_dim = input_dim if first_projection_dim is None else first_projection_dim
+        first_projection_dim = (
+            input_dim if first_projection_dim is None else first_projection_dim
+        )
 
         self.class_proj = (
             nn.Sequential(

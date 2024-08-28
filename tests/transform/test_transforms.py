@@ -20,10 +20,34 @@ from latentis.transform.base import (
 @pytest.mark.parametrize(
     "transform_fn,inverse_fn,state_fn,transform,fit_params,transform_params,inverse_params",
     [
-        (FL.centering_transform, FL.centering_inverse, FL.centering_state, Centering, None, None, None),
+        (
+            FL.centering_transform,
+            FL.centering_inverse,
+            FL.centering_state,
+            Centering,
+            None,
+            None,
+            None,
+        ),
         (FL.l2_normalize_transform, None, None, lambda: LPNorm(p=2), None, None, None),
-        (FL.lp_normalize_transform, None, None, lambda: LPNorm(p=3), None, dict(p=3), None),
-        (FL.std_scaling_transform, FL.std_scaling_inverse, FL.std_scaling_state, STDScaling, None, None, None),
+        (
+            FL.lp_normalize_transform,
+            None,
+            None,
+            lambda: LPNorm(p=3),
+            None,
+            dict(p=3),
+            None,
+        ),
+        (
+            FL.std_scaling_transform,
+            FL.std_scaling_inverse,
+            FL.std_scaling_state,
+            STDScaling,
+            None,
+            None,
+            None,
+        ),
         (
             FL.standard_scaling_transform,
             FL.standard_scaling_inverse,

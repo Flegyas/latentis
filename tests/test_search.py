@@ -113,7 +113,10 @@ def test_index(
     space_loaded: Space = Space.load_from_disk(path=tmp_space_path)
     _assert_index_eq(space1=space, space2=space_loaded)
 
-    assert space.metadata == space_loaded.metadata, (space.metadata["transform"], space_loaded.metadata["transform"])
+    assert space.metadata == space_loaded.metadata, (
+        space.metadata["transform"],
+        space_loaded.metadata["transform"],
+    )
 
     # Test efficient deletion
     # index_loaded.mark_deleted(id=0)
@@ -123,7 +126,11 @@ def test_index(
     #     index_loaded._get_vector_by_key(key=str(0))
     # index_loaded.unmark_deleted(id=0)
     a = space_loaded.get_vector(offset=0)
-    assert a is not None and len(a) == num_dimensions and np.allclose(a=a, b=space.get_vector(offset=0))
+    assert (
+        a is not None
+        and len(a) == num_dimensions
+        and np.allclose(a=a, b=space.get_vector(offset=0))
+    )
 
     # Test resize
     # index.max_elements
@@ -143,7 +150,9 @@ def test_transform(num_vectors: int, num_dimensions: int):
     )
     index1 = space.to_source(source_cls=SearchSource, metric_fn=SearchMetric.COSINE_SIM)
     index2 = space.to_source(
-        source_cls=SearchSource, metric_fn=SearchMetric.INNER_PRODUCT, transform=lambda x: F.normalize(x, p=2, dim=1)
+        source_cls=SearchSource,
+        metric_fn=SearchMetric.INNER_PRODUCT,
+        transform=lambda x: F.normalize(x, p=2, dim=1),
     )
 
     for i in range(num_vectors):
@@ -163,11 +172,15 @@ def test_transform(num_vectors: int, num_dimensions: int):
 
     assert np.allclose(
         space.search_knn(query_vectors=vectors, k=10, transform=True).offsets,
-        space.search_knn(query_vectors=F.normalize(vectors), k=10, transform=False).offsets,
+        space.search_knn(
+            query_vectors=F.normalize(vectors), k=10, transform=False
+        ).offsets,
     )
     assert np.allclose(
         space.search_knn(query_vectors=vectors, k=10, transform=True).offsets,
-        space.search_knn(query_vectors=space[range(vectors.size(0))], k=10, transform=False).offsets,
+        space.search_knn(
+            query_vectors=space[range(vectors.size(0))], k=10, transform=False
+        ).offsets,
     )
 
 
@@ -181,7 +194,11 @@ def test_transform(num_vectors: int, num_dimensions: int):
         (SearchMetric.EUCLIDEAN, 0.01),
     ],
 )
-def test_range_search(num_vectors: int, num_dimensions: int, search_metric2radius: Tuple[SearchMetric, float]):
+def test_range_search(
+    num_vectors: int,
+    num_dimensions: int,
+    search_metric2radius: Tuple[SearchMetric, float],
+):
     search_metric, radius = search_metric2radius
     # if search_metric == SearchMetric.INNER_PRODUCT:
     #     pytest.skip("Range search not supported for inner product: it isn't a proper metric")
@@ -193,11 +210,15 @@ def test_range_search(num_vectors: int, num_dimensions: int, search_metric2radiu
         vector_source=vectors,
     )
 
-    index: SearchSource = space.to_source(source_cls=SearchSource, metric_fn=search_metric)
+    index: SearchSource = space.to_source(
+        source_cls=SearchSource, metric_fn=search_metric
+    )
     for i in range(num_vectors):
         result = index.search_range(query_offsets=[i], radius=radius)
         vector_result = index.search_range(
-            query_vectors=vectors[i], radius=radius, transform=search_metric.transformation
+            query_vectors=vectors[i],
+            radius=radius,
+            transform=search_metric.transformation,
         )
         assert result.offsets[0] == i
         assert vector_result.offsets[0] == i
@@ -209,11 +230,18 @@ def test_keys(
 ):
     seed_everything(seed=0)
 
-    keys = ["".join([chr(ord("a") + np.random.randint(0, 26)) for _ in range(8)]) for _ in range(num_vectors)]
+    keys = [
+        "".join([chr(ord("a") + np.random.randint(0, 26)) for _ in range(8)])
+        for _ in range(num_vectors)
+    ]
 
-    space = Space(vector_source=(torch.randn(num_vectors, 100, dtype=torch.float32), keys))
+    space = Space(
+        vector_source=(torch.randn(num_vectors, 100, dtype=torch.float32), keys)
+    )
 
-    space: Space = space.to_source(source_cls=SearchSource, metric_fn=SearchMetric.EUCLIDEAN)
+    space: Space = space.to_source(
+        source_cls=SearchSource, metric_fn=SearchMetric.EUCLIDEAN
+    )
 
     single_vector = torch.randn(100, dtype=torch.float32)
     space.add_vectors(vectors=single_vector, keys=["single_additional_one"])
@@ -224,7 +252,9 @@ def test_keys(
 
     for i in range(num_vectors):
         result = space.search_knn(query_keys=[keys[i]], k=1, return_keys=True)
-        result_range = space.search_range(query_keys=[keys[i]], radius=0.99, return_keys=True)
+        result_range = space.search_range(
+            query_keys=[keys[i]], radius=0.99, return_keys=True
+        )
         assert result.offsets[0] == i
         assert result.keys[0] == keys[i]
         assert result_range.offsets[0] == i
@@ -255,6 +285,8 @@ def test_get_vectors(num_vectors: int, num_dimensions: int):
     assert np.allclose(vectors, retrieved_vectors)
 
     index = space.to_source(source_cls=SearchSource, metric_fn=SearchMetric.EUCLIDEAN)
-    retrieved_vectors_by_keys = index.get_vectors_by_key(keys=[str(i) for i in range(num_vectors)])
+    retrieved_vectors_by_keys = index.get_vectors_by_key(
+        keys=[str(i) for i in range(num_vectors)]
+    )
 
     assert np.allclose(vectors, retrieved_vectors_by_keys)

@@ -14,17 +14,25 @@ class SameKeyCorrespondence(Correspondence):
     def __init__(self):
         super().__init__()
 
-    def subset(self, x_keys: Sequence[str], y_keys: Sequence[str], size: int, seed: int = 42) -> PI:
+    def subset(
+        self, x_keys: Sequence[str], y_keys: Sequence[str], size: int, seed: int = 42
+    ) -> PI:
         if len(x_keys) != len(y_keys):
-            raise ValueError(f"Expected x_keys and y_keys to have the same length, got {len(x_keys)} and {len(y_keys)}")
-        p = torch.randperm(len(x_keys), generator=torch.Generator().manual_seed(seed))[:size]
+            raise ValueError(
+                f"Expected x_keys and y_keys to have the same length, got {len(x_keys)} and {len(y_keys)}"
+            )
+        p = torch.randperm(len(x_keys), generator=torch.Generator().manual_seed(seed))[
+            :size
+        ]
 
         return PI(
             x_indices=p,
             y_indices=p,
         )
 
-    def match(self, x_keys: Sequence[str], y_keys: Sequence[str], mode: str = "first") -> Union[bool, torch.BoolTensor]:
+    def match(
+        self, x_keys: Sequence[str], y_keys: Sequence[str], mode: str = "first"
+    ) -> Union[bool, torch.BoolTensor]:
         single: bool = isinstance(x_keys, str) and isinstance(y_keys, str)
 
         if isinstance(x_keys, (str, int)):
@@ -51,7 +59,9 @@ class ImageNetToTextCorrespondence(Correspondence):
         super().__init__()
         self.max_captions: int = max_captions
 
-    def match(self, x_keys: Sequence[str], y_keys: Sequence[str], mode="first") -> Union[bool, torch.BoolTensor]:
+    def match(
+        self, x_keys: Sequence[str], y_keys: Sequence[str], mode="first"
+    ) -> Union[bool, torch.BoolTensor]:
         if isinstance(x_keys, (str, int)):
             x_keys = [x_keys]
         if isinstance(y_keys, (str, int)):
@@ -75,7 +85,9 @@ class ImageNetToTextCorrespondence(Correspondence):
     def subset1(
         self, x_keys: Sequence[str], y_keys: Sequence[str], size: int, seed: int = 42
     ) -> Mapping[str, Sequence[int]]:
-        x_indices = torch.randperm(len(x_keys), generator=torch.Generator().manual_seed(seed))[:size]
+        x_indices = torch.randperm(
+            len(x_keys), generator=torch.Generator().manual_seed(seed)
+        )[:size]
 
         x_synsets = [x_keys[i].split("_")[0] for i in x_indices]
         y_synsets = [key.split("_")[0] for key in y_keys]
@@ -98,21 +110,30 @@ class ImageNetToTextCorrespondence(Correspondence):
         for i, synset_id in enumerate(y_synsets):
             y_synset2indices[synset_id].append(i)
 
-        y_synset2indices = {key: torch.as_tensor(indices) for key, indices in y_synset2indices.items()}
+        y_synset2indices = {
+            key: torch.as_tensor(indices) for key, indices in y_synset2indices.items()
+        }
         # TODO: reproducibility
         y_synset2indices = {
-            key: indices[torch.randperm(len(indices))][: self.max_captions] for key, indices in y_synset2indices.items()
+            key: indices[torch.randperm(len(indices))][: self.max_captions]
+            for key, indices in y_synset2indices.items()
         }
 
-        x_indices = torch.randperm(len(x_keys), generator=torch.Generator().manual_seed(seed))[:size]
+        x_indices = torch.randperm(
+            len(x_keys), generator=torch.Generator().manual_seed(seed)
+        )[:size]
         x_synsets = [x_keys[i].split("_")[0] for i in x_indices]
 
-        synset2y_occurrences = torch.as_tensor([len(y_synset2indices[synset]) for synset in x_synsets])
+        synset2y_occurrences = torch.as_tensor(
+            [len(y_synset2indices[synset]) for synset in x_synsets]
+        )
 
         # random.seed(42)
         # y_indices = [random.choice(y_synset2indices[x_synset]) for x_synset in x_synsets]
 
-        y_indices = torch.as_tensor([index for x_synset in x_synsets for index in y_synset2indices[x_synset]])
+        y_indices = torch.as_tensor(
+            [index for x_synset in x_synsets for index in y_synset2indices[x_synset]]
+        )
 
         return PI(
             x_indices=x_indices.repeat_interleave(synset2y_occurrences),
