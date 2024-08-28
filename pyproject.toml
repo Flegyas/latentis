@@ -113,6 +113,84 @@ skips = ["B101"]
 requires = ["setuptools", "wheel", "setuptools_scm[toml]"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools_scm]
-write_to = "src/latentis/_version.py"
-write_to_template = '__version__ = "{version}"'
+[tool.setuptools-git-versioning]
+enabled = true
+
+# [tool.setuptools_scm]
+# write_to = "src/latentis/_version.py"
+# write_to_template = '__version__ = "{version}"'
+
+[tool.uv]
+dev-dependencies = [
+    "ruff",
+    "pre-commit",
+    "bandit",
+    "pytest",
+    "pytest-cov",
+    "transformers",
+    "datasets",
+    "torchvision",
+    "mkdocs",
+    "mkdocs-material",
+    "mike",
+]
+
+[project]
+name = "latentis"
+dependencies = [
+    "torchmetrics",
+    "scikit-learn",
+    "backports.strenum",
+    "python-dotenv",
+    "GitPython",
+    "matplotlib",
+    "plotly",
+    "faiss-cpu",
+    "pandas",
+    "fire",
+    "lightning",
+    "h5py",
+    "transformers",
+    "gin-config",
+    "dvc",
+    "dvc[gdrive]",
+    "tueplots",
+    "requests",
+]
+
+dynamic = ["version"]
+description = "A Python package for analyzing and transforming neural latent spaces."
+readme = "README.md"
+urls = { Repository = "https://github.com/flegyas/latentis" }
+maintainers = [{ name = "Valentino Maiorca", email = "valentino@maiorca.xyz" }]
+requires-python = ">=3.9"
+keywords = [
+    "neural networks",
+    "latent spaces",
+    "dimensionality reduction",
+    "clustering",
+    "visualization",
+    "python",
+]
+license = { file = "LICENSE" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "License :: OSI Approved :: MIT License",
+    # "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+
+]
+
+[project.optional-dependencies]
+docs = ["mkdocs", "mkdocs-material", "mike"]
+
+test = ["pytest", "pytest-cov"]
+
+data = ["transformers", "datasets", "torchvision"]
