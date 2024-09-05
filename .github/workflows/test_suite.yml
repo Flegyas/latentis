@@ -49,10 +49,12 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest' }}
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
 
-      - name: Install the latest version of uv
-        uses: eifinger/setup-uv@v1
+      - name: Install the latest version of uv with caching
+        id: setup-uv
+        uses: astral-sh/setup-uv@v1
         with:
           enable-cache: true
+
       - name: Install Python
         run: uv python install ${{ matrix.python-version }}
 
