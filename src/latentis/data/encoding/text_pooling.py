@@ -71,20 +71,27 @@ def mean_pool(
     assert all(isinstance(layer, int) and layer >= 0 for layer in layers)
     layers = list(range(len(encodings))) if not layers else set(layers)
 
-    pooled_encodings = [
-        (
-            torch.stack(
-                [
-                    sample_encoding[sample_mask].mean(dim=0)
-                    for sample_encoding, sample_mask in zip(layer_encoding, mask)
-                ],
-                dim=0,
-            ),
-            {"pool": "mean", "layer": i_layer},
-        )
-        for i_layer, layer_encoding in enumerate(encodings)
-        if i_layer in layers
-    ]
+    pooled_encodings = []
+
+    # Reshape the mask to match the dimensions of the encodings (batch_size x seq_len x hidden_size)
+    expanded_mask = mask.unsqueeze(-1).float()
+
+    for i_layer in layers:
+        layer_encoding = encodings[i_layer]
+
+        # Masked encodings - set padded positions to zero
+        masked_encodings = layer_encoding * expanded_mask
+
+        # Sum the masked encodings along the sequence dimension
+        summed_encodings = masked_encodings.sum(dim=1)
+
+        # Compute the number of valid (non-padded) tokens for each sequence
+        valid_counts = expanded_mask.sum(dim=1).clamp(min=1)
+
+        # Calculate the mean by dividing the sum by the number of valid tokens
+        pooled_mean = summed_encodings / valid_counts
+
+        pooled_encodings.append((pooled_mean, {"pool": "mean", "layer": i_layer}))
 
     return pooled_encodings
 
@@ -97,20 +104,21 @@ def sum_pool(
     assert all(isinstance(layer, int) and layer >= 0 for layer in layers)
     layers = list(range(len(encodings))) if not layers else set(layers)
 
-    pooled_encodings = [
-        (
-            torch.stack(
-                [
-                    sample_encoding[sample_mask].sum(dim=0)
-                    for sample_encoding, sample_mask in zip(layer_encoding, mask)
-                ],
-                dim=0,
-            ),
-            {"pool": "sum", "layer": i_layer},
-        )
-        for i_layer, layer_encoding in enumerate(encodings)
-        if i_layer in layers
-    ]
+    pooled_encodings = []
+
+    # Reshape the mask to broadcast it over the sequence and hidden dimensions
+    expanded_mask = mask.unsqueeze(-1).float()
+
+    for i_layer in layers:
+        layer_encoding = encodings[i_layer]
+
+        # Apply the mask to the encodings
+        masked_encodings = layer_encoding * expanded_mask
+
+        # Sum over the sequence dimension
+        summed_encodings = masked_encodings.sum(dim=1)
+
+        pooled_encodings.append((summed_encodings, {"pool": "sum", "layer": i_layer}))
 
     return pooled_encodings
 
