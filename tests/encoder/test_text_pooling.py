@@ -2,8 +2,12 @@ import numpy as np
 import pytest
 import torch
 from latentis.nn.encoders import TextHFEncoder
-from latentis.data.encoding.text_pooling import token_pool, mean_pool, sum_pool, cls_pool
-from transformers import BatchEncoding
+from latentis.data.encoding.text_pooling import (
+    token_pool,
+    mean_pool,
+    sum_pool,
+    cls_pool,
+)
 
 
 @pytest.fixture
