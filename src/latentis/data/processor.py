@@ -1,7 +1,6 @@
 import logging
 
 from datasets import ClassLabel, Dataset
-
 from latentis import PROJECT_ROOT
 from latentis.benchmark.task import Task
 from latentis.data import actions
@@ -97,10 +96,16 @@ class FeatureCast(FeatureProcessor):
 #             parent_dir=parent_dir,
 #         )
 
+
 #         return processed_dataset
+class DataProcessor(Pipeline):
+    def __init__(self, dataset_name: str, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.dataset_name = dataset_name
 
 
-DBPedia14 = Pipeline(
+DBPedia14 = DataProcessor(
+    dataset_name="dbpedia14",
     name="process_dbpedia14",
     flows=(
         Flow(outputs=["dataset_view"])
@@ -144,7 +149,8 @@ DBPedia14 = Pipeline(
     },
 )
 
-TREC = Pipeline(
+TREC = DataProcessor(
+    dataset_name="trec",
     name="process_trec",
     flows=(
         Flow(outputs=["dataset_view"])
@@ -179,7 +185,8 @@ TREC = Pipeline(
     },
 )
 
-AGNews = Pipeline(
+AGNews = DataProcessor(
+    dataset_name="agnews",
     name="process_ag_news",
     flows=(
         Flow(outputs=["dataset_view"])
@@ -206,7 +213,8 @@ AGNews = Pipeline(
 )
 
 
-IMDB = Pipeline(
+IMDB = DataProcessor(
+    dataset_name="imdb",
     name="process_imdb",
     flows=(
         Flow(outputs=["dataset_view"])
@@ -243,7 +251,8 @@ IMDB = Pipeline(
 #                 names=list(set(dataset["train"]["label"])),
 #             ),
 #         )
-MNIST = Pipeline(
+MNIST = DataProcessor(
+    dataset_name="mnist",
     name="process_mnist",
     flows=(
         Flow(outputs=["dataset_view"])
@@ -281,7 +290,8 @@ MNIST = Pipeline(
 #                 names=list(set(dataset["train"]["label"])),
 #             ),
 #         )
-CIFAR10 = Pipeline(
+CIFAR10 = DataProcessor(
+    dataset_name="cifar10",
     name="process_cifar10",
     flows=(
         Flow(outputs=["dataset_view"])
@@ -318,7 +328,8 @@ CIFAR10 = Pipeline(
 #                     names=list(set(dataset["train"][label])),
 #                 ),
 #             )
-CIFAR100 = Pipeline(
+CIFAR100 = DataProcessor(
+    dataset_name="cifar100",
     name="process_cifar100",
     flows=(
         Flow(outputs=["dataset_view"])
@@ -343,7 +354,8 @@ CIFAR100 = Pipeline(
 )
 
 
-FashionMNIST = Pipeline(
+FashionMNIST = DataProcessor(
+    dataset_name="fashion_mnist",
     name="process_fashion_mnist",
     flows=(
         Flow(inputs="perc", outputs=["data"])
@@ -363,7 +375,8 @@ FashionMNIST = Pipeline(
     },
 )
 
-CUB = Pipeline(
+CUB = DataProcessor(
+    dataset_name="cub",
     name="process_cub",
     flows=(
         Flow(outputs=["dataset_view", "data"])
@@ -392,7 +405,8 @@ CUB = Pipeline(
     },
 )
 
-ImageNet = Pipeline(
+ImageNet = DataProcessor(
+    dataset_name="imagenet",
     name="process_imagenet",
     flows=(
         Flow(outputs=["dataset_view", "data"])
@@ -417,7 +431,8 @@ ImageNet = Pipeline(
     },
 )
 
-ImageNetText = Pipeline(
+ImageNetText = DataProcessor(
+    dataset_name="imagene_text",
     name="process_imagenet_text",
     flows=(
         Flow(outputs=["dataset_view", "data"])

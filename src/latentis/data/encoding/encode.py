@@ -104,6 +104,7 @@ def _run(
         for batch in tqdm(
             loader,
             desc=f"Encoding `{split}` samples for feature {self.feature.name} using {model.item_id[:8]}",
+            total=len(loader),
         ):
             raw_encoding = model.encode(batch.to(self.device))
 
@@ -224,6 +225,7 @@ class EncodeTask(Task):
         for i_batch, batch in tqdm(
             enumerate(loader),
             desc=f"Encoding `{self.split}` samples for feature {self.feature.name} using {model.hash}",
+            total=len(loader),
         ):
             raw_encoding = model.encode(batch.to(self.device))
 
@@ -282,7 +284,7 @@ if __name__ == "__main__":
                 feature="text",
                 model=encoder,
                 collate_fn=default_collate,
-                encoding_batch_size=512,
+                encoding_batch_size=128,
                 num_workers=16,
                 save_source_model=False,
                 # pooler=HFPooler(layers=[encoder.num_layers - 1], pooling_fn=mean_pool, output_dim=encoder.output_dim),

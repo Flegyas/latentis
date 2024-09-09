@@ -5,6 +5,7 @@ from datasets import ClassLabel, DatasetDict
 
 from latentis.data.dataset import DatasetView, Feature, FeatureMapping, HFDatasetView
 from latentis.data.imagenet import read_imagenet_labels
+import os
 
 
 class LoadHFDataset:
@@ -200,7 +201,13 @@ def imdb_process(data: DatasetDict, seed: int = 42):
     return data
 
 
-def imagenet_process(data: DatasetDict, seed: int = 42):
+def imagenet_process(
+    data: DatasetDict,
+    seed: int = 42,
+    num_proc: Optional[int] = None,
+    batch_size: int = 1000,
+):
+    num_proc = num_proc or os.cpu_count() or 1
     del data["test"]
     train_data = data["train"].train_test_split(
         train_size=100_000, seed=seed, stratify_by_column="label"
@@ -212,17 +219,22 @@ def imagenet_process(data: DatasetDict, seed: int = 42):
     imagenet_df = read_imagenet_labels()
     imagenet_df["synset_id"] = imagenet_df["pos"] + imagenet_df["offset"]
 
-    def mapping(sample, index: int):
-        synset_id = imagenet_df.loc[
-            imagenet_df["class_id"] == sample["label"], "synset_id"
-        ].item()
-        sample_id = f"{synset_id}_{index}"
-        return {"synset_id": synset_id, "sample_id": sample_id}
+    def mapping(samples, indices: int):
+        synset_ids = [
+            imagenet_df.loc[imagenet_df["class_id"] == label, "synset_id"].item()
+            for label in samples["label"]
+        ]
+        sample_ids = [
+            f"{synset_id}_{index}" for synset_id, index in zip(synset_ids, indices)
+        ]
+        return {"synset_id": synset_ids, "sample_id": sample_ids}
 
     data = data.map(
         mapping,
-        batched=False,
+        batched=True,
         with_indices=True,
+        batch_size=batch_size,
+        num_proc=num_proc,
     )
 
     return data
