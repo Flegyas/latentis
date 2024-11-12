@@ -224,17 +224,27 @@ class TensorSource(VectorSource, SerializableMixin):
         return self
 
 
+_default_h5py_params = dict(
+    dtype=np.float32,
+    fillvalue=0,
+    # "maxshape"= shape,
+)
+
+
 class HDF5Source(VectorSource):
     @classmethod
     def from_source(
         cls, source: VectorSource, root_dir: Path, write: bool = True
     ) -> VectorSource:
         return HDF5Source(
-            shape=source.shape, root_dir=root_dir, dtype=source.dtype
+            shape=source.shape, root_dir=root_dir, h5py_params=dict(dtype=source.dtype)
         ).add_vectors(source.as_tensor(), keys=source.keys, write=write)
 
     def __init__(
-        self, shape, root_dir: Path, dtype: torch.dtype = torch.float32
+        self,
+        shape: Union[torch.Size, Tuple[int, ...]],
+        root_dir: Path,
+        h5py_params: Mapping[str, Any] = {},
     ) -> None:
         super().__init__()
         root_dir.mkdir(parents=True, exist_ok=True)
@@ -242,12 +252,13 @@ class HDF5Source(VectorSource):
         data_path = root_dir / "vectors" / "data.h5"
         data_path.parent.mkdir(parents=True, exist_ok=True)
         self.h5_file = h5py.File(data_path, mode="w")
+
+        h5py_params = {**_default_h5py_params, **h5py_params}
+
         self.data: h5py.Dataset = self.h5_file.create_dataset(
             "data",
             shape=shape,
-            dtype=_torch_dtype_to_numpy(dtype) or np.float32,
-            fillvalue=0,
-            maxshape=shape,
+            **h5py_params,
         )
         self.h5_file.attrs["last_index"] = 0  # Tracking the last index used
         self._keys2offset = BiMap(x=[], y=[])

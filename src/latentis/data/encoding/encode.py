@@ -68,8 +68,7 @@ def _run(
         pooler2space = {
             pooler: Space(
                 vector_source=HDF5Source(
-                    num_elements=len(split_data),
-                    dimension=pooler.output_dim,
+                    shape=(len(split_data), pooler.output_dim),
                     root_dir=DATA_DIR
                     / dataset.name
                     / "encodings"
