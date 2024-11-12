@@ -5,7 +5,7 @@ from typing import Any, Dict, Sequence, Union
 import pandas as pd
 import torch
 from transformers import BatchEncoding
-
+import csv
 from latentis.nn import LatentisModule
 from latentis.serialize.io_utils import SerializableMixin
 
@@ -60,11 +60,11 @@ class BiMap(SerializableMixin):
 
     def save_to_disk(self, target_path: Path):
         df = pd.DataFrame({"x": list(self._x2y.keys()), "y": list(self._x2y.values())})
-        df.to_csv(target_path, sep="\t", index=False)
+        df.to_csv(target_path, sep="\t", index=False, quoting=csv.QUOTE_NONNUMERIC)
 
     @classmethod
     def load_from_disk(cls, path: Path) -> "BiMap":
-        mapping = pd.read_csv(path, sep="\t")
+        mapping = pd.read_csv(path, sep="\t", dtype={"x": str, "y": int})
         return cls(x=mapping["x"].tolist(), y=mapping["y"].tolist())
 
     @property

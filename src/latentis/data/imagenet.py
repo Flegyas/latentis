@@ -145,4 +145,4 @@ def get_template_dataset(test_size: float = 0.15, seed: int = 42) -> Dataset:
     )
 
 
-get_template_dataset()
+# get_template_dataset()
