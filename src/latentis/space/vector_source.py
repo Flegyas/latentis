@@ -333,6 +333,14 @@ class HDF5Source(VectorSource):
                 y=range(len(self._keys2offset), len(self._keys2offset) + len(keys)),
             )
 
+        if self.h5_file.attrs["last_index"] + vectors.size(0) > self.data.shape[0]:
+            self.data.resize(
+                (
+                    self.h5_file.attrs["last_index"] + vectors.size(0),
+                    *self.data.shape[1:],
+                )
+            )
+
         self.data[
             self.h5_file.attrs["last_index"] : self.h5_file.attrs["last_index"]
             + vectors.size(0)
