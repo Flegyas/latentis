@@ -4,13 +4,14 @@ import json
 import logging
 from abc import abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import faiss as _faiss
 import h5py
 import numpy as np
 import pandas as pd
 import torch
+import torch.types
 
 from latentis.data.utils import BiMap
 from latentis.serialize.io_utils import SerializableMixin
@@ -284,19 +285,71 @@ class HDF5Source(VectorSource):
         if isinstance(index, torch.Tensor):
             index = index.detach().cpu().numpy()
 
-        if isinstance(index, Sequence) and all(
-            isinstance(i, (int, torch.Tensor)) for i in index
-        ):
-            index = np.array(index)
+        def to_np(x):
+            if isinstance(x, torch.Tensor):
+                return x.detach().cpu().numpy()
+            elif isinstance(x, np.ndarray):
+                return x
+            elif isinstance(x, int):
+                return x
+            elif isinstance(x, slice):
+                return x
+            elif isinstance(x, Sequence) and all(
+                isinstance(i, (int, torch.Tensor)) for i in x
+            ):
+                return np.array(x)
+            else:
+                return x
 
-        if isinstance(index, np.ndarray):
-            if len(index) != len(np.unique(index)):
-                # TODO: fix this inefficient sorting
-                return torch.as_tensor(np.array([self.data[i] for i in index]))
-            sort_idx: np.ndarray[Any, np.dtype[np.signedinteger[Any]]] = np.argsort(
-                index
-            )
-            return torch.as_tensor(self.data[index[sort_idx]][sort_idx.argsort()])
+        if isinstance(index, Iterable):
+            if isinstance(index, np.ndarray) or (
+                isinstance(index, Iterable)
+                and all(isinstance(i, (int, torch.Tensor, np.integer)) for i in index)
+            ):
+                # the index is an array or a sequence of integers, we add another dimension to
+                # make it compatible with the sub-indexing below
+                index = [index]
+
+            # convert all indices to numpy arrays
+            index = [to_np(sub_index) for sub_index in index]
+
+            fancy_indexing_dim = [
+                i
+                for i, sub_index in enumerate(index)
+                if isinstance(sub_index, np.ndarray)
+            ]
+            if len(fancy_indexing_dim) > 1:
+                raise ValueError(
+                    "Only one dimension can be indexed with an array at a time (HDF5 allows only one fancy index)"
+                )
+            fancy_indexing_dim = fancy_indexing_dim[0] if fancy_indexing_dim else None
+
+            if fancy_indexing_dim is not None:
+                # if we are in a fancy indexing situation it is important to sort the index
+                fancy_index = index[fancy_indexing_dim]
+
+                # hdf5 does not support duplicates...`
+                if len(fancy_index) != len(np.unique(fancy_index)):
+                    # TODO: fix this inefficient access
+                    temp_data = []
+                    temp_index = list(index)
+                    for i in fancy_index:
+                        temp_index[fancy_indexing_dim] = int(i)
+                        temp_data.append(torch.as_tensor(self.data[tuple(temp_index)]))
+
+                    return torch.stack(temp_data, dim=fancy_indexing_dim)
+
+                sort_idx = np.argsort(fancy_index)
+                index[fancy_indexing_dim] = fancy_index[sort_idx]
+                was_sorted = not np.array_equal(fancy_index, index[fancy_indexing_dim])
+
+            # index is now sorted (if needed) for hdf5 compatibility
+            data = self.data[tuple(index)]
+
+            if fancy_indexing_dim and was_sorted:
+                data = data.take(sort_idx.argsort(), axis=fancy_indexing_dim)
+
+            return torch.as_tensor(data)
 
         return torch.as_tensor(self.data[index])
 
