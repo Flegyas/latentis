@@ -1,5 +1,5 @@
 
-:construction::construction::construction: **Developers At Work. The library will be ready next month. Feel free to contact us directly for any specific request!** :construction::construction::construction:
+:construction::construction::construction: **Developers At Work. The library is currently under construction. Feel free to contact us directly for any specific request!** :construction::construction::construction:
 
 ---
 
