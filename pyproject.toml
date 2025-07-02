@@ -156,6 +156,12 @@ dependencies = [
     "dvc[gdrive]",
     "tueplots",
     "requests",
+    "pygit2>=1.18,<2",
+    "ipykernel>=6.29.5",
+    "datasets>=2.14.4",
+    "huggingface-hub>=0.33.1",
+    "fsspec==2023.9.2",
+    "numpy<2"
 ]
 
 dynamic = ["version"]
@@ -163,7 +169,7 @@ description = "A Python package for analyzing and transforming neural latent spa
 readme = "README.md"
 urls = { Repository = "https://github.com/flegyas/latentis" }
 maintainers = [{ name = "Valentino Maiorca", email = "valentino@maiorca.xyz" }]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 keywords = [
     "neural networks",
     "latent spaces",

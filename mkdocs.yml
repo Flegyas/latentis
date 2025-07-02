@@ -4,6 +4,7 @@ repo_url: https://github.com/flegyas/latentis
 
 nav:
   - Home: index.md
+  - Pipeline: PIPELINE.md
 
 theme:
   name: material

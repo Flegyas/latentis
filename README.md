@@ -23,6 +23,10 @@ Latentis offers a structured suite of tools designed for efficiency and ease of 
 - **Advanced Encoding**: either employ pre-trained models or bring your own to encode anything.
 - **Benchmarking Tools**: standard and customizable benchmarking tools, allowing for thorough evaluation and refinement of methods.
 
+## Documentation
+
+For a detailed guide on how to use the `latentis` pipeline, please see the [PIPELINE.md](PIPELINE.md) file.
+
 ## Getting Started
 
 Ease into your next research project with:

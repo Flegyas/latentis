@@ -88,6 +88,7 @@ class FeatureMapping:
 #     def __len__(self) -> int:
 #         return len(self.data)
 class DatasetView(SerializableMixin):
+
     def save_to_disk(self, parent_dir: Path, *args, **kwargs):
         raise NotImplementedError
 

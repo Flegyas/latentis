@@ -304,7 +304,7 @@ CIFAR10 = DataProcessor(
         "load_dataset": actions.LoadHFDataset(path="cifar10"),
         "map_feature_names": actions.MapFeatures(
             FeatureMapping(source_col="label", target_col="y"),
-            FeatureMapping(source_col="image", target_col="x"),
+            FeatureMapping(source_col="img", target_col="x"),
         ),
         "cast_label": actions.ClassLabelCast(column_name="label"),
         "to_view": actions.ToHFView(
