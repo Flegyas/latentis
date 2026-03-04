@@ -1,5 +1,5 @@
-import functools
 from enum import auto
+import functools
 
 import torch
 

@@ -3,8 +3,8 @@ from typing import Any, Mapping
 import torch
 import torch.nn.functional as F
 
-import latentis.transform.functional as FL
 from latentis.transform import FuncXTransform, Transform
+import latentis.transform.functional as FL
 
 
 class Centering(FuncXTransform):

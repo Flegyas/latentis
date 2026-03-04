@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import copy
 from abc import abstractmethod
+import copy
 from enum import auto
 from pathlib import Path
 from typing import Mapping, Optional, Sequence

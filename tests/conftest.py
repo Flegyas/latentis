@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+import os
+import platform
+
+# Prevent segfaults from duplicate libomp on macOS (PyTorch + faiss-cpu conflict)
+if platform.system() == "Darwin":
+    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
 from typing import TYPE_CHECKING, Tuple
 
 import pytest

@@ -21,9 +21,9 @@ def cka(
     sigma: float = None,
     tolerance=1e-6,
 ):
-    assert (
-        space1.shape[0] == space2.shape[0]
-    ), "X and Y must have the same number of samples."
+    assert space1.shape[0] == space2.shape[0], (
+        "X and Y must have the same number of samples."
+    )
 
     numerator = hsic(space1, space2, sigma)
 
@@ -32,9 +32,9 @@ def cka(
 
     cka_result = numerator / (var1 * var2)
 
-    assert (
-        0 - tolerance <= cka_result <= 1 + tolerance
-    ), "CKA value must be between 0 and 1."
+    assert 0 - tolerance <= cka_result <= 1 + tolerance, (
+        "CKA value must be between 0 and 1."
+    )
 
     return cka_result
 

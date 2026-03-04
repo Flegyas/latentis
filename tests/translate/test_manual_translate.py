@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING, Optional, Tuple
 
 import pytest
 import torch
-import torch.nn.functional as F
 from torch import nn
+import torch.nn.functional as F
 
 from latentis.pipeline.flow import Flow, NNPipeline
 from latentis.space import Space

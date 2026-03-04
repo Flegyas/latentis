@@ -1,5 +1,5 @@
-import logging
 from abc import abstractmethod
+import logging
 from typing import Optional, Sequence, Tuple
 
 import torch

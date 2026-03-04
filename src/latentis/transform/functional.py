@@ -1,8 +1,8 @@
 from typing import Callable, Mapping, Optional
 
+from scipy.stats import ortho_group
 import torch
 import torch.nn.functional as F
-from scipy.stats import ortho_group
 
 
 def _handle_zeros(x: torch.Tensor, copy=True, constant_mask=None):

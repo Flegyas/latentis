@@ -4,11 +4,19 @@ from dataclasses import dataclass
 from enum import Enum
 from io import BytesIO
 import json
+import os
 from pathlib import Path
+import platform
 import tarfile
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 
 import faiss as _faiss
+
+# Prevent segfaults from duplicate libomp on macOS (PyTorch + faiss-cpu conflict)
+if platform.system() == "Darwin":
+    os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+    _faiss.omp_set_num_threads(1)
+
 import numpy as np
 import pandas as pd
 import torch
@@ -121,9 +129,9 @@ class SearchIndex:
         name: Optional[str] = None,
     ) -> None:
         assert num_dimensions > 0, "Number of dimensions must be greater than 0"
-        assert isinstance(
-            metric_fn, SearchMetric
-        ), f"Metric must be one of {SearchMetric}"
+        assert isinstance(metric_fn, SearchMetric), (
+            f"Metric must be one of {SearchMetric}"
+        )
         if transform is not None and metric_fn.transformation is not None:
             # TODO: support Transform.compose or similar
             raise NotImplementedError(
@@ -187,9 +195,9 @@ class SearchIndex:
     ) -> int:
         # TODO: without a key/offset check here, we can end up adding vectors and then failing to map it properly
         assert vector.ndim == 1, "Vector must be 1-dimensional"
-        assert (
-            vector.shape[0] == self.num_dimensions
-        ), f"Vector must have {self.num_dimensions} dimensions"
+        assert vector.shape[0] == self.num_dimensions, (
+            f"Vector must have {self.num_dimensions} dimensions"
+        )
 
         vector = vector.unsqueeze(dim=0)
         vector = vector.detach().cpu()
@@ -210,12 +218,12 @@ class SearchIndex:
         keys: Optional[Sequence[str]] = None,
     ) -> Sequence[int]:
         assert vectors.ndim == 2, "vectors must be 2-dimensional"
-        assert (
-            vectors.shape[1] == self.num_dimensions
-        ), f"Vectors must have {self.num_dimensions} dimensions"
-        assert (
-            keys is None or len(keys) == 0 or len(keys) == vectors.shape[0]
-        ), "Must provide a key for each vector"
+        assert vectors.shape[1] == self.num_dimensions, (
+            f"Vectors must have {self.num_dimensions} dimensions"
+        )
+        assert keys is None or len(keys) == 0 or len(keys) == vectors.shape[0], (
+            "Must provide a key for each vector"
+        )
 
         start_id = self.num_elements
 
@@ -374,9 +382,9 @@ class SearchIndex:
         query_key: Optional[str] = None,
         return_tensors: bool = False,
     ) -> Union[np.ndarray, torch.Tensor]:
-        assert (
-            sum(x is not None for x in [query_offset, query_key]) == 1
-        ), "Must provide exactly one of query_offset, or query_key"
+        assert sum(x is not None for x in [query_offset, query_key]) == 1, (
+            "Must provide exactly one of query_offset, or query_key"
+        )
 
         if query_offset is not None:
             return self._get_vector_by_offset(
@@ -419,9 +427,9 @@ class SearchIndex:
         query_keys: Optional[Sequence[str]] = None,
         return_tensors: bool = False,
     ) -> Union[np.ndarray, torch.Tensor]:
-        assert (
-            sum(x is not None for x in [query_offsets, query_keys]) == 1
-        ), "Must provide exactly one of query_offsets, or query_keys"
+        assert sum(x is not None for x in [query_offsets, query_keys]) == 1, (
+            "Must provide exactly one of query_offsets, or query_keys"
+        )
 
         if query_offsets is not None:
             return self._get_vectors_by_offsets(
@@ -436,9 +444,9 @@ class SearchIndex:
     def _get_vectors_by_offsets(
         self, offsets: Sequence[int], return_tensors: bool = False
     ) -> Union[np.ndarray, torch.Tensor]:
-        assert all(
-            offset < self.num_elements for offset in offsets
-        ), f"Some of these offsets do not exist: {offsets}"
+        assert all(offset < self.num_elements for offset in offsets), (
+            f"Some of these offsets do not exist: {offsets}"
+        )
         result = self.backend_index.reconstruct_batch(offsets)
 
         if return_tensors:
@@ -483,13 +491,13 @@ class SearchIndex:
     ) -> SearchResult:
         if query_vectors.ndim == 1:
             query_vectors = query_vectors[None, :]
-        assert (
-            query_vectors.shape[1] == self.num_dimensions
-        ), f"query_vectors must have {self.num_dimensions} dimensions"
+        assert query_vectors.shape[1] == self.num_dimensions, (
+            f"query_vectors must have {self.num_dimensions} dimensions"
+        )
 
-        assert (
-            not transform or self.transform is not None
-        ), "Cannot transform vectors without a transform!"
+        assert not transform or self.transform is not None, (
+            "Cannot transform vectors without a transform!"
+        )
         if transform:
             query_vectors = self.transform(query_vectors)
 
@@ -534,16 +542,16 @@ class SearchIndex:
         return_keys: bool = False,
         sort: bool = True,
     ) -> SearchResult:
-        assert (
-            query_vectors.shape[-1] == self.num_dimensions
-        ), f"query_vectors must have {self.num_dimensions} dimensions"
+        assert query_vectors.shape[-1] == self.num_dimensions, (
+            f"query_vectors must have {self.num_dimensions} dimensions"
+        )
 
         if query_vectors.ndim == 1:
             query_vectors = query_vectors[None, :]
 
-        assert (
-            not transform or self.transform is not None
-        ), "Cannot transform vectors without a transform!"
+        assert not transform or self.transform is not None, (
+            "Cannot transform vectors without a transform!"
+        )
         if transform:
             query_vectors = self.transform(query_vectors)
 

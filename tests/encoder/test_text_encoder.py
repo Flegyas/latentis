@@ -1,6 +1,7 @@
 import pytest
 import torch
-from transformers import PreTrainedTokenizerBase, BatchEncoding
+from transformers import BatchEncoding, PreTrainedTokenizerBase
+
 from latentis.nn.encoders import TextHFEncoder
 
 

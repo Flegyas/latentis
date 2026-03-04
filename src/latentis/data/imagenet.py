@@ -1,7 +1,7 @@
 from pathlib import Path
 
-import pandas as pd
 from datasets import ClassLabel, Dataset
+import pandas as pd
 
 from latentis import PROJECT_ROOT
 

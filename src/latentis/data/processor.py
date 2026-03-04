@@ -1,6 +1,7 @@
 import logging
 
 from datasets import ClassLabel, Dataset
+
 from latentis import PROJECT_ROOT
 from latentis.benchmark.task import Task
 from latentis.data import actions

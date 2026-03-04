@@ -1,10 +1,10 @@
 import logging
 from typing import Any, Mapping, Optional
 
-import torch
-import torch.nn.functional as F
 from lightning import Trainer
+import torch
 from torch import nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchmetrics import Accuracy, FBetaScore, MetricCollection
 

@@ -12,7 +12,7 @@ jobs:
       matrix:
         python-version: ['3.9']
         include:
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             label: linux-64
 
     name: ${{ matrix.label }}-py${{ matrix.python-version }}
@@ -20,11 +20,9 @@ jobs:
 
     environment: release
     permissions:
-      # IMPORTANT: this permission is mandatory for trusted publishing
       id-token: write
 
     steps:
-      # extract the first two digits from the release note
       - name: Set release notes tag
         run: |
           export RELEASE_TAG_VERSION=${{ github.event.release.tag_name }}
@@ -38,14 +36,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check working directory status
-        run: git status
-
-      - name: Restore working directory (env.yaml Python version)
-        run: git checkout .
-
-      - name: Set up uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
 
       - name: Build the project
         run: uvx --from build pyproject-build --installer uv
@@ -53,5 +47,5 @@ jobs:
       - name: Check metadata
         run: uvx twine check dist/*
 
-      - name: Publish distribution 📦 to PyPI
+      - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

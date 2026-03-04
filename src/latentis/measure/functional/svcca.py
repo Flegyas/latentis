@@ -70,9 +70,9 @@ def svcca(
     Returns:
         svcca_similarity: float quantifying the SVCCA similarity between X and Y.
     """
-    assert (
-        space1.shape[0] == space2.shape[0]
-    ), "space1 and space2 must have the same number of samples."
+    assert space1.shape[0] == space2.shape[0], (
+        "space1 and space2 must have the same number of samples."
+    )
 
     space1, space2 = space1.T, space2.T
 
@@ -102,9 +102,9 @@ def svcca(
 
     svcca_similarity = torch.mean(singular_values_to_keep)
 
-    assert (
-        0 - tolerance <= svcca_similarity <= 1 + tolerance
-    ), f"SVCCA value must be between 0 and 1, got {svcca_similarity} and tolerance is {tolerance}."
+    assert 0 - tolerance <= svcca_similarity <= 1 + tolerance, (
+        f"SVCCA value must be between 0 and 1, got {svcca_similarity} and tolerance is {tolerance}."
+    )
 
     return svcca_similarity
 

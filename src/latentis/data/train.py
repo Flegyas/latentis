@@ -101,21 +101,22 @@ if __name__ == "__main__":
                 split="test", layer=12, **{"model/hf_name": hf_encoder_name}
             ),
             y_gt_key=label_feature,
-            model_builder=lambda dataset=dataset,
-            label_feature=label_feature: Classifier(
-                input_dim=space_index.load_item(item_key=space_key).shape[
-                    1
-                ],  # TODO add this a space property
-                num_classes=len(
-                    dataset.hf_dataset["train"].features[label_feature].names
-                ),
-                deep=True,
-                bias=True,
-                x_feature="encodings_key",
-                y_feature="hf_y_keys",
-                first_activation=nn.Tanh(),
-                second_activation=nn.ReLU(),
-                first_projection_dim=None,
+            model_builder=lambda dataset=dataset, label_feature=label_feature: (
+                Classifier(
+                    input_dim=space_index.load_item(item_key=space_key).shape[
+                        1
+                    ],  # TODO add this a space property
+                    num_classes=len(
+                        dataset.hf_dataset["train"].features[label_feature].names
+                    ),
+                    deep=True,
+                    bias=True,
+                    x_feature="encodings_key",
+                    y_feature="hf_y_keys",
+                    first_activation=nn.Tanh(),
+                    second_activation=nn.ReLU(),
+                    first_projection_dim=None,
+                )
             ),
             train_model=True,
             batch_size=128,

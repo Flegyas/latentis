@@ -5,7 +5,6 @@ from typing import Optional, Sequence, Union
 import torch
 from torch import nn
 
-
 # if TYPE_CHECKING:
 from latentis.space import Space
 
@@ -47,16 +46,16 @@ class Uniform(Sampler):
             Union[Sequence[LatentSpace], LatentSpace]: The sampled spaces.
         """
         assert len(spaces) > 0, "At least one space must be provided"
-        assert (
-            len(set(len(space) for space in spaces)) == 1
-        ), "All spaces must have the same number of samples"
+        assert len(set(len(space) for space in spaces)) == 1, (
+            "All spaces must have the same number of samples"
+        )
         assert n > 0, f"n must be greater than 0, but is {n}"
-        assert n <= len(
-            spaces[0]
-        ), f"n must be smaller than the number of vectors, but is {n}"
-        assert (
-            len(set(type(space) for space in spaces)) == 1
-        ), "All spaces must be of the same class"
+        assert n <= len(spaces[0]), (
+            f"n must be smaller than the number of vectors, but is {n}"
+        )
+        assert len(set(type(space) for space in spaces)) == 1, (
+            "All spaces must be of the same class"
+        )
 
         ids = torch.randperm(len(spaces[0]), generator=self.generator)[:n]
 

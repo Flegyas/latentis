@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from abc import abstractmethod
 import json
 import logging
-from abc import abstractmethod
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
@@ -152,9 +152,9 @@ class TensorSource(VectorSource, SerializableMixin):
         return cls(vectors=source.as_tensor(), keys=source.keys)
 
     def __init__(self, vectors: torch.Tensor, keys: Optional[Sequence[str]] = None):
-        assert (
-            keys is None or len(keys) == 0 or len(keys) == vectors.size(0)
-        ), "Keys must be None, empty, or have the same length as vectors"
+        assert keys is None or len(keys) == 0 or len(keys) == vectors.size(0), (
+            "Keys must be None, empty, or have the same length as vectors"
+        )
         self._vectors = vectors
         keys = keys or []
         self._keys2offset = BiMap(x=keys, y=range(len(keys)))
@@ -170,9 +170,9 @@ class TensorSource(VectorSource, SerializableMixin):
         return self._vectors.size(0)
 
     def __eq__(self, __value: TensorSource) -> bool:
-        assert isinstance(
-            __value, TensorSource
-        ), f"Expected {TensorSource}, got {type(__value)}"
+        assert isinstance(__value, TensorSource), (
+            f"Expected {TensorSource}, got {type(__value)}"
+        )
         return torch.allclose(self._vectors, __value._vectors)
 
     def as_tensor(self, device: torch.device = "cpu") -> torch.Tensor:
@@ -209,13 +209,13 @@ class TensorSource(VectorSource, SerializableMixin):
         if vectors.ndim == 1:
             vectors = vectors.unsqueeze(0)
 
-        assert (keys is None) == (
-            len(self._keys2offset) == 0
-        ), "Keys must be provided only if the source already has keys"
+        assert (keys is None) == (len(self._keys2offset) == 0), (
+            "Keys must be provided only if the source already has keys"
+        )
         if keys is not None:
-            assert len(keys) == vectors.size(
-                0
-            ), "Keys must have the same length as vectors"
+            assert len(keys) == vectors.size(0), (
+                "Keys must have the same length as vectors"
+            )
             self._keys2offset.add_all(
                 x=keys,
                 y=range(len(self._keys2offset), len(self._keys2offset) + len(keys)),
@@ -360,9 +360,9 @@ class HDF5Source(VectorSource):
         return torch.as_tensor(np.asarray(self.data), device=device)
 
     def __eq__(self, __value: HDF5Source) -> bool:
-        assert isinstance(
-            __value, HDF5Source
-        ), f"Expected {HDF5Source}, got {type(__value)}"
+        assert isinstance(__value, HDF5Source), (
+            f"Expected {HDF5Source}, got {type(__value)}"
+        )
         return torch.allclose(self.data, __value.data)
 
     def add_vectors(
@@ -378,9 +378,9 @@ class HDF5Source(VectorSource):
         #     len(self._keys2offset) == 0
         # ), "Keys must be provided only if the source already has keys"
         if keys is not None:
-            assert len(keys) == vectors.size(
-                0
-            ), "Keys must have the same length as vectors"
+            assert len(keys) == vectors.size(0), (
+                "Keys must have the same length as vectors"
+            )
             self._keys2offset.add_all(
                 x=keys,
                 y=range(len(self._keys2offset), len(self._keys2offset) + len(keys)),
@@ -527,9 +527,9 @@ class SearchSource(VectorSource):
         name: Optional[str] = None,
     ) -> None:
         assert num_dimensions > 0, "Number of dimensions must be greater than 0"
-        assert isinstance(
-            metric_fn, SearchMetric
-        ), f"Metric must be one of {SearchMetric}"
+        assert isinstance(metric_fn, SearchMetric), (
+            f"Metric must be one of {SearchMetric}"
+        )
         if transform is not None and metric_fn.transformation is not None:
             # TODO: support Transform.compose or similar
             raise NotImplementedError(
@@ -592,9 +592,9 @@ class SearchSource(VectorSource):
     ) -> int:
         # TODO: without a key/offset check here, we can end up adding vectors and then failing to map it properly
         assert vector.ndim == 1, "Vector must be 1-dimensional"
-        assert (
-            vector.shape[0] == self.num_dimensions
-        ), f"Vector must have {self.num_dimensions} dimensions"
+        assert vector.shape[0] == self.num_dimensions, (
+            f"Vector must have {self.num_dimensions} dimensions"
+        )
 
         vector = vector.unsqueeze(dim=0)
         vector = vector.detach().cpu()
@@ -618,19 +618,19 @@ class SearchSource(VectorSource):
             vectors = vectors.unsqueeze(dim=0)
 
         assert vectors.ndim == 2, "vectors must be 2-dimensional"
-        assert (
-            vectors.shape[1] == self.num_dimensions
-        ), f"Vectors must have {self.num_dimensions} dimensions"
-        assert (
-            keys is None or len(keys) == 0 or len(keys) == vectors.shape[0]
-        ), "Must provide a key for each vector"
+        assert vectors.shape[1] == self.num_dimensions, (
+            f"Vectors must have {self.num_dimensions} dimensions"
+        )
+        assert keys is None or len(keys) == 0 or len(keys) == vectors.shape[0], (
+            "Must provide a key for each vector"
+        )
 
         start_id = self.num_elements
 
         if self.transform is not None:
             vectors = self.transform(vectors)
 
-        vectors = vectors.cpu().detach().numpy()
+        vectors = vectors.cpu().detach().float().numpy()
 
         self.backend_index.add(vectors)
 
@@ -701,9 +701,9 @@ class SearchSource(VectorSource):
             sum(x is not None for x in [query_offsets, query_vectors, query_keys]) == 1
         ), "Must provide exactly one of query_offsets, query_vectors, or query_keys"
 
-        assert (
-            metric_fn is None or self._metric_fn == metric_fn
-        ), "Metric function must match the source metric function. Source metric function is {self._metric_fn}, but provided metric function is {metric_fn}"
+        assert metric_fn is None or self._metric_fn == metric_fn, (
+            "Metric function must match the source metric function. Source metric function is {self._metric_fn}, but provided metric function is {metric_fn}"
+        )
 
         if query_offsets is not None:
             return self._search_by_offsets(
@@ -788,9 +788,9 @@ class SearchSource(VectorSource):
         query_key: Optional[str] = None,
         return_tensors: bool = False,
     ) -> Union[np.ndarray, torch.Tensor]:
-        assert (
-            sum(x is not None for x in [query_offset, query_key]) == 1
-        ), "Must provide exactly one of query_offset, or query_key"
+        assert sum(x is not None for x in [query_offset, query_key]) == 1, (
+            "Must provide exactly one of query_offset, or query_key"
+        )
 
         if query_offset is not None:
             return self._get_vector_by_offset(
@@ -824,9 +824,9 @@ class SearchSource(VectorSource):
         query_keys: Optional[Sequence[str]] = None,
         return_tensors: bool = False,
     ) -> Union[np.ndarray, torch.Tensor]:
-        assert (
-            sum(x is not None for x in [query_offsets, query_keys]) == 1
-        ), "Must provide exactly one of query_offsets, or query_keys"
+        assert sum(x is not None for x in [query_offsets, query_keys]) == 1, (
+            "Must provide exactly one of query_offsets, or query_keys"
+        )
 
         if query_offsets is not None:
             return self._get_vectors_by_offsets(
@@ -841,9 +841,9 @@ class SearchSource(VectorSource):
     def _get_vectors_by_offsets(
         self, offsets: Sequence[int], return_tensors: bool = False
     ) -> Union[np.ndarray, torch.Tensor]:
-        assert all(
-            offset < self.num_elements for offset in offsets
-        ), f"Some of these offsets do not exist: {offsets}"
+        assert all(offset < self.num_elements for offset in offsets), (
+            f"Some of these offsets do not exist: {offsets}"
+        )
         result = self.backend_index.reconstruct_batch(offsets)
 
         if return_tensors:
@@ -891,18 +891,20 @@ class SearchSource(VectorSource):
     ) -> SearchResult:
         if query_vectors.ndim == 1:
             query_vectors = query_vectors[None, :]
-        assert (
-            query_vectors.shape[1] == self.num_dimensions
-        ), f"query_vectors must have {self.num_dimensions} dimensions"
+        assert query_vectors.shape[1] == self.num_dimensions, (
+            f"query_vectors must have {self.num_dimensions} dimensions"
+        )
 
-        assert (
-            not transform or self.transform is not None
-        ), "Cannot transform vectors without a transform!"
+        assert not transform or self.transform is not None, (
+            "Cannot transform vectors without a transform!"
+        )
         if transform:
             query_vectors = self.transform(query_vectors)
 
         if isinstance(query_vectors, torch.Tensor):
-            query_vectors = query_vectors.cpu().detach().numpy()
+            query_vectors = query_vectors.cpu().detach().float().numpy()
+        else:
+            query_vectors = query_vectors.astype("float32")
 
         distances, offsets = self.backend_index.search(query_vectors, k)
 
@@ -935,21 +937,23 @@ class SearchSource(VectorSource):
         return_keys: bool = False,
         sort: bool = True,
     ) -> SearchResult:
-        assert (
-            query_vectors.shape[-1] == self.num_dimensions
-        ), f"query_vectors must have {self.num_dimensions} dimensions"
+        assert query_vectors.shape[-1] == self.num_dimensions, (
+            f"query_vectors must have {self.num_dimensions} dimensions"
+        )
 
         if query_vectors.ndim == 1:
             query_vectors = query_vectors[None, :]
 
-        assert (
-            not transform or self.transform is not None
-        ), "Cannot transform vectors without a transform!"
+        assert not transform or self.transform is not None, (
+            "Cannot transform vectors without a transform!"
+        )
         if transform:
             query_vectors = self.transform(query_vectors)
 
         if isinstance(query_vectors, torch.Tensor):
-            query_vectors = query_vectors.cpu().detach().numpy()
+            query_vectors = query_vectors.cpu().detach().float().numpy()
+        else:
+            query_vectors = query_vectors.astype("float32")
 
         lims, distances, offsets = self.backend_index.range_search(
             query_vectors, radius

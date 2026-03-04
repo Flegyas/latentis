@@ -1,17 +1,17 @@
 from typing import Optional
 
 import torch
-import torch.nn.functional as F
 from torch import nn
+import torch.nn.functional as F
 
 from latentis.transform.dim_matcher import DimMatcher
 from latentis.utils import seed_everything
 
 
 def svd_align_state(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-    assert (
-        x.size(1) == y.size(1)
-    ), f"Dimension mismatch between {x.size(1)} and {y.size(1)}. Forgot some padding/truncation transforms?"
+    assert x.size(1) == y.size(1), (
+        f"Dimension mismatch between {x.size(1)} and {y.size(1)}. Forgot some padding/truncation transforms?"
+    )
 
     #  Compute the translation vector that aligns A to B using SVD.
     u, sigma, vt = torch.svd((y.T @ x).T)

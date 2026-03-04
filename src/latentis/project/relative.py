@@ -2,8 +2,8 @@ import functools
 from typing import Callable, Optional, Sequence
 
 import torch
-import torch.nn.functional as F
 from torch import nn
+import torch.nn.functional as F
 
 from latentis.space import LatentSpace
 from latentis.transform import Transform

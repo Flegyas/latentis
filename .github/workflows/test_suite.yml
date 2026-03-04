@@ -17,9 +17,9 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ["3.9", "3.10"]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
         include:
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             label: linux-64
 
       fail-fast: false
@@ -28,30 +28,11 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      # - name: Free Disk Space (Ubuntu)
-      #   uses: jlumbroso/free-disk-space@main
-      #   with:
-      #     # this might remove tools that are actually needed,
-      #     # if set to "true" but frees about 6 GB
-      #     tool-cache: false
-
-      #     # all of these default to true, but feel free to set to
-      #     # "false" if necessary for your workflow
-      #     android: true
-      #     dotnet: true
-      #     haskell: true
-      #     large-packages: true
-      #     docker-images: true
-      #     swap-storage: true
       - uses: actions/checkout@v4
 
-      - name: Set up uv
-        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest' }}
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
-
-      - name: Install the latest version of uv with caching
+      - name: Install the latest version of uv
         id: setup-uv
-        uses: astral-sh/setup-uv@v1
+        uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
 
@@ -59,20 +40,18 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install the project
-        run: uv sync --all-extras --dev
+        run: uv sync --dev
 
       - name: Run pre-commits
-        shell: bash -l {0}
         run: |
           uv run pre-commit install
           uv run pre-commit run -v --all-files --show-diff-on-failure
 
       - name: Run tests and collect coverage
-        shell: bash -l {0}
         run: |
           uv run pytest --cov --cov-report xml:coverage.xml
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

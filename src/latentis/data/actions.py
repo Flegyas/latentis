@@ -1,3 +1,4 @@
+import os
 from typing import Optional, Sequence
 
 import datasets
@@ -5,7 +6,6 @@ from datasets import ClassLabel, DatasetDict
 
 from latentis.data.dataset import DatasetView, Feature, FeatureMapping, HFDatasetView
 from latentis.data.imagenet import read_imagenet_labels
-import os
 
 
 class LoadHFDataset:

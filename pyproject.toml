@@ -12,102 +12,30 @@ exclude_lines = [
     "if TYPE_CHECKING:",
 ]
 omit = [
-    # ignore all test cases in tests/
     "tests/*",
 ]
 
 [tool.mypy]
-files = ["src/**/*.py", "test/*.py"]
+files = ["src/**/*.py", "tests/**/*.py"]
 ignore_missing_imports = true
 
 [tool.ruff]
-# Exclude a variety of commonly ignored directories.
-exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".git-rewrite",
-    ".hg",
-    ".ipynb_checkpoints",
-    ".mypy_cache",
-    ".nox",
-    ".pants.d",
-    ".pyenv",
-    ".pytest_cache",
-    ".pytype",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
-    ".vscode",
-    "__pypackages__",
-    "_build",
-    "buck-out",
-    "build",
-    "dist",
-    "node_modules",
-    "site-packages",
-    "venv",
-]
-
-# Same as Black.
+exclude = [".git", ".venv", "build", "dist", "node_modules"]
 line-length = 88
 indent-width = 4
-
-# Assume Python 3.8
-target-version = "py38"
+target-version = "py39"
 
 [tool.ruff.lint]
-# Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
-# Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
-# McCabe complexity (`C901`) by default.
-# select = B,C,E,F,P,T4,W,B9
-select = ["E4", "E7", "E9", "F", "B", "W"]
-ignore = ["E203", "E501"]
-
-# Allow fix for all enabled rules (when `--fix`) is provided.
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]
 fixable = ["ALL"]
 unfixable = []
-
-# Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
-[tool.ruff.format]
-# Like Black, use double quotes for strings.
-quote-style = "double"
-
-# Like Black, indent with spaces, rather than tabs.
-indent-style = "space"
-
-# Like Black, respect magic trailing commas.
-skip-magic-trailing-comma = false
-
-# Like Black, automatically detect the appropriate line ending.
-line-ending = "auto"
-
-# Enable auto-formatting of code examples in docstrings. Markdown,
-# reStructuredText code/literal blocks and doctests are all supported.
-#
-# This is currently disabled by default, but it is planned for this
-# to be opt-out in the future.
-docstring-code-format = false
-
-# Set the line length limit used when formatting code snippets in
-# docstrings.
-#
-# This only has an effect when the `docstring-code-format` setting is
-# enabled.
-docstring-code-line-length = "dynamic"
-
-
-[tool.pydocstyle]
-convention = 'google'
-# ignore all missing docs errors
-add-ignore = ['D100', 'D101', 'D102', 'D103', 'D104', 'D105', 'D106', 'D107']
-
-[tool.bandit]
-skips = ["B101"]
+[tool.ruff.lint.isort]
+known-first-party = ["latentis"]
+force-sort-within-sections = true
+combine-as-imports = true
 
 [build-system]
 requires = ["setuptools", "wheel", "setuptools_scm[toml]"]
@@ -116,15 +44,10 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools-git-versioning]
 enabled = true
 
-# [tool.setuptools_scm]
-# write_to = "src/latentis/_version.py"
-# write_to_template = '__version__ = "{version}"'
-
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "ruff",
     "pre-commit",
-    "bandit",
     "pytest",
     "pytest-cov",
     "transformers",
@@ -182,15 +105,6 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Mathematics",
     "Topic :: Scientific/Engineering :: Visualization",
     "License :: OSI Approved :: MIT License",
-    # "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
-
 ]
-
-[project.optional-dependencies]
-docs = ["mkdocs", "mkdocs-material", "mike"]
-
-test = ["pytest", "pytest-cov"]
-
-data = ["transformers", "datasets", "torchvision"]

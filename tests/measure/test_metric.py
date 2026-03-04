@@ -8,8 +8,7 @@ import torch.nn.functional as F
 
 from latentis.measure import MetricFn
 from latentis.measure.cka import CKA, CKAMode
-from latentis.measure.functional.cka import cka as cka_fn
-from latentis.measure.functional.cka import kernel_hsic, linear_hsic
+from latentis.measure.functional.cka import cka as cka_fn, kernel_hsic, linear_hsic
 from latentis.measure.functional.svcca import robust_svcca as svcca_fn
 from latentis.measure.svcca import SVCCA
 
@@ -137,18 +136,18 @@ def test_svcca(same_shape_spaces, different_dim_spaces, precomputed_svcca):
         svcca = SVCCA(tolerance=TOL)
 
         svcca_result = svcca(space1, space1)
-        assert (
-            svcca_result == pytest.approx(1.0, abs=TOL)
-        ), f"Computed a SVCCA value of {svcca_result} for identical spaces while it should be 1. "
+        assert svcca_result == pytest.approx(1.0, abs=TOL), (
+            f"Computed a SVCCA value of {svcca_result} for identical spaces while it should be 1. "
+        )
 
         # svcca must stay in 0, 1 range
         svcca_result = svcca(space1, space2)
         assert 0.0 - TOL <= svcca_result <= 1.0 + TOL
 
         symm_svcca_result = svcca(space2, space1)
-        assert symm_svcca_result == pytest.approx(
-            svcca_result, abs=TOL
-        ), f"Computed asymmetric SVCCA values: {symm_svcca_result}, {svcca_result} "
+        assert symm_svcca_result == pytest.approx(svcca_result, abs=TOL), (
+            f"Computed asymmetric SVCCA values: {symm_svcca_result}, {svcca_result} "
+        )
 
     # check that the svcca results didn't change from stored computations
     svcca_result = SVCCA(tolerance=TOL)(

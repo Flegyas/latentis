@@ -3,7 +3,6 @@ from typing import Any, Mapping
 import pytest
 import torch
 
-import latentis.transform.functional as FL
 from latentis.transform._abstract import FuncXTransform, Transform
 from latentis.transform.base import (
     Centering,
@@ -15,6 +14,7 @@ from latentis.transform.base import (
     StandardScaling,
     STDScaling,
 )
+import latentis.transform.functional as FL
 
 
 @pytest.mark.parametrize(

@@ -1,7 +1,7 @@
+from contextlib import contextmanager
 import logging
 import os
 import random
-from contextlib import contextmanager
 from typing import Optional
 
 import dotenv

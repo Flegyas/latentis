@@ -1,6 +1,6 @@
+from collections import UserDict, defaultdict
 import inspect
 import re
-from collections import UserDict, defaultdict
 from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
 import gin

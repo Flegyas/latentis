@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from abc import abstractmethod
 import hashlib
 import json
-from abc import abstractmethod
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, Optional
 

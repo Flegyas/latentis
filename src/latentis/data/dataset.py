@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import logging
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import auto
+import logging
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
 
@@ -108,12 +108,12 @@ class HFDatasetView(DatasetView):
         path: Optional[Path] = None,
     ):
         super().__init__()
-        assert isinstance(
-            hf_dataset, DatasetDict
-        ), f"Expected {DatasetDict}, got {type(hf_dataset)}"
-        assert len(set(features)) == len(
-            features
-        ), f"Features {features} contain duplicates!"
+        assert isinstance(hf_dataset, DatasetDict), (
+            f"Expected {DatasetDict}, got {type(hf_dataset)}"
+        )
+        assert len(set(features)) == len(features), (
+            f"Features {features} contain duplicates!"
+        )
         assert len(features) > 0, f"Features {features} must not be empty!"
         assert all(
             id_column in hf_dataset[split].column_names for split in hf_dataset.keys()
@@ -152,9 +152,9 @@ class HFDatasetView(DatasetView):
         path: Path,
         load_hf_dataset: bool = True,
     ) -> "DatasetView":
-        assert (
-            path / cls._METADATA_FILE_NAME
-        ).exists(), f"Metadata file {path / cls._METADATA_FILE_NAME} does not exist! Are you sure about the parameters?"
+        assert (path / cls._METADATA_FILE_NAME).exists(), (
+            f"Metadata file {path / cls._METADATA_FILE_NAME} does not exist! Are you sure about the parameters?"
+        )
 
         metadata = load_json(path / cls._METADATA_FILE_NAME)
 

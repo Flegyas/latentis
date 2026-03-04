@@ -172,7 +172,7 @@ def experiments_summary(
         estimators.add(repr(experiment["estimator"]))
         metrics.add((repr(experiment["metric"]), repr(experiment["metric_type"])))
 
-    return f"""Benchmark {benchmark_name if benchmark_name is not None else '' } (n={len(experiments)}):
+    return f"""Benchmark {benchmark_name if benchmark_name is not None else ""} (n={len(experiments)}):
     Fit correspondences: {len(fit_correspondences)}
     Fit x spaces: {len(fit_x_spaces)}
     Fit y spaces: {len(fit_y_spaces)}

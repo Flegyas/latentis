@@ -1,11 +1,12 @@
 from collections import UserDict
+import csv
 from pathlib import Path
 from typing import Any, Dict, Sequence, Union
 
 import pandas as pd
 import torch
 from transformers import BatchEncoding
-import csv
+
 from latentis.nn import LatentisModule
 from latentis.serialize.io_utils import SerializableMixin
 

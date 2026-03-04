@@ -1,8 +1,8 @@
+from collections import defaultdict
+from dataclasses import dataclass
 import functools
 import itertools
 import logging
-from collections import defaultdict
-from dataclasses import dataclass
 from typing import Optional
 
 import torch

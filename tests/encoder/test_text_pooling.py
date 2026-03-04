@@ -1,13 +1,14 @@
 import numpy as np
 import pytest
 import torch
-from latentis.nn.encoders import TextHFEncoder
+
 from latentis.data.encoding.text_pooling import (
-    token_pool,
+    cls_pool,
     mean_pool,
     sum_pool,
-    cls_pool,
+    token_pool,
 )
+from latentis.nn.encoders import TextHFEncoder
 
 
 @pytest.fixture

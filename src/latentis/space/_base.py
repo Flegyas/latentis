@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import copy
+from enum import auto
 import importlib
 import logging
-from enum import auto
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -33,10 +33,10 @@ from latentis.transform import Transform
 from latentis.types import Metadata, StrEnum
 
 if TYPE_CHECKING:
-    from latentis.sample import Sampler
-    from latentis.types import LatentisSpace
     from latentis.measure import MetricFn
+    from latentis.sample import Sampler
     from latentis.transform.translate import Translator
+    from latentis.types import LatentisSpace
 
 import torch
 
@@ -75,9 +75,9 @@ class Space(SerializableMixin):
         if isinstance(vector_source, torch.Tensor):
             vector_source = (vector_source, None)
 
-        assert isinstance(
-            vector_source, (torch.Tensor, Tuple, VectorSource)
-        ), f"Expected {torch.Tensor} or {VectorSource} or {Tuple[torch.Tensor, Sequence[str]]}, got {type(vector_source)}"
+        assert isinstance(vector_source, (torch.Tensor, Tuple, VectorSource)), (
+            f"Expected {torch.Tensor} or {VectorSource} or {Tuple[torch.Tensor, Sequence[str]]}, got {type(vector_source)}"
+        )
 
         self._vector_source: torch.Tensor = (
             TensorSource(vectors=vector_source[0], keys=vector_source[1])

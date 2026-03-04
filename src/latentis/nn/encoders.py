@@ -58,7 +58,11 @@ class TextHFEncoder(HFEncoder):
         )
         self.tokenizer = AutoTokenizer.from_pretrained(hf_name)
 
-        max_length = max_length or self.model.config.max_length
+        max_length = (
+            max_length
+            or getattr(self.model.config, "max_length", None)
+            or self.tokenizer.model_max_length
+        )
 
         self.pre_encode_kwargs = {
             "truncation": truncation,

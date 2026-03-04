@@ -4,10 +4,8 @@ import functools
 from typing import TYPE_CHECKING
 
 import pytest
-import torch
 from scipy.stats import ortho_group
-
-from tests.project.conftest import LATENT_DIM
+import torch
 
 from latentis.pipeline.flow import Flow, NNPipeline
 from latentis.space import Space
@@ -23,6 +21,7 @@ from latentis.transform.projection import (
     lp_proj,
     pointwise_wrapper,
 )
+from tests.project.conftest import LATENT_DIM
 
 if TYPE_CHECKING:
     from latentis.types import LatentisSpace
